@@ -5,7 +5,7 @@ import { renderCoaching } from './coaching.js';
 
 const TABS = [
   { id: 'overview', label: '전체 현황' },
-  { id: 'students', label: '학생' },
+  { id: 'students', label: '학생 관리' },
   { id: 'plans', label: '주간 계획' },
   { id: 'coaching', label: '코칭' },
   { id: 'exams', label: '성적' },
@@ -16,7 +16,7 @@ const DEFAULT_TAB = 'students';
 
 export function renderTeacher({ me, onLogout }) {
   const current = () => {
-    const id = location.hash.replace(/^#\//, '');
+    const id = location.hash.replace(/^#\//, '').split('?')[0];
     return TABS.some((t) => t.id === id) ? id : DEFAULT_TAB;
   };
 

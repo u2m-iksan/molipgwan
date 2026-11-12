@@ -1,35 +1,27 @@
-// 선생님 · 코칭 시간표: 학생별 주 1회 코칭 타임 배정 (요일·시간대·길이는 설정으로 변경)
+// 선생님 · 코칭: 맨 위 이전/현재/다음 타임 → 아래 코칭 요일별 시간표(보기용)
+// 코칭 타임 배정·변경은 학생 관리 탭(학생 클릭 → 일정)에서 함. 여기서 이름을 누르면 그 학생 일정이 열림.
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
-import { DOW, toMin, toTime, hm } from '../date.js';
+import { DOW, today, isoDow, toMin, toTime, hm } from '../date.js';
 import { loadStudents } from '../data/students.js';
-import {
-  getCoachConfig, saveCoachConfig, slotTimes, loadCoachingSlots, loadAllFixedSchedules, setCoachingSlot,
-} from '../data/schedules.js';
+import { getCoachConfig, saveCoachConfig, slotTimes, loadCoachingSlots, loadAllFixedSchedules } from '../data/schedules.js';
 
 export async function renderCoaching(body) {
-  const st = { cfg: null, students: [], slots: new Map(), fixed: [], sel: null, busy: false };
+  const st = { cfg: null, students: [], slots: new Map(), fixed: [] };
+  const token = {}; body._view = token;   // 다른 탭으로 바뀌면 타이머 중지용
 
   body.innerHTML = `
     <div class="t-head">
-      <h2>코칭 시간표 <span class="count" id="cfgLabel"></span></h2>
+      <h2>코칭 <span class="count" id="cfgLabel"></span></h2>
       <div class="spacer"></div>
       <button type="button" class="btn btn-gray btn-sm" id="cfgBtn">설정</button>
     </div>
+    <section class="now-row" id="now"></section>
     <div class="coach-wrap">
       <div class="card table-card coach-grid" id="grid"><div class="empty">불러오는 중</div></div>
       <aside class="card coach-side" id="side"></aside>
-    </div>
-    <div class="selbar" id="selbar" hidden>
-      <span id="selName"></span>
-      <span class="sub">옮길 칸을 선택하세요</span>
-      <div class="spacer"></div>
-      <button type="button" class="btn btn-sm btn-danger-text" id="selClear">배정 해제</button>
-      <button type="button" class="btn btn-gray btn-sm" id="selCancel">취소</button>
     </div>`;
 
   $('#cfgBtn').addEventListener('click', openSettings);
-  $('#selCancel').addEventListener('click', () => select(null));
-  $('#selClear').addEventListener('click', () => move(null));
 
   async function reload() {
     try {
@@ -41,38 +33,79 @@ export async function renderCoaching(body) {
     }
   }
 
-  // 코칭 시간과 겹치는 학교·학원 일정
+  const who = (d, t) => st.students.filter((s) => {
+    const sl = st.slots.get(s.id);
+    return sl && sl.weekday === d && hm(sl.start_time) === t;
+  });
+
   function conflict(sid, slot) {
     const a = toMin(slot.start_time), b = toMin(slot.end_time);
     return st.fixed.find((f) => f.student_id === sid && f.weekday === slot.weekday && toMin(f.start_time) < b && toMin(f.end_time) > a);
   }
 
-  const chip = (s, slot) => {
+  const chip = (s, slot, big = false) => {
     const c = slot && conflict(s.id, slot);
-    return `<button type="button" class="stu${st.sel === s.id ? ' sel' : ''}${c ? ' warn' : ''}" data-sid="${esc(s.id)}"
+    return `<button type="button" class="stu${big ? ' big' : ''}${c ? ' warn' : ''}" data-sid="${esc(s.id)}"
       title="${c ? esc(`${c.title} ${hm(c.start_time)}~${hm(c.end_time)}와 겹침`) : ''}">
       ${s.seat_no ? `<i>${esc(s.seat_no)}</i>` : ''}${esc(s.name)}<small>${esc(s.grade)}</small></button>`;
   };
 
+  /* ---------- 이전 · 현재 · 다음 타임 ---------- */
+  function nowSlots() {
+    const { cfg } = st;
+    const days = [...cfg.days].sort();
+    const times = slotTimes(cfg);
+    const all = [];
+    for (const d of days) for (const t of times) all.push({ d, t, s: (d - 1) * 1440 + toMin(t) });
+    if (!all.length) return {};
+    const clock = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit' });
+    const nowAbs = (isoDow(today()) - 1) * 1440 + toMin(clock);
+    const cur = all.find((x) => x.s <= nowAbs && nowAbs < x.s + cfg.minutes);
+    const prev = [...all].reverse().find((x) => x.s + cfg.minutes <= nowAbs) || all[all.length - 1];
+    const next = all.find((x) => x.s > nowAbs) || all[0];
+    return { prev, cur, next };
+  }
+
+  function drawNow() {
+    const el = $('#now');
+    if (!el) return;
+    const { prev, cur, next } = nowSlots();
+    const todayDow = isoDow(today());
+    const label = (x) => `${x.d === todayDow ? '오늘' : DOW[x.d] + '요일'} ${x.t}~${toTime(toMin(x.t) + st.cfg.minutes)}`;
+    const card = (title, x, cls) => {
+      const list = x ? who(x.d, x.t) : [];
+      return `<div class="now-card ${cls}">
+        <div class="now-top"><span class="now-tag">${title}</span><span class="now-time">${x ? label(x) : '진행 중인 타임 없음'}</span></div>
+        <div class="now-list">${x ? (list.map((s) => chip(s, st.slots.get(s.id), true)).join('') || '<span class="sub">배정 없음</span>') : ''}</div>
+      </div>`;
+    };
+    el.innerHTML = card('이전', prev, 'prev') + card('현재', cur, 'cur') + card('다음', next, 'next');
+    $$('.stu', el).forEach(wireChip);
+  }
+
+  function wireChip(b) {
+    b.addEventListener('click', () => { location.hash = `#/students?open=${b.dataset.sid}`; });
+  }
+
+  /* ---------- 시간표 ---------- */
   function draw() {
     const { cfg } = st;
     const days = [...cfg.days].sort();
     const times = slotTimes(cfg);
     $('#cfgLabel').textContent = `${days.map((d) => DOW[d]).join('·')} ${cfg.start}~${cfg.end} · ${cfg.minutes}분`;
+    drawNow();
 
-    const at = (d, t) => st.students.filter((s) => {
-      const sl = st.slots.get(s.id);
-      return sl && sl.weekday === d && hm(sl.start_time) === t;
-    });
-
+    const { cur } = nowSlots();
+    const td = isoDow(today());
     $('#grid').innerHTML = `
-      <table class="tt" style="--cols:${days.length}">
-        <thead><tr><th class="tt-time"></th>${days.map((d) => `<th>${DOW[d]}요일</th>`).join('')}</tr></thead>
+      <table class="tt">
+        <thead><tr><th class="tt-time"></th>${days.map((d) => `<th>${DOW[d]}요일${d === td ? ' <span class="today">오늘</span>' : ''}</th>`).join('')}</tr></thead>
         <tbody>${times.map((t) => `
           <tr><th class="tt-time">${t}<small>~${toTime(toMin(t) + cfg.minutes)}</small></th>
             ${days.map((d) => {
-              const list = at(d, t);
-              return `<td class="cell${list.length > 1 ? ' multi' : ''}" data-d="${d}" data-t="${t}">${list.map((s) => chip(s, st.slots.get(s.id))).join('')}</td>`;
+              const list = who(d, t);
+              const isCur = cur && cur.d === d && cur.t === t;
+              return `<td class="cell${list.length > 1 ? ' multi' : ''}${isCur ? ' cur' : ''}">${list.map((s) => chip(s, st.slots.get(s.id))).join('')}</td>`;
             }).join('')}</tr>`).join('')}
         </tbody>
       </table>`;
@@ -80,49 +113,24 @@ export async function renderCoaching(body) {
     const inGrid = (sl) => sl && days.includes(sl.weekday) && times.includes(hm(sl.start_time));
     const none = st.students.filter((s) => !st.slots.get(s.id));
     const out = st.students.filter((s) => st.slots.get(s.id) && !inGrid(st.slots.get(s.id)));
-    const assigned = st.students.length - none.length;
     $('#side').innerHTML = `
-      <div class="side-sec"><h4>배정 현황</h4><p class="big">${assigned}<span> / ${st.students.length}명</span></p>
+      <div class="side-sec"><h4>배정 현황</h4><p class="big">${st.students.length - none.length}<span> / ${st.students.length}명</span></p>
         <p class="legend"><span class="dot-o"></span>학교·학원 일정과 겹침</p></div>
       ${out.length ? `<div class="side-sec"><h4 class="red">재배정 필요 ${out.length}</h4>
         <p class="sub-s">현재 설정 밖의 시간에 배정되어 있습니다.</p>
         <div class="stu-list">${out.map((s) => { const sl = st.slots.get(s.id); return chip(s) + `<span class="was">${DOW[sl.weekday]} ${hm(sl.start_time)}</span>`; }).join('')}</div></div>` : ''}
       <div class="side-sec"><h4>미배정 ${none.length}</h4>
-        <div class="stu-list" id="noneList">${none.map((s) => chip(s)).join('') || '<p class="sub-s">모든 학생이 배정되었습니다.</p>'}</div></div>`;
+        <div class="stu-list">${none.map((s) => chip(s)).join('') || '<p class="sub-s">모든 학생이 배정되었습니다.</p>'}</div></div>
+      <p class="sub-s">이름을 누르면 학생 관리의 일정으로 이동합니다.</p>`;
 
-    $$('.stu', body).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); select(st.sel === b.dataset.sid ? null : b.dataset.sid); }));
-    $$('.cell', body).forEach((td) => td.addEventListener('click', () => {
-      if (st.sel) move({ weekday: Number(td.dataset.d), start: td.dataset.t });
-    }));
-    body.classList.toggle('picking', !!st.sel);
+    $$('#grid .stu, #side .stu').forEach(wireChip);
   }
 
-  function select(id) {
-    st.sel = id;
-    const s = st.students.find((x) => x.id === id);
-    $('#selbar').hidden = !s;
-    if (s) {
-      $('#selName').innerHTML = `<b>${esc(s.name)}</b>`;
-      $('#selClear').hidden = !st.slots.get(id);
-    }
-    draw();
-  }
-
-  async function move(slot) {
-    if (st.busy || !st.sel) return;
-    const sid = st.sel, s = st.students.find((x) => x.id === sid);
-    const cur = st.slots.get(sid);
-    if (slot && cur && cur.weekday === slot.weekday && hm(cur.start_time) === slot.start) return select(null);
-    st.busy = true;
-    try {
-      await setCoachingSlot(sid, slot, st.cfg);
-      toast(slot ? `${s.name} · ${DOW[slot.weekday]} ${slot.start}` : `${s.name} 배정 해제`);
-      st.sel = null; $('#selbar').hidden = true;
-      st.slots = await loadCoachingSlots();
-      draw();
-    } catch (e) { toast('저장 실패: ' + e.message); }
-    st.busy = false;
-  }
+  // 1분마다 이전/현재/다음 갱신 (탭을 떠나면 자동 중지)
+  const timer = setInterval(() => {
+    if (body._view !== token) return clearInterval(timer);
+    if (st.cfg) draw();
+  }, 60000);
 
   /* ---------- 설정 ---------- */
   function openSettings() {

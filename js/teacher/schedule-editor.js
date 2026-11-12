@@ -2,15 +2,24 @@
 //   반복 일정: 학교 / 학원 / 기타 × 요일 × 시간 × 기간(계속 · 이번 주만 · 기간 지정)
 import { $, $$, esc, toast } from '../ui.js';
 import { DOW, today, addMonths, addDays, hm, toMin } from '../date.js';
-import { loadStudentSchedules, groupSchedules, addSchedule, endSchedule, periodLabel } from '../data/schedules.js';
+import {
+  loadStudentSchedules, groupSchedules, addSchedule, endSchedule, periodLabel,
+  getCoachConfig, slotTimes, loadCoachingSlots, setCoachingSlot,
+} from '../data/schedules.js';
 
 const CATS = ['학교', '학원', '기타'];
 const CAT_PILL = { 학교: 'pill-gray', 학원: 'pill-blue', 기타: 'pill-orange', 코칭: 'pill-green' };
 
 export async function renderScheduleEditor(root, stu, { canCoach = false } = {}) {
   root.innerHTML = '<div class="drawer-body"><div class="empty">불러오는 중</div></div>';
-  let rows;
-  try { rows = await loadStudentSchedules(stu.id); }
+  let rows, cfg = null, allSlots = new Map();
+  try {
+    [rows, cfg, allSlots] = await Promise.all([
+      loadStudentSchedules(stu.id),
+      canCoach ? getCoachConfig() : null,
+      canCoach ? loadCoachingSlots() : new Map(),
+    ]);
+  }
   catch (e) { root.innerHTML = `<div class="drawer-body"><p class="err">불러오기 실패: ${esc(e.message)}</p></div>`; return; }
 
   const t = today();
@@ -24,9 +33,15 @@ export async function renderScheduleEditor(root, stu, { canCoach = false } = {})
         <h4>코칭</h4>
         <div class="sched-row">
           <span class="pill ${CAT_PILL['코칭']}">코칭</span>
-          <div class="sched-main">${coach ? `<b>${DOW[coach.weekday]}요일 ${hm(coach.start_time)}~${hm(coach.end_time)}</b>` : '<span class="sub">미배정</span>'}</div>
-          ${canCoach ? '<a class="link-s" href="#/coaching" data-close>시간표에서 변경</a>' : ''}
+          <div class="sched-main">${coach ? `<b>${DOW[coach.weekday]}요일 ${hm(coach.start_time)}~${hm(coach.end_time)}</b>` : '<span class="sub">미배정</span>'}
+            <span class="sub" id="c-warn"></span></div>
         </div>
+        ${canCoach ? `<div class="coach-pick">
+          <div class="seg" id="c-day">${[...cfg.days].sort().map((d) => `<button type="button" data-v="${d}">${DOW[d]}</button>`).join('')}</div>
+          <div class="input"><select id="c-time" aria-label="코칭 시간"></select></div>
+          <button type="button" class="btn btn-primary btn-sm" id="c-save">${coach ? '변경' : '배정'}</button>
+          ${coach ? '<button type="button" class="btn btn-sm btn-danger-text" id="c-clear">해제</button>' : ''}
+        </div>` : ''}
       </div>
 
       <div class="sched-sec">
@@ -61,6 +76,37 @@ export async function renderScheduleEditor(root, stu, { canCoach = false } = {})
         <button type="button" class="btn btn-primary btn-sm btn-block" id="a-go">추가</button>
       </div>
     </div>`;
+
+  // 코칭 타임 배정 (요일 · 시간, 시간 옆에 그 타임 인원 표시)
+  if (canCoach) {
+    const pick = { day: coach?.weekday ?? [...cfg.days].sort()[0], time: coach ? hm(coach.start_time) : null };
+    const count = (d, tm) => [...allSlots.entries()].filter(([sid, r]) => sid !== stu.id && r.weekday === d && hm(r.start_time) === tm).length;
+    const fixed = rows.filter((r) => r.category !== '코칭' && r.valid_from <= t);
+    const clash = (d, tm) => fixed.find((r) => r.weekday === d && toMin(r.start_time) < toMin(tm) + cfg.minutes && toMin(r.end_time) > toMin(tm));
+    const drawPick = () => {
+      $$('#c-day button', root).forEach((b) => b.classList.toggle('on', Number(b.dataset.v) === pick.day));
+      $('#c-time', root).innerHTML = slotTimes(cfg).map((tm) => {
+        const n = count(pick.day, tm), c = clash(pick.day, tm);
+        return `<option value="${tm}"${tm === pick.time ? ' selected' : ''}>${tm}${n ? ` · ${n}명` : ''}${c ? ` · ${c.title} 겹침` : ''}</option>`;
+      }).join('');
+      if (!pick.time) pick.time = $('#c-time', root).value;
+      const c = clash(pick.day, pick.time);
+      $('#c-warn', root).textContent = c ? `선택한 시간이 ${c.title}(${hm(c.start_time)}~${hm(c.end_time)})과 겹칩니다.` : '';
+    };
+    $('#c-day', root).addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { pick.day = Number(b.dataset.v); drawPick(); } });
+    $('#c-time', root).addEventListener('change', (e) => { pick.time = e.target.value; drawPick(); });
+    drawPick();
+    $('#c-save', root).addEventListener('click', async () => {
+      try {
+        await setCoachingSlot(stu.id, { weekday: pick.day, start: pick.time }, cfg);
+        toast(`코칭 ${DOW[pick.day]} ${pick.time}`); renderScheduleEditor(root, stu, { canCoach });
+      } catch (e) { toast('저장 실패: ' + e.message); }
+    });
+    $('#c-clear', root)?.addEventListener('click', async () => {
+      try { await setCoachingSlot(stu.id, null, cfg); toast('코칭 배정 해제'); renderScheduleEditor(root, stu, { canCoach }); }
+      catch (e) { toast('저장 실패: ' + e.message); }
+    });
+  }
 
   const paint = () => {
     $$('#a-cat button', root).forEach((b) => b.classList.toggle('on', b.dataset.v === f.category));

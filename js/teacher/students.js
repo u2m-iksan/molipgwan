@@ -13,7 +13,7 @@ export async function renderStudents(body) {
 
   body.innerHTML = `
     <div class="t-head">
-      <h2>학생 <span class="count" id="cnt"></span></h2>
+      <h2>학생 관리 <span class="count" id="cnt"></span></h2>
       <div class="spacer"></div>
       <button type="button" class="btn btn-gray btn-sm" id="imp">가져오기</button>
       <button type="button" class="btn btn-primary btn-sm" id="add">학생 등록</button>
@@ -99,8 +99,8 @@ export async function renderStudents(body) {
       <div class="drawer">
         <div class="drawer-head"><h3>${stu ? esc(stu.name) : '학생 등록'}</h3>
           <button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
-        ${stu ? `<div class="drawer-tabs seg seg-wide" id="d-tabs"><button type="button" data-v="info" class="on">기본 정보</button><button type="button" data-v="sched">일정</button></div>` : ''}
-        <form class="pane" id="ed" novalidate>
+        ${stu ? `<div class="drawer-tabs seg seg-wide" id="d-tabs"><button type="button" data-v="sched" class="on">일정</button><button type="button" data-v="info">기본 정보</button></div>` : ''}
+        <form class="pane" id="ed" novalidate${stu ? ' hidden' : ''}>
         <div class="drawer-body">
           <div class="row2">
             <div class="field"><label for="f-name">이름</label><div class="input"><input id="f-name" value="${esc(f.name)}" autocomplete="off"></div></div>
@@ -127,7 +127,7 @@ export async function renderStudents(body) {
           <button type="submit" class="btn btn-primary btn-sm" id="f-save">${stu ? '저장' : '등록'}</button>
         </div>
         </form>
-        <div class="pane" id="sched" hidden></div>
+        <div class="pane" id="sched"${stu ? '' : ' hidden'}></div>
       </div>`);
 
     if (stu) {
@@ -139,6 +139,7 @@ export async function renderStudents(body) {
         $('#sched', panel).hidden = b.dataset.v !== 'sched';
         if (b.dataset.v === 'sched') renderScheduleEditor($('#sched', panel), stu, { canCoach: true });
       });
+      renderScheduleEditor($('#sched', panel), stu, { canCoach: true });
     }
 
     const pick = (id, key) => {
@@ -217,7 +218,7 @@ export async function renderStudents(body) {
         panel.close(); toast(stu ? '저장되었습니다' : `${f.name.trim()} 등록됨`); reload();
       } catch (ex) { err.textContent = '저장 실패: ' + ex.message; btn.disabled = false; }
     });
-    setTimeout(() => $('#f-name', panel).focus(), 50);
+    if (!stu) setTimeout(() => $('#f-name', panel).focus(), 50);
   }
 
   /* ---------- 가져오기 ---------- */
@@ -286,4 +287,10 @@ export async function renderStudents(body) {
   }
 
   await reload();
+  const openId = new URLSearchParams(location.hash.split('?')[1] || '').get('open');
+  if (openId) {
+    history.replaceState(null, '', '#/students');
+    const s = state.list.find((x) => x.id === openId);
+    if (s) openEditor(s);
+  }
 }

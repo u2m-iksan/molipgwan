@@ -335,3 +335,26 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .modal-s{width:min(460px,100%)}
 .legend{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);margin-top:6px}
 .dot-o{width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.coach-pick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 0 6px}
+.coach-pick .input{height:40px;border-radius:10px;flex:1;min-width:150px;background:#fff}
+.coach-pick select{flex:1;border:0;background:none;outline:none;font:inherit;font-size:14px}
+#c-warn{color:var(--orange)}
+
+/* 코칭: 이전 · 현재 · 다음 */
+.now-row{display:grid;grid-template-columns:1fr 1.35fr 1fr;gap:12px;margin-bottom:16px}
+@media (max-width:900px){.now-row{grid-template-columns:1fr}}
+.now-card{border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;background:#fff;min-height:118px;display:flex;flex-direction:column;gap:10px}
+.now-card.cur{border:2px solid var(--blue);background:linear-gradient(0deg,#fff,#fff),var(--blue-soft);box-shadow:0 6px 20px rgba(49,130,246,.10)}
+.now-card.prev{background:var(--surface2)}
+.now-top{display:flex;align-items:center;gap:8px}
+.now-tag{font-size:12px;font-weight:800;padding:3px 8px;border-radius:6px;background:var(--surface);color:var(--sub)}
+.now-card.cur .now-tag{background:var(--blue);color:#fff}
+.now-card.next .now-tag{background:var(--text);color:#fff}
+.now-time{font-size:14px;font-weight:700;font-feature-settings:"tnum"}
+.now-card.prev .now-time{color:var(--sub)}
+.now-list{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.stu.big{height:42px;padding:0 14px;font-size:16px;border-radius:12px}
+.now-card.prev .stu{opacity:.75}
+.tt td.cur{background:var(--blue-soft);box-shadow:inset 3px 0 0 var(--blue)}
+.today{font-size:11px;font-weight:800;color:#fff;background:var(--blue);border-radius:5px;padding:1px 6px;margin-left:4px}
+.tt .stu{cursor:pointer}

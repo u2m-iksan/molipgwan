@@ -270,3 +270,8 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .toast{position:fixed;left:50%;bottom:28px;z-index:80;transform:translate(-50%,20px);opacity:0;background:var(--text);color:#fff;font-size:14px;font-weight:600;
   padding:12px 18px;border-radius:12px;transition:opacity .25s,transform .3s cubic-bezier(.2,.8,.2,1);pointer-events:none}
 .toast.show{opacity:1;transform:translate(-50%,0)}
+.seat{display:inline-grid;place-items:center;min-width:34px;height:26px;padding:0 6px;border-radius:7px;background:var(--surface);font-size:13px;font-weight:700}
+.seat.none{background:none;color:var(--faint);font-weight:500}
+.row2{display:flex;gap:10px}
+.row2>.field{flex:1;min-width:0}
+.row2>.field-s{flex:0 0 120px}

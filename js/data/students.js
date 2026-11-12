@@ -64,6 +64,7 @@ async function dropFamilyIfEmpty(familyId) {
 function studentRow(f) {
   return {
     name: f.name.trim(), grade: f.grade, school: (f.school || '').trim() || null, status: f.status || '재원',
+    seat_no: String(f.seat_no || '').trim() || null,
     traits: f.traits || [], trait_note: (f.trait_note || '').trim() || null,
     avoid_subject: (f.traits || []).includes('과목 회피') ? (f.avoid_subject || null) : null,
   };
@@ -103,6 +104,7 @@ const COLS = {
   student_phone: ['학생전화', '학생 전화', '학생연락처', '학생 휴대폰'],
   parent_phone: ['학부모전화', '학부모 전화', '학부모연락처', '학부모 휴대폰', '보호자전화'],
   status: ['재원여부', '재원 여부', '상태'],
+  seat_no: ['자리번호', '자리 번호', '자리', '좌석', '좌석번호'],
 };
 
 export function parseSheet(text) {
@@ -119,7 +121,7 @@ export function parseSheet(text) {
     const get = (k) => (idx[k] >= 0 ? r[idx[k]] || '' : '');
     const st = get('status');
     const item = {
-      name: get('name'), grade: get('grade'), school: get('school'),
+      name: get('name'), grade: get('grade'), school: get('school'), seat_no: get('seat_no'),
       student_phone: get('student_phone'), parent_phone: get('parent_phone'),
       status: STATUSES.includes(st) ? st : '재원',
     };

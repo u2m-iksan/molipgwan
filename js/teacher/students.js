@@ -8,7 +8,7 @@ import {
 const STATUS_PILL = { 재원: 'pill-green', 휴원: 'pill-orange', 퇴원: 'pill-gray' };
 
 export async function renderStudents(body) {
-  const state = { list: [], status: '재원', level: '전체', q: '' };
+  const state = { list: [], status: '재원', level: '전체', q: '', sort: 'seat' };
 
   body.innerHTML = `
     <div class="t-head">
@@ -20,7 +20,8 @@ export async function renderStudents(body) {
     <div class="t-tools">
       <div class="seg" id="segStatus">${['재원', '휴원', '퇴원', '전체'].map((s) => `<button type="button" data-v="${s}">${s}</button>`).join('')}</div>
       <div class="seg" id="segLevel">${['전체', '중등', '고등'].map((s) => `<button type="button" data-v="${s}">${s}</button>`).join('')}</div>
-      <div class="search"><input id="q" type="search" placeholder="이름 · 학교 · 번호 검색" aria-label="검색"></div>
+      <div class="seg" id="segSort"><button type="button" data-v="seat">자리순</button><button type="button" data-v="name">이름순</button></div>
+      <div class="search"><input id="q" type="search" placeholder="이름 · 학교 · 자리 · 번호 검색" aria-label="검색"></div>
     </div>
     <div class="card table-card"><div class="table-wrap" id="tbl"><div class="empty">불러오는 중</div></div></div>`;
 
@@ -32,6 +33,7 @@ export async function renderStudents(body) {
   };
   seg('#segStatus', 'status');
   seg('#segLevel', 'level');
+  seg('#segSort', 'sort');
   $('#q').addEventListener('input', (e) => { state.q = e.target.value.trim(); draw(); });
   $('#add').addEventListener('click', () => openEditor(null));
   $('#imp').addEventListener('click', openImport);
@@ -46,12 +48,17 @@ export async function renderStudents(body) {
     return state.list.filter((s) =>
       (state.status === '전체' || s.status === state.status) &&
       (state.level === '전체' || s.grade.startsWith(state.level === '중등' ? '중' : '고')) &&
-      (!q || s.name.includes(q) || (s.school || '').includes(q) ||
+      (!q || s.name.includes(q) || (s.school || '').includes(q) || (s.seat_no || '') === q ||
         (qd.length >= 3 && (digits(s.parent_phone).includes(qd) || digits(s.student_phone).includes(qd)))));
   }
 
+  const bySeat = (a, b) => {
+    if (!a.seat_no !== !b.seat_no) return a.seat_no ? -1 : 1;
+    return String(a.seat_no || '').localeCompare(String(b.seat_no || ''), 'ko', { numeric: true }) || a.name.localeCompare(b.name, 'ko');
+  };
+
   function draw() {
-    const rows = filtered();
+    const rows = filtered().sort(state.sort === 'seat' ? bySeat : (a, b) => a.name.localeCompare(b.name, 'ko'));
     const active = state.list.filter((s) => s.status === '재원').length;
     $('#cnt').textContent = `재원 ${active}명`;
     if (!rows.length) {
@@ -60,9 +67,10 @@ export async function renderStudents(body) {
     }
     $('#tbl').innerHTML = `
       <table class="tbl">
-        <thead><tr><th>이름</th><th>학년</th><th>학교</th><th>학부모 번호</th><th>로그인 번호</th><th>학생 번호</th><th>특성</th><th>상태</th></tr></thead>
+        <thead><tr><th>자리</th><th>이름</th><th>학년</th><th>학교</th><th>학부모 번호</th><th>로그인 번호</th><th>학생 번호</th><th>특성</th><th>상태</th></tr></thead>
         <tbody>${rows.map((s) => `
           <tr data-id="${esc(s.id)}" tabindex="0">
+            <td><span class="seat${s.seat_no ? '' : ' none'}">${esc(s.seat_no || '-')}</span></td>
             <td><b>${esc(s.name)}</b>${s.siblings.length ? ` <span class="tag" title="형제: ${esc(s.siblings.join(', '))}">형제 ${s.siblings.length}</span>` : ''}</td>
             <td>${esc(s.grade)}</td>
             <td>${esc(s.school || '')}</td>
@@ -84,14 +92,18 @@ export async function renderStudents(body) {
   /* ---------- 등록 · 수정 패널 ---------- */
   function openEditor(stu) {
     const f = stu ? { ...stu, traits: [...(stu.traits || [])] }
-      : { name: '', grade: '', school: '', parent_phone: '', student_phone: '', status: '재원', traits: [], avoid_subject: '', trait_note: '' };
+      : { name: '', seat_no: '', grade: '', school: '', parent_phone: '', student_phone: '', status: '재원', traits: [], avoid_subject: '', trait_note: '' };
 
     const panel = sheet(`
       <form class="drawer" id="ed" novalidate>
         <div class="drawer-head"><h3>${stu ? '학생 정보' : '학생 등록'}</h3>
           <button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
         <div class="drawer-body">
-          <div class="field"><label for="f-name">이름</label><div class="input"><input id="f-name" value="${esc(f.name)}" autocomplete="off"></div></div>
+          <div class="row2">
+            <div class="field"><label for="f-name">이름</label><div class="input"><input id="f-name" value="${esc(f.name)}" autocomplete="off"></div></div>
+            <div class="field field-s"><label for="f-seat">자리번호</label><div class="input"><input id="f-seat" value="${esc(f.seat_no || '')}" autocomplete="off"></div>
+              <p class="hint" id="f-seat-hint"></p></div>
+          </div>
           <div class="field"><span class="lbl">학년</span><div class="seg seg-wide" id="f-grade">${GRADES.map((g) => `<button type="button" data-v="${g}">${g}</button>`).join('')}</div></div>
           <div class="field"><label for="f-school">학교</label><div class="input"><input id="f-school" value="${esc(f.school || '')}" autocomplete="off"></div></div>
           <div class="field"><label for="f-pp">학부모 휴대폰</label><div class="input"><input id="f-pp" inputmode="numeric" value="${esc(f.parent_phone)}" autocomplete="off" placeholder="010-0000-0000"></div>
@@ -151,6 +163,16 @@ export async function renderStudents(body) {
     pp.addEventListener('input', phoneHint);
     phoneHint();
 
+    // 자리번호 중복 안내 (재원 학생 기준)
+    const seat = $('#f-seat', panel), seatHint = $('#f-seat-hint', panel);
+    const seatCheck = () => {
+      const v = seat.value.trim();
+      const who = v && state.list.find((s) => s.status === '재원' && (s.seat_no || '') === v && (!stu || s.id !== stu.id));
+      seatHint.textContent = who ? `${who.name} 사용 중` : '';
+    };
+    seat.addEventListener('input', seatCheck);
+    seatCheck();
+
     // 삭제: 두 번 눌러 확인
     const del = $('#f-del', panel);
     if (del) {
@@ -165,7 +187,7 @@ export async function renderStudents(body) {
 
     $('#ed', panel).addEventListener('submit', async (e) => {
       e.preventDefault();
-      f.name = $('#f-name', panel).value; f.school = $('#f-school', panel).value;
+      f.name = $('#f-name', panel).value; f.school = $('#f-school', panel).value; f.seat_no = $('#f-seat', panel).value;
       f.parent_phone = pp.value; f.student_phone = $('#f-sp', panel).value;
       f.avoid_subject = $('#f-avoid', panel).value; f.trait_note = $('#f-note', panel).value;
       const err = $('#f-err', panel);
@@ -219,8 +241,8 @@ export async function renderStudents(body) {
       const fams = new Set(n.map((p) => digits(p.parent_phone))).size;
       const label = { new: ['신규', 'pill-blue'], dup: ['이미 등록', 'pill-gray'], skip: ['제외', 'pill-gray'], bad: ['오류', 'pill-red'] };
       prev.innerHTML = `<div class="table-wrap prev"><table class="tbl tbl-s">
-        <thead><tr><th>이름</th><th>학년</th><th>학교</th><th>학부모 번호</th><th>상태</th><th></th></tr></thead>
-        <tbody>${parsed.map((p) => `<tr class="${p.state === 'new' ? '' : 'dim'}"><td>${esc(p.name)}</td><td>${esc(p.grade)}</td><td>${esc(p.school)}</td>
+        <thead><tr><th>자리</th><th>이름</th><th>학년</th><th>학교</th><th>학부모 번호</th><th>상태</th><th></th></tr></thead>
+        <tbody>${parsed.map((p) => `<tr class="${p.state === 'new' ? '' : 'dim'}"><td>${esc(p.seat_no || '')}</td><td>${esc(p.name)}</td><td>${esc(p.grade)}</td><td>${esc(p.school)}</td>
           <td>${esc(fmtPhone(p.parent_phone))}</td><td>${esc(p.status)}</td>
           <td><span class="pill ${label[p.state][1]}">${p.problem ? esc(p.problem) : label[p.state][0]}</span></td></tr>`).join('')}</tbody></table></div>`;
       $('#im-sum', panel).textContent = `신규 ${n.length}명 · ${fams}가족`;

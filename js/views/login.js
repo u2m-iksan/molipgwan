@@ -17,7 +17,7 @@ export function renderRole({ onPick }) {
     <main class="auth">
       <div class="auth-card">
         ${BRAND}
-        <h1>로그인</h1>
+        <h1>학습 관리 시스템</h1>
         <div class="roles">
           ${row('student', ICON.student)}
           ${row('parent', ICON.parent)}

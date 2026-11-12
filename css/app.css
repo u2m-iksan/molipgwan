@@ -275,3 +275,63 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .row2{display:flex;gap:10px}
 .row2>.field{flex:1;min-width:0}
 .row2>.field-s{flex:0 0 120px}
+
+/* ===== 패널 탭 · 일정 ===== */
+.drawer-tabs{margin:4px 24px 8px}
+.pane{flex:1;min-height:0;display:flex;flex-direction:column}
+.pane[hidden]{display:none}
+.sched-sec{margin:10px 0 18px}
+.sched-sec h4,.sched-add h4,.side-sec h4{font-size:14px;font-weight:700;margin-bottom:8px}
+.sched-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.sched-row:last-child{border-bottom:0}
+.sched-main{flex:1;min-width:0;display:flex;flex-direction:column;font-size:14px}
+.sched-main .sub{font-size:13px}
+.period{font-size:12px;font-weight:600;color:var(--sub);white-space:nowrap}
+.period.temp{color:var(--orange)}
+.icon-btn.sm{width:32px;height:32px}
+.icon-btn.armed{background:var(--red-soft);color:var(--red)}
+.link-s{font-size:13px;font-weight:600;color:var(--blue-dark)}
+.sub-s{font-size:13px;color:var(--sub)}
+.sched-add{margin-top:6px;padding:16px;border-radius:14px;background:var(--surface2);border:1px solid var(--line)}
+.sched-add .input{background:#fff}
+.chips.days .chip-t{width:40px;padding:0;background:#fff}
+.chips.days .chip-t.on{background:var(--blue-soft)}
+.field input[type=time],.field input[type=date]{flex:1;border:0;background:none;outline:none;font:inherit;font-size:15px}
+
+/* ===== 코칭 시간표 ===== */
+.coach-wrap{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.coach-grid{flex:999 1 560px;min-width:0}
+.coach-side{flex:1 1 240px;max-width:300px;padding:18px}
+.tt{width:100%;border-collapse:collapse;table-layout:fixed}
+.tt th{font-size:13px;font-weight:700;color:var(--sub);padding:12px;border-bottom:1px solid var(--line);background:var(--surface2);text-align:left}
+.tt .tt-time{width:96px;font-size:14px;color:var(--text);font-feature-settings:"tnum"}
+.tt tbody .tt-time{background:#fff;vertical-align:top;padding-top:14px}
+.tt .tt-time small{display:block;font-size:11px;font-weight:500;color:var(--faint)}
+.tt td{border-bottom:1px solid var(--line);border-left:1px solid var(--line);padding:8px;vertical-align:top;height:58px;transition:background-color .12s}
+.tt tbody tr:last-child td,.tt tbody tr:last-child th{border-bottom:0}
+.picking .tt td{cursor:pointer}
+.picking .tt td:hover{background:var(--blue-soft)}
+.tt td.multi{background:var(--orange-soft)}
+.stu{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 10px;margin:2px;border-radius:10px;background:#fff;border:1.5px solid var(--line);font-size:14px;font-weight:600;
+  transition:border-color .15s,background-color .15s,transform .12s,box-shadow .15s}
+.stu:hover{border-color:var(--faint)}
+.stu:active{transform:scale(.96)}
+.stu i{font-style:normal;font-size:11px;font-weight:700;color:var(--sub);background:var(--surface);border-radius:5px;padding:1px 5px}
+.stu small{font-size:12px;font-weight:500;color:var(--sub)}
+.stu.sel{border-color:var(--blue);background:var(--blue-soft);box-shadow:0 0 0 3px rgba(49,130,246,.15)}
+.stu.warn{border-color:#F2C48A}
+.stu.warn::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.side-sec{padding:4px 0 16px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.side-sec:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.side-sec h4.red{color:var(--red)}
+.side-sec .big{font-size:28px;font-weight:800;letter-spacing:-0.03em}
+.side-sec .big span{font-size:15px;font-weight:600;color:var(--sub)}
+.stu-list{display:flex;flex-wrap:wrap;gap:2px;align-items:center}
+.was{font-size:12px;color:var(--red);margin:0 8px 0 2px}
+.selbar{position:fixed;left:50%;bottom:24px;z-index:40;transform:translateX(-50%);display:flex;align-items:center;gap:12px;min-width:420px;
+  padding:10px 12px 10px 20px;border-radius:16px;background:#fff;border:1px solid var(--line);box-shadow:0 12px 32px rgba(0,27,55,.14);animation:rise .25s cubic-bezier(.2,.8,.2,1)}
+.selbar[hidden]{display:none}
+.selbar .sub{font-size:13px}
+.modal-s{width:min(460px,100%)}
+.legend{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);margin-top:6px}
+.dot-o{width:6px;height:6px;border-radius:50%;background:var(--orange)}

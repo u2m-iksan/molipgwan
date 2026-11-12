@@ -1,9 +1,10 @@
 // 선생님 · 학생 관리: 목록 / 등록·수정(오른쪽 패널) / 기존 시트에서 가져오기
-import { $, $$, esc, toast } from '../ui.js';
+import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import {
   GRADES, STATUSES, SUBJECTS, TRAITS, digits, fmtPhone, validPhone,
   loadStudents, createStudent, updateStudent, deleteStudent, parseSheet,
 } from '../data/students.js';
+import { renderScheduleEditor } from './schedule-editor.js';
 
 const STATUS_PILL = { 재원: 'pill-green', 휴원: 'pill-orange', 퇴원: 'pill-gray' };
 
@@ -95,9 +96,11 @@ export async function renderStudents(body) {
       : { name: '', seat_no: '', grade: '', school: '', parent_phone: '', student_phone: '', status: '재원', traits: [], avoid_subject: '', trait_note: '' };
 
     const panel = sheet(`
-      <form class="drawer" id="ed" novalidate>
-        <div class="drawer-head"><h3>${stu ? '학생 정보' : '학생 등록'}</h3>
+      <div class="drawer">
+        <div class="drawer-head"><h3>${stu ? esc(stu.name) : '학생 등록'}</h3>
           <button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
+        ${stu ? `<div class="drawer-tabs seg seg-wide" id="d-tabs"><button type="button" data-v="info" class="on">기본 정보</button><button type="button" data-v="sched">일정</button></div>` : ''}
+        <form class="pane" id="ed" novalidate>
         <div class="drawer-body">
           <div class="row2">
             <div class="field"><label for="f-name">이름</label><div class="input"><input id="f-name" value="${esc(f.name)}" autocomplete="off"></div></div>
@@ -123,7 +126,20 @@ export async function renderStudents(body) {
           <button type="button" class="btn btn-gray btn-sm" data-close>취소</button>
           <button type="submit" class="btn btn-primary btn-sm" id="f-save">${stu ? '저장' : '등록'}</button>
         </div>
-      </form>`);
+        </form>
+        <div class="pane" id="sched" hidden></div>
+      </div>`);
+
+    if (stu) {
+      const tabs = $('#d-tabs', panel);
+      tabs.addEventListener('click', (e) => {
+        const b = e.target.closest('button'); if (!b) return;
+        $$('button', tabs).forEach((x) => x.classList.toggle('on', x === b));
+        $('#ed', panel).hidden = b.dataset.v !== 'info';
+        $('#sched', panel).hidden = b.dataset.v !== 'sched';
+        if (b.dataset.v === 'sched') renderScheduleEditor($('#sched', panel), stu, { canCoach: true });
+      });
+    }
 
     const pick = (id, key) => {
       const el = $(id, panel);
@@ -270,26 +286,4 @@ export async function renderStudents(body) {
   }
 
   await reload();
-}
-
-/* ---------- 패널(오른쪽) · 모달(가운데) 공통 ---------- */
-const X = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-
-function sheet(inner, where = 'right') {
-  const wrap = document.createElement('div');
-  wrap.className = `overlay overlay-${where}`;
-  wrap.innerHTML = `<div class="scrim" data-close></div>${inner}`;
-  document.body.appendChild(wrap);
-  document.body.style.overflow = 'hidden';
-  requestAnimationFrame(() => wrap.classList.add('open'));
-  const onKey = (e) => { if (e.key === 'Escape') wrap.close(); };
-  wrap.close = () => {
-    wrap.classList.remove('open');
-    document.removeEventListener('keydown', onKey);
-    document.body.style.overflow = '';
-    setTimeout(() => wrap.remove(), 250);
-  };
-  wrap.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) wrap.close(); });
-  document.addEventListener('keydown', onKey);
-  return wrap;
 }

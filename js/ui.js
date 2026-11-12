@@ -56,3 +56,25 @@ export function toast(msg) {
   requestAnimationFrame(() => t.classList.add('show'));
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2200);
 }
+
+/* ---------- 패널(오른쪽) · 모달(가운데) 공통 ---------- */
+export const X = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
+export function sheet(inner, where = 'right') {
+  const wrap = document.createElement('div');
+  wrap.className = `overlay overlay-${where}`;
+  wrap.innerHTML = `<div class="scrim" data-close></div>${inner}`;
+  document.body.appendChild(wrap);
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => wrap.classList.add('open'));
+  const onKey = (e) => { if (e.key === 'Escape') wrap.close(); };
+  wrap.close = () => {
+    wrap.classList.remove('open');
+    document.removeEventListener('keydown', onKey);
+    document.body.style.overflow = '';
+    setTimeout(() => wrap.remove(), 250);
+  };
+  wrap.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) wrap.close(); });
+  document.addEventListener('keydown', onKey);
+  return wrap;
+}

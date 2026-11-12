@@ -1,0 +1,108 @@
+/* ===== 몰입관 학습코칭 · 공통 스타일 ===== */
+:root{
+  --bg:#FFFFFF; --surface:#F2F4F6; --surface2:#F9FAFB; --line:#E5E8EB;
+  --text:#191F28; --sub:#6B7684; --faint:#B0B8C1;
+  --blue:#3182F6; --blue-dark:#1B64DA; --blue-soft:#E8F3FF;
+  --green:#0E8A4E; --green-soft:#E8F7EF;
+  --orange:#C26A00; --orange-soft:#FFF4E5;
+  --red:#D22030; --red-soft:#FDECEE;
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);
+  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  -webkit-font-smoothing:antialiased;letter-spacing:-0.01em;line-height:1.5;font-feature-settings:"tnum"}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:8px}
+input{font:inherit;color:inherit}
+a{color:var(--blue-dark);text-decoration:none}
+
+/* ---- 화면 전환 ---- */
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+.enter{animation:fadeUp .32s cubic-bezier(.2,.8,.2,1) both}
+@media (prefers-reduced-motion:reduce){.enter,.shake{animation:none !important}}
+
+/* ---- 로고 ---- */
+.brand{display:flex;align-items:center;gap:10px}
+.brand b{font-size:20px;font-weight:900;letter-spacing:-0.04em}
+.brand span{font-size:16px;font-weight:700;padding-left:10px;border-left:2px solid var(--text);line-height:1.1}
+
+/* ---- 버튼 ---- */
+.btn{height:50px;padding:0 20px;border-radius:12px;font-size:16px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  transition:background-color .15s,transform .12s}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:var(--blue-dark)}
+.btn-gray{background:var(--surface);color:var(--text)}
+.btn-block{width:100%}
+.link{font-size:14px;font-weight:600;color:var(--sub)}
+.link:hover{color:var(--text)}
+
+/* ---- 로딩 ---- */
+.splash{min-height:100vh;display:grid;place-items:center;color:var(--sub);font-size:14px}
+
+/* ===== 로그인 ===== */
+.auth{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;background:var(--surface)}
+.auth-card{width:100%;max-width:380px;background:#fff;border-radius:24px;padding:32px 24px 24px}
+.auth-card .brand{justify-content:center;margin-bottom:24px}
+.auth h1{font-size:22px;font-weight:700;letter-spacing:-0.02em;text-align:center}
+.auth .desc{font-size:14px;color:var(--sub);text-align:center;margin-top:6px}
+.auth .err{min-height:20px;font-size:13px;color:var(--red);text-align:center;margin:10px 0 2px}
+.auth .foot{margin-top:18px;text-align:center}
+
+.dots{display:flex;justify-content:center;gap:14px;margin-top:26px}
+.dots i{width:14px;height:14px;border-radius:50%;background:var(--line);transition:background-color .15s,transform .15s}
+.dots i.on{background:var(--text);transform:scale(1.08)}
+.dots.eight{gap:10px}
+.dots.eight i{width:12px;height:12px}
+.dots.eight i:nth-child(4){margin-right:10px}
+.shake{animation:shake .32s}
+
+.keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+.keypad button{height:60px;border-radius:14px;font-size:24px;font-weight:600;transition:background-color .12s}
+.keypad button:hover{background:var(--surface2)}
+.keypad button:active{background:var(--surface)}
+.keypad .k-sub{font-size:13px;font-weight:600;color:var(--sub)}
+.keypad svg{width:24px;height:24px}
+
+.field{margin-top:14px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--sub);margin-bottom:6px}
+.input{display:flex;align-items:center;height:52px;border:1.5px solid var(--line);border-radius:14px;background:var(--surface);padding:0 14px;transition:border-color .15s,background-color .15s}
+.input:focus-within{border-color:var(--blue);background:#fff}
+.input input{flex:1;min-width:0;border:0;background:none;outline:none;font-size:16px}
+.input em{font-style:normal;color:var(--faint);font-size:15px;margin-right:2px}
+
+/* ===== 누구세요? ===== */
+.who{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px}
+.who h1{font-size:26px;font-weight:800;letter-spacing:-0.03em}
+.who .desc{font-size:15px;color:var(--sub);margin-top:6px}
+.profiles{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;margin:32px 0 28px;max-width:480px}
+.profile{width:120px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 4px;border-radius:18px;transition:background-color .15s,transform .12s}
+.profile:hover{background:var(--surface2)}
+.profile:active{transform:scale(.97)}
+.avatar{width:84px;height:84px;border-radius:26px;display:grid;place-items:center;font-size:32px;font-weight:800;letter-spacing:-0.03em}
+.profile b{font-size:16px;font-weight:700}
+.profile small{font-size:13px;color:var(--sub);margin-top:-8px}
+.av0{background:var(--blue-soft);color:var(--blue-dark)}
+.av1{background:var(--green-soft);color:var(--green)}
+.av2{background:var(--orange-soft);color:var(--orange)}
+.avp{background:var(--surface);color:var(--sub)}
+.avp svg{width:36px;height:36px}
+.remember{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--sub);cursor:pointer}
+.remember input{width:18px;height:18px;accent-color:var(--blue)}
+
+/* ===== 상단바 (로그인 후) ===== */
+.top{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1280px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:10px}
+.top .spacer{flex:1}
+.chip{height:32px;padding:0 12px;border-radius:16px;background:var(--surface);font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.chip:hover{color:var(--text);background:#E9ECEF}
+.chip.muted{color:var(--sub)}
+
+.page{max-width:1280px;margin:0 auto;padding:20px}
+.card{border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:20px}
+.empty{padding:48px 20px;text-align:center;color:var(--sub);font-size:14px;line-height:1.6}
+.empty b{display:block;color:var(--text);font-size:17px;margin-bottom:4px}

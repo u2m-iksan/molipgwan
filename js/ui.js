@@ -6,13 +6,36 @@ export function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// #app 내용 교체 (+ 살짝 떠오르는 등장)
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// #app 내용 교체 — 이전 화면은 뒤에서 사라지고(교차 페이드), 새 화면은 순서대로 떠오름
 export function mount(html) {
   const app = document.getElementById('app');
+  const old = app.firstElementChild;
+  if (old && !old.classList.contains('splash') && !reducedMotion()) {
+    const y = window.scrollY;
+    old.classList.remove('enter');
+    old.removeAttribute('id');
+    old.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));  // 새 화면과 id 충돌 방지
+    Object.assign(old.style, { position: 'fixed', left: '0', right: '0', top: `${-y}px`, zIndex: '0', pointerEvents: 'none' });
+    old.classList.add('leave');
+    document.body.appendChild(old);
+    setTimeout(() => old.remove(), 160);
+  }
   app.innerHTML = html;
+  window.scrollTo(0, 0);
   app.firstElementChild?.classList.add('enter');
   return app;
 }
+
+// 짧게 클래스 붙였다 떼기 (누름 효과 등)
+export function flash(el, cls, ms = 120) {
+  if (!el) return;
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), ms);
+}
+
+export const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export const BRAND = '<div class="brand"><b>U2M</b><span>몰입관</span></div>';
 

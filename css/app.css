@@ -113,3 +113,69 @@ a{color:var(--blue-dark);text-decoration:none}
 .card{border:1px solid var(--line);border-radius:var(--radius);background:#fff;padding:20px}
 .empty{padding:48px 20px;text-align:center;color:var(--sub);font-size:14px;line-height:1.6}
 .empty b{display:block;color:var(--text);font-size:17px;margin-bottom:4px}
+
+/* ===== 터치 · 모션 ===== */
+/* iOS 두 번 탭 확대 방지 + 탭 하이라이트 제거 */
+html,body{touch-action:manipulation}
+button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#app{position:relative;z-index:1}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{to{opacity:0;transform:scale(.985)}}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes cardIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.3)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes wave{0%,100%{transform:translateY(0)}40%{transform:translateY(-7px)}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-100%)}to{opacity:1;transform:none}}
+@keyframes tileIn{from{opacity:0;transform:translateY(14px) scale(.9)}to{opacity:1;transform:none}}
+
+/* 화면 전환: 이전 화면은 살짝 사라지고, 새 화면은 떠오름 */
+.leave{animation:fadeOut .14s ease both}
+.enter{animation:fadeIn .25s ease both}
+.enter .auth-card{animation:cardIn .45s .07s cubic-bezier(.2,.8,.2,1) both}
+.enter .auth-card>*{animation:rise .45s .07s cubic-bezier(.2,.8,.2,1) both}
+.enter .auth-card>:nth-child(2){animation-delay:0.11s}
+.enter .auth-card>:nth-child(3){animation-delay:0.15s}
+.enter .auth-card>:nth-child(4){animation-delay:0.19s}
+.enter .auth-card>:nth-child(5){animation-delay:0.23s}
+.enter .auth-card>:nth-child(6){animation-delay:0.27s}
+.enter .auth-card>:nth-child(n+7){animation-delay:0.31s}
+.enter .roles>.role{animation:rise .45s cubic-bezier(.2,.8,.2,1) both}
+.enter .roles>.role:nth-child(1){animation-delay:.12s}
+.enter .roles>.role:nth-child(2){animation-delay:.18s}
+.enter .roles>.role:nth-child(3){animation-delay:.24s}
+.enter .who>*{animation:rise .45s .07s cubic-bezier(.2,.8,.2,1) both}
+.enter .who>:nth-child(2){animation-delay:.12s}
+.enter .who>:nth-child(n+3){animation-delay:.3s}
+.enter .profiles>.profile{animation:tileIn .45s cubic-bezier(.2,.9,.3,1.2) both}
+.enter .profiles>.profile:nth-child(1){animation-delay:.1s}
+.enter .profiles>.profile:nth-child(2){animation-delay:.16s}
+.enter .profiles>.profile:nth-child(3){animation-delay:.22s}
+.enter .profiles>.profile:nth-child(n+4){animation-delay:.28s}
+.enter .top{animation:slideDown .35s cubic-bezier(.2,.8,.2,1) both}
+.enter .page>*{animation:rise .45s .08s cubic-bezier(.2,.8,.2,1) both}
+
+/* 키패드 · 점 */
+.keypad button{transition:background-color .12s,transform .12s cubic-bezier(.3,1.5,.5,1)}
+.keypad button:active,.keypad button.tap{transform:scale(.9);background:var(--surface)}
+.dots i{transition:background-color .2s,transform .2s}
+.dots i.on{transform:none;animation:pop .28s cubic-bezier(.3,1.4,.5,1)}
+.dots.wait i{background:var(--blue);animation:wave .8s ease-in-out infinite}
+.dots.wait i:nth-child(2){animation-delay:.1s}
+.dots.wait i:nth-child(3){animation-delay:.2s}
+.dots.wait i:nth-child(4){animation-delay:.3s}
+.dots.ok i{background:var(--blue);transform:scale(1.15)}
+.err.show{animation:fadeIn .2s ease both}
+
+/* 누르는 느낌 */
+.role{transition:border-color .15s,background-color .15s,transform .15s cubic-bezier(.3,1.5,.5,1)}
+.role:active{transform:scale(.97)}
+.profile .avatar{transition:transform .18s cubic-bezier(.3,1.5,.5,1),box-shadow .18s}
+.profile:hover .avatar{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,27,55,.08)}
+.profile:active .avatar{transform:scale(.93)}
+.chip{transition:background-color .15s,transform .12s}
+.chip:active{transform:scale(.96)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}

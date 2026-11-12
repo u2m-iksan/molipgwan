@@ -1,5 +1,5 @@
 // 로그인: ① 역할 고르기 → ② 학생·학부모는 4자리 키패드 / 선생님은 아이디·비밀번호
-import { mount, $, $$, BRAND, ICON } from '../ui.js';
+import { mount, $, $$, BRAND, ICON, flash, wait } from '../ui.js';
 import { signInFamily, signInTeacher, lockedFor } from '../auth.js';
 
 const ROLE_LABEL = { student: '학생', parent: '학부모', teacher: '선생님' };
@@ -53,30 +53,45 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
     </main>`);
 
   const dots = $('#dots'), err = $('#err');
+  dots.innerHTML = '<i></i>'.repeat(LEN);
+  const dotEls = [...dots.children];
 
+  // 점은 다시 그리지 않고 클래스만 바꿔서, 새로 채워진 점만 톡 튀어나옴
   function draw() {
-    dots.innerHTML = Array.from({ length: LEN }, (_, i) => `<i class="${i < code.length ? 'on' : ''}"></i>`).join('');
+    dotEls.forEach((d, i) => d.classList.toggle('on', i < code.length));
+  }
+  function say(msg) {
+    err.textContent = msg;
+    err.classList.remove('show'); void err.offsetWidth; if (msg) err.classList.add('show');
   }
   function fail(msg) {
-    err.textContent = msg;
+    dots.classList.remove('wait');
+    say(msg);
     code = ''; draw();
     dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake');
   }
   async function submit() {
     const m = lockedFor();
     if (m) return fail(`로그인이 제한되었습니다. ${m}분 후 다시 시도하세요.`);
-    busy = true; err.textContent = '확인 중…';
+    busy = true;
+    await wait(150);                      // 마지막 점이 채워지는 걸 보여준 뒤
+    dots.classList.add('wait');
     const r = await signInFamily(code);
     busy = false;
-    if (r.ok) { cleanup(); return onDone(); }
+    if (r.ok) {
+      dots.classList.remove('wait'); dots.classList.add('ok');
+      cleanup(); await wait(260);
+      return onDone();
+    }
     if (r.locked) return fail('로그인이 10분간 제한되었습니다.');
     fail('번호가 일치하지 않습니다.');
   }
   function press(k) {
     if (busy) return;
-    if (k === 'del') { code = code.slice(0, -1); err.textContent = ''; return draw(); }
+    flash($(`#keypad [data-k="${k}"]`), 'tap');
+    if (k === 'del') { code = code.slice(0, -1); say(''); return draw(); }
     if (code.length >= LEN) return;
-    code += k; err.textContent = ''; draw();
+    code += k; say(''); draw();
     if (code.length === LEN) submit();
   }
 

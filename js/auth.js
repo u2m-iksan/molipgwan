@@ -23,10 +23,19 @@ function addFail() {
 function clearFails() { localStorage.removeItem(LOCK_KEY); }
 
 /* ---------- 로그인 ---------- */
+// 가족 로그인. 계정이 아직 없으면(첫 로그인) 등록된 번호인지 확인 후 계정을 만들고 바로 로그인.
 export async function signInFamily(code) {
   if (lockedFor()) return { ok: false, locked: true };
-  const { error } = await sb.auth.signInWithPassword({ email: familyEmail(code), password: familyPassword(code) });
-  if (error) { addFail(); return { ok: false, error }; }
+  const email = familyEmail(code), password = familyPassword(code);
+
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (!error) { clearFails(); return { ok: true }; }
+
+  const { data: exists } = await sb.rpc('family_code_exists', { code });
+  if (!exists) { addFail(); return { ok: false, error }; }
+
+  const { data, error: e2 } = await sb.auth.signUp({ email, password });
+  if (e2 || !data.session) { return { ok: false, error: e2 || new Error('계정 생성 실패') }; }
   clearFails();
   return { ok: true };
 }

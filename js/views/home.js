@@ -11,12 +11,6 @@ function topbar(label) {
     </div></header>`;
 }
 
-export function renderTeacherHome({ me, onLogout }) {
-  mount(`<div>${topbar(me.name + ' 선생님')}
-    <main class="page"><div class="card empty"><b>선생님</b>준비 중입니다.</div></main></div>`);
-  $('#lo').addEventListener('click', onLogout);
-}
-
 export function renderStudentHome({ student, onLogout }) {
   mount(`<div>${topbar(student.name)}
     <main class="page"><div class="card empty"><b>${esc(student.name)}</b>준비 중입니다.</div></main></div>`);

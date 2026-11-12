@@ -4,7 +4,8 @@
 import { whoAmI, signOut, setRole, getRole, savedPick, savePick } from './auth.js';
 import { renderRole, renderFamilyLogin, renderTeacherLogin } from './views/login.js';
 import { renderWho } from './views/who.js';
-import { renderTeacherHome, renderStudentHome, renderParentHome, renderUnknown } from './views/home.js';
+import { renderStudentHome, renderParentHome, renderUnknown } from './views/home.js';
+import { renderTeacher } from './teacher/shell.js';
 
 async function logout() {
   await signOut();
@@ -41,7 +42,7 @@ async function route() {
   }
 
   if (!me) return showLogin();
-  if (me.role === 'teacher') return renderTeacherHome({ me, onLogout: logout });
+  if (me.role === 'teacher') return renderTeacher({ me, onLogout: logout });
   if (me.role !== 'family') return renderUnknown({ onLogout: logout });
 
   const role = getRole();

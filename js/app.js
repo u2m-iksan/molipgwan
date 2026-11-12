@@ -36,7 +36,7 @@ async function route() {
   try { me = await whoAmI(); }
   catch {
     document.getElementById('app').innerHTML =
-      '<div class="splash">연결에 문제가 있어요. 인터넷을 확인하고 새로고침해 주세요.</div>';
+      '<div class="splash">연결 오류가 발생했습니다. 새로고침하세요.</div>';
     return;
   }
 
@@ -54,7 +54,7 @@ async function route() {
     const stu = students.find((s) => s.id === pick) || (students.length === 1 ? students[0] : null);
     if (stu) return renderStudentHome({ student: stu, onLogout: logout });
     return renderWho({
-      title: '누구세요?', desc: '내 이름을 눌러주세요',
+      title: '학생 선택',
       items: students.map((s) => ({ id: s.id, initial: s.name.slice(-1), label: s.name, sub: s.grade })),
       onPick: choose, onLogout: logout,
     });
@@ -65,7 +65,7 @@ async function route() {
   const fam = fams.find((f) => f.id === pick) || (fams.length === 1 ? fams[0] : null);
   if (fam) return renderParentHome({ students: fam.kids, onLogout: logout });
   renderWho({
-    title: '누구의 학부모세요?', desc: '자녀 이름을 확인하고 눌러주세요',
+    title: '자녀 선택',
     items: fams.map((f) => ({
       id: f.id, initial: f.kids[0].name.slice(-1),
       label: f.kids.map((k) => k.name).join(' · '),

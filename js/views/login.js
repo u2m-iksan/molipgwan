@@ -6,10 +6,10 @@ const ROLE_LABEL = { student: '학생', parent: '학부모', teacher: '선생님
 
 /* ---------- ① 역할 고르기 ---------- */
 export function renderRole({ onPick }) {
-  const row = (role, icon, desc) => `
+  const row = (role, icon) => `
     <button type="button" class="role" data-role="${role}">
       <span class="role-ic">${icon}</span>
-      <span class="role-tx"><b>${ROLE_LABEL[role]}</b><small>${desc}</small></span>
+      <span class="role-tx"><b>${ROLE_LABEL[role]}</b></span>
       <span class="chev" aria-hidden="true"></span>
     </button>`;
 
@@ -17,11 +17,11 @@ export function renderRole({ onPick }) {
     <main class="auth">
       <div class="auth-card">
         ${BRAND}
-        <h1>누구로 들어갈까요?</h1>
+        <h1>로그인</h1>
         <div class="roles">
-          ${row('student', ICON.student, '오늘 할 일 · 공부 시간 기록')}
-          ${row('parent', ICON.parent, '주간 보고 · 자녀 학습 현황')}
-          ${row('teacher', ICON.teacher, '학생 관리 · 코칭')}
+          ${row('student', ICON.student)}
+          ${row('parent', ICON.parent)}
+          ${row('teacher', ICON.teacher)}
         </div>
       </div>
     </main>`);
@@ -39,7 +39,7 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
       <div class="auth-card">
         ${BRAND}
         <h1>${ROLE_LABEL[role]} 로그인</h1>
-        <p class="desc">학부모님 휴대폰 번호 <b>뒷 4자리</b>를 눌러주세요</p>
+        <p class="desc">학부모 휴대폰 번호 뒷 4자리</p>
         <div class="dots" id="dots" aria-live="polite"></div>
         <p class="err" id="err" role="alert"></p>
         <div class="keypad" id="keypad">
@@ -48,7 +48,7 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
           <button type="button" data-k="0">0</button>
           <button type="button" data-k="del" aria-label="지우기">${ICON.del}</button>
         </div>
-        <div class="foot"><button type="button" class="link" id="back">← 처음으로</button></div>
+        <div class="foot"><button type="button" class="link" id="back">처음으로</button></div>
       </div>
     </main>`);
 
@@ -64,13 +64,13 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
   }
   async function submit() {
     const m = lockedFor();
-    if (m) return fail(`여러 번 틀려서 잠겼어요. ${m}분 뒤에 다시 시도해 주세요.`);
+    if (m) return fail(`로그인이 제한되었습니다. ${m}분 후 다시 시도하세요.`);
     busy = true; err.textContent = '확인 중…';
     const r = await signInFamily(code);
     busy = false;
     if (r.ok) { cleanup(); return onDone(); }
-    if (r.locked) return fail('여러 번 틀려서 10분 동안 잠겼어요.');
-    fail('번호가 맞지 않아요. 다시 눌러주세요.');
+    if (r.locked) return fail('로그인이 10분간 제한되었습니다.');
+    fail('번호가 일치하지 않습니다.');
   }
   function press(k) {
     if (busy) return;
@@ -99,14 +99,13 @@ export function renderTeacherLogin({ onDone, onBack }) {
       <form class="auth-card" id="f" novalidate>
         ${BRAND}
         <h1>선생님 로그인</h1>
-        <p class="desc">선생님 아이디와 비밀번호를 입력해 주세요</p>
         <div class="field"><label for="tid">아이디</label>
-          <div class="input"><input id="tid" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="예: kkb"></div></div>
+          <div class="input"><input id="tid" autocomplete="username" autocapitalize="off" spellcheck="false"></div></div>
         <div class="field"><label for="tpw">비밀번호</label>
           <div class="input"><input id="tpw" type="password" autocomplete="current-password"></div></div>
         <p class="err" id="err" role="alert"></p>
         <button class="btn btn-primary btn-block" id="go">로그인</button>
-        <div class="foot"><button type="button" class="link" id="back">← 처음으로</button></div>
+        <div class="foot"><button type="button" class="link" id="back">처음으로</button></div>
       </form>
     </main>`);
 
@@ -116,14 +115,14 @@ export function renderTeacherLogin({ onDone, onBack }) {
   $('#f').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = $('#tid').value.trim(), pw = $('#tpw').value;
-    if (!id || !pw) { err.textContent = '아이디와 비밀번호를 모두 입력해 주세요.'; return; }
+    if (!id || !pw) { err.textContent = '아이디와 비밀번호를 입력하세요.'; return; }
     const m = lockedFor();
-    if (m) { err.textContent = `여러 번 틀려서 잠겼어요. ${m}분 뒤에 다시 시도해 주세요.`; return; }
+    if (m) { err.textContent = `로그인이 제한되었습니다. ${m}분 후 다시 시도하세요.`; return; }
     go.disabled = true; err.textContent = '';
     const r = await signInTeacher(id, pw);
     go.disabled = false;
     if (r.ok) return onDone();
-    err.textContent = r.locked ? '여러 번 틀려서 10분 동안 잠겼어요.' : '아이디 또는 비밀번호가 맞지 않아요.';
+    err.textContent = r.locked ? '로그인이 10분간 제한되었습니다.' : '아이디 또는 비밀번호가 일치하지 않습니다.';
     $('#tpw').value = ''; $('#tpw').focus();
   });
 }

@@ -1,46 +1,67 @@
-// 로그인 화면: 가족(숫자 키패드) / 선생님(아이디·비밀번호)
+// 로그인: ① 역할 고르기 → ② 학생·학부모는 4자리 키패드 / 선생님은 아이디·비밀번호
 import { mount, $, $$, BRAND, ICON } from '../ui.js';
 import { signInFamily, signInTeacher, lockedFor } from '../auth.js';
 
-/* ---------- 가족 로그인 ---------- */
-export function renderFamilyLogin({ onDone, onTeacher }) {
-  let len = 4, code = '', busy = false;
+const ROLE_LABEL = { student: '학생', parent: '학부모', teacher: '선생님' };
+
+/* ---------- ① 역할 고르기 ---------- */
+export function renderRole({ onPick }) {
+  const row = (role, icon, desc) => `
+    <button type="button" class="role" data-role="${role}">
+      <span class="role-ic">${icon}</span>
+      <span class="role-tx"><b>${ROLE_LABEL[role]}</b><small>${desc}</small></span>
+      <span class="chev" aria-hidden="true"></span>
+    </button>`;
 
   mount(`
     <main class="auth">
       <div class="auth-card">
         ${BRAND}
-        <h1>로그인</h1>
-        <p class="desc" id="desc">학부모님 휴대폰 번호 <b>뒷 4자리</b>를 눌러주세요</p>
+        <h1>누구로 들어갈까요?</h1>
+        <div class="roles">
+          ${row('student', ICON.student, '오늘 할 일 · 공부 시간 기록')}
+          ${row('parent', ICON.parent, '주간 보고 · 자녀 학습 현황')}
+          ${row('teacher', ICON.teacher, '학생 관리 · 코칭')}
+        </div>
+      </div>
+    </main>`);
+
+  $$('[data-role]').forEach((b) => b.addEventListener('click', () => onPick(b.dataset.role)));
+}
+
+/* ---------- ② 학생·학부모: 4자리 키패드 ---------- */
+export function renderFamilyLogin({ role, onDone, onBack }) {
+  const LEN = 4;
+  let code = '', busy = false;
+
+  mount(`
+    <main class="auth">
+      <div class="auth-card">
+        ${BRAND}
+        <h1>${ROLE_LABEL[role]} 로그인</h1>
+        <p class="desc">학부모님 휴대폰 번호 <b>뒷 4자리</b>를 눌러주세요</p>
         <div class="dots" id="dots" aria-live="polite"></div>
         <p class="err" id="err" role="alert"></p>
         <div class="keypad" id="keypad">
           ${[1,2,3,4,5,6,7,8,9].map((n) => `<button type="button" data-k="${n}">${n}</button>`).join('')}
-          <button type="button" class="k-sub" id="lenBtn">8자리</button>
+          <span></span>
           <button type="button" data-k="0">0</button>
           <button type="button" data-k="del" aria-label="지우기">${ICON.del}</button>
         </div>
-        <div class="foot"><button type="button" class="link" id="toTeacher">선생님 로그인</button></div>
+        <div class="foot"><button type="button" class="link" id="back">← 처음으로</button></div>
       </div>
     </main>`);
 
   const dots = $('#dots'), err = $('#err');
 
   function draw() {
-    dots.className = 'dots' + (len === 8 ? ' eight' : '');
-    dots.innerHTML = Array.from({ length: len }, (_, i) => `<i class="${i < code.length ? 'on' : ''}"></i>`).join('');
-    $('#desc').innerHTML = len === 4
-      ? '학부모님 휴대폰 번호 <b>뒷 4자리</b>를 눌러주세요'
-      : '안내받은 <b>8자리</b>(가운데 4자리 + 뒷 4자리)를 눌러주세요';
-    $('#lenBtn').textContent = len === 4 ? '8자리' : '4자리';
+    dots.innerHTML = Array.from({ length: LEN }, (_, i) => `<i class="${i < code.length ? 'on' : ''}"></i>`).join('');
   }
-
   function fail(msg) {
     err.textContent = msg;
     code = ''; draw();
     dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake');
   }
-
   async function submit() {
     const m = lockedFor();
     if (m) return fail(`여러 번 틀려서 잠겼어요. ${m}분 뒤에 다시 시도해 주세요.`);
@@ -49,33 +70,30 @@ export function renderFamilyLogin({ onDone, onTeacher }) {
     busy = false;
     if (r.ok) { cleanup(); return onDone(); }
     if (r.locked) return fail('여러 번 틀려서 10분 동안 잠겼어요.');
-    fail(len === 4 ? '번호가 맞지 않아요. 8자리를 받았다면 "8자리"를 눌러주세요.' : '번호가 맞지 않아요.');
+    fail('번호가 맞지 않아요. 다시 눌러주세요.');
   }
-
   function press(k) {
     if (busy) return;
     if (k === 'del') { code = code.slice(0, -1); err.textContent = ''; return draw(); }
-    if (code.length >= len) return;
+    if (code.length >= LEN) return;
     code += k; err.textContent = ''; draw();
-    if (code.length === len) submit();
+    if (code.length === LEN) submit();
   }
-
-  $$('#keypad [data-k]').forEach((b) => b.addEventListener('click', () => press(b.dataset.k)));
-  $('#lenBtn').addEventListener('click', () => { len = len === 4 ? 8 : 4; code = ''; err.textContent = ''; draw(); });
-  $('#toTeacher').addEventListener('click', () => { cleanup(); onTeacher(); });
 
   const onKey = (e) => {
     if (/^\d$/.test(e.key)) press(e.key);
     else if (e.key === 'Backspace') press('del');
   };
-  document.addEventListener('keydown', onKey);
   function cleanup() { document.removeEventListener('keydown', onKey); }
 
+  $$('#keypad [data-k]').forEach((b) => b.addEventListener('click', () => press(b.dataset.k)));
+  $('#back').addEventListener('click', () => { cleanup(); onBack(); });
+  document.addEventListener('keydown', onKey);
   draw();
 }
 
-/* ---------- 선생님 로그인 ---------- */
-export function renderTeacherLogin({ onDone, onFamily }) {
+/* ---------- ② 선생님: 아이디 · 비밀번호 ---------- */
+export function renderTeacherLogin({ onDone, onBack }) {
   mount(`
     <main class="auth">
       <form class="auth-card" id="f" novalidate>
@@ -88,13 +106,13 @@ export function renderTeacherLogin({ onDone, onFamily }) {
           <div class="input"><input id="tpw" type="password" autocomplete="current-password"></div></div>
         <p class="err" id="err" role="alert"></p>
         <button class="btn btn-primary btn-block" id="go">로그인</button>
-        <div class="foot"><button type="button" class="link" id="toFamily">학생·학부모 로그인</button></div>
+        <div class="foot"><button type="button" class="link" id="back">← 처음으로</button></div>
       </form>
     </main>`);
 
   const err = $('#err'), go = $('#go');
   $('#tid').focus();
-  $('#toFamily').addEventListener('click', onFamily);
+  $('#back').addEventListener('click', onBack);
   $('#f').addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = $('#tid').value.trim(), pw = $('#tpw').value;

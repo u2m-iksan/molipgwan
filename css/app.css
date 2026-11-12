@@ -56,10 +56,21 @@ a{color:var(--blue-dark);text-decoration:none}
 .dots{display:flex;justify-content:center;gap:14px;margin-top:26px}
 .dots i{width:14px;height:14px;border-radius:50%;background:var(--line);transition:background-color .15s,transform .15s}
 .dots i.on{background:var(--text);transform:scale(1.08)}
-.dots.eight{gap:10px}
-.dots.eight i{width:12px;height:12px}
-.dots.eight i:nth-child(4){margin-right:10px}
 .shake{animation:shake .32s}
+
+/* 역할 고르기 */
+.roles{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.role{display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid var(--line);border-radius:16px;text-align:left;
+  transition:border-color .15s,background-color .15s,transform .12s}
+.role:hover{border-color:var(--blue);background:var(--blue-soft)}
+.role:active{transform:scale(.98)}
+.role-ic{flex:none;width:44px;height:44px;border-radius:14px;background:var(--surface);color:var(--text);display:grid;place-items:center}
+.role-ic svg{width:24px;height:24px}
+.role:hover .role-ic{background:#fff;color:var(--blue-dark)}
+.role-tx{flex:1;min-width:0}
+.role-tx b{display:block;font-size:17px;font-weight:700}
+.role-tx small{display:block;font-size:13px;color:var(--sub);margin-top:1px}
+.chev{flex:none;width:8px;height:8px;border-right:2px solid var(--faint);border-top:2px solid var(--faint);transform:rotate(45deg);margin-right:4px}
 
 .keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
 .keypad button{height:60px;border-radius:14px;font-size:24px;font-weight:600;transition:background-color .12s}
@@ -89,10 +100,6 @@ a{color:var(--blue-dark);text-decoration:none}
 .av0{background:var(--blue-soft);color:var(--blue-dark)}
 .av1{background:var(--green-soft);color:var(--green)}
 .av2{background:var(--orange-soft);color:var(--orange)}
-.avp{background:var(--surface);color:var(--sub)}
-.avp svg{width:36px;height:36px}
-.remember{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--sub);cursor:pointer}
-.remember input{width:18px;height:18px;accent-color:var(--blue)}
 
 /* ===== 상단바 (로그인 후) ===== */
 .top{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(12px);-webkit-backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}

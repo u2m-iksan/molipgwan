@@ -1,7 +1,7 @@
 // 로그인 · 로그아웃 · "누구세요?" 프로필 기억
 import { sb, teacherEmail, familyEmail, familyPassword, isTeacherEmail, isFamilyEmail } from './sb.js';
 
-const PROFILE_KEY = 'molip-profile';   // { email, pick: 'parent' | studentId }
+const PROFILE_KEY = 'molip-profile';   // { role, email, pick }
 const LOCK_KEY = 'molip-lock';         // { fails, until }
 const MAX_FAILS = 5, LOCK_MS = 10 * 60 * 1000;
 
@@ -59,7 +59,7 @@ export async function whoAmI() {
 
   if (isFamilyEmail(email)) {
     const { data, error } = await sb.from('students')
-      .select('id,name,grade,school,status')
+      .select('id,name,grade,school,status,family_id')
       .neq('status', '퇴원')
       .order('name');
     if (error) return { role: 'unknown', email };
@@ -68,24 +68,18 @@ export async function whoAmI() {
   return { role: 'unknown', email };
 }
 
-/* ---------- 누구세요? 선택 기억 ---------- */
-// 기억하기 체크 → localStorage(계속), 아니면 sessionStorage(이 탭 동안만)
+/* ---------- 역할 + "누구세요?" 선택 기억 (로그아웃 전까지 이 기기에 유지) ---------- */
+// { role: 'student'|'parent', email?, pick?: studentId | familyId }
+function readProfile() {
+  try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}; } catch { return {}; }
+}
+export function setRole(role) { localStorage.setItem(PROFILE_KEY, JSON.stringify({ role })); }
+export function getRole() { return readProfile().role || null; }
 export function savedPick(email) {
-  for (const store of [localStorage, sessionStorage]) {
-    try {
-      const p = JSON.parse(store.getItem(PROFILE_KEY));
-      if (p && p.email === email) return p.pick;
-    } catch { /* 무시 */ }
-  }
-  return null;
+  const p = readProfile();
+  return p.email === email ? p.pick : null;
 }
-export function savePick(email, pick, remember) {
-  const v = JSON.stringify({ email, pick });
-  sessionStorage.setItem(PROFILE_KEY, v);
-  if (remember) localStorage.setItem(PROFILE_KEY, v);
-  else localStorage.removeItem(PROFILE_KEY);
+export function savePick(email, pick) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify({ ...readProfile(), email, pick }));
 }
-export function forgetPick() {
-  localStorage.removeItem(PROFILE_KEY);
-  sessionStorage.removeItem(PROFILE_KEY);
-}
+export function forgetPick() { localStorage.removeItem(PROFILE_KEY); }

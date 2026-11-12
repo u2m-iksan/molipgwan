@@ -366,7 +366,10 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .modal .drawer-body{overflow-y:auto}
 .drawer-head .h-sub{font-size:14px;font-weight:600;color:var(--sub);margin-left:6px}
 .modal-lg .drawer-tabs{max-width:320px}
-.modal-lg #ed .drawer-body{max-width:560px;width:100%;margin:0 auto}
+.modal-lg #ed .drawer-body{column-count:2;column-gap:48px;column-fill:balance}
+.modal-lg #ed .drawer-body>*{break-inside:avoid}
+.modal-lg #ed .drawer-body>.field:first-child,.modal-lg #ed .drawer-body>.row2:first-child>.field{margin-top:0}
+@media (max-width:860px){.modal-lg #ed .drawer-body{column-count:1}}
 
 /* ===== 주간 시간표 ===== */
 .wk{margin:6px 0 20px}
@@ -409,3 +412,27 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .blk.thin{padding:1px 8px;justify-content:center;border-radius:8px}
 .blk.thin b{font-size:11px}
 .wk-axis .wk-body span:last-child{transform:translateY(-100%)}
+
+/* ===== 여백 정리 (모달 · 폼) ===== */
+.drawer .err,.modal .err{margin:12px 0 0;min-height:0;font-size:13px;color:var(--red)}
+.drawer .err:empty,.modal .err:empty{display:none}
+.field{margin-top:16px}
+.field:first-child,.sched-add h4+.field{margin-top:0}
+.field .lbl,.field label{margin-bottom:8px}
+.sched-add{padding:20px}
+.sched-add h4{margin-bottom:14px}
+.sched-add #a-go{margin-top:20px}
+.sched-sec{margin:0 0 24px}
+.sched-sec h4{margin-bottom:6px}
+.coach-pick{padding:10px 0 4px}
+.drawer-head{padding:22px 24px 12px}
+.drawer-tabs{margin:0 24px 16px}
+.drawer-body{padding:4px 24px 24px}
+.drawer-foot{padding:16px 24px 20px}
+.wk{margin:0 0 28px}
+.wk-head{margin-bottom:12px}
+.hint{margin-top:6px}
+.hint:empty{display:none}
+.row2{gap:12px}
+.row2>.field{margin-top:16px}
+.chips{gap:8px}

@@ -96,8 +96,8 @@ export async function renderStudents(body) {
       : { name: '', seat_no: '', grade: '', school: '', parent_phone: '', student_phone: '', status: '재원', traits: [], avoid_subject: '', trait_note: '' };
 
     const panel = sheet(`
-      <div class="drawer">
-        <div class="drawer-head"><h3>${stu ? esc(stu.name) : '학생 등록'}</h3>
+      <div class="modal ${stu ? 'modal-lg' : 'modal-m'}" role="dialog" aria-label="${stu ? esc(stu.name) : '학생 등록'}">
+        <div class="drawer-head"><h3>${stu ? `${esc(stu.name)} <span class="h-sub">${esc(stu.grade)}${stu.seat_no ? ' · 자리 ' + esc(stu.seat_no) : ''}</span>` : '학생 등록'}</h3>
           <button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
         ${stu ? `<div class="drawer-tabs seg seg-wide" id="d-tabs"><button type="button" data-v="sched" class="on">일정</button><button type="button" data-v="info">기본 정보</button></div>` : ''}
         <form class="pane" id="ed" novalidate${stu ? ' hidden' : ''}>
@@ -128,7 +128,7 @@ export async function renderStudents(body) {
         </div>
         </form>
         <div class="pane" id="sched"${stu ? '' : ' hidden'}></div>
-      </div>`);
+      </div>`, 'center');
 
     if (stu) {
       const tabs = $('#d-tabs', panel);

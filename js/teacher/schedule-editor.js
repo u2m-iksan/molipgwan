@@ -1,7 +1,8 @@
-// 학생 일정 편집 (선생님 패널에서 사용, 학생 화면에서도 재사용 예정)
+// 학생 일정 편집 (선생님 학생 관리에서 사용, 학생 화면에서도 재사용 예정)
+//   맨 위: 월~일 주간 시간표(08~23시)  →  아래: 코칭 타임 · 일정 목록 | 일정 추가
 //   반복 일정: 학교 / 학원 / 기타 × 요일 × 시간 × 기간(계속 · 이번 주만 · 기간 지정)
 import { $, $$, esc, toast } from '../ui.js';
-import { DOW, today, addMonths, addDays, hm, toMin } from '../date.js';
+import { DOW, today, addMonths, addDays, mondayOf, isoDow, short, hm, toMin } from '../date.js';
 import {
   loadStudentSchedules, groupSchedules, addSchedule, endSchedule, periodLabel,
   getCoachConfig, slotTimes, loadCoachingSlots, setCoachingSlot,
@@ -9,9 +10,11 @@ import {
 
 const CATS = ['학교', '학원', '기타'];
 const CAT_PILL = { 학교: 'pill-gray', 학원: 'pill-blue', 기타: 'pill-orange', 코칭: 'pill-green' };
+const DAY_START = 8 * 60, DAY_END = 23 * 60, HOUR_PX = 40;
 
-export async function renderScheduleEditor(root, stu, { canCoach = false } = {}) {
-  root.innerHTML = '<div class="drawer-body"><div class="empty">불러오는 중</div></div>';
+export async function renderScheduleEditor(root, stu, { canCoach = false, week = null } = {}) {
+  const keepScroll = $('.drawer-body', root)?.scrollTop || 0;   // 다시 그릴 때 스크롤 위치 유지
+  if (!root.firstElementChild) root.innerHTML = '<div class="drawer-body"><div class="empty">불러오는 중</div></div>';
   let rows, cfg = null, allSlots = new Map();
   try {
     [rows, cfg, allSlots] = await Promise.all([
@@ -19,65 +22,87 @@ export async function renderScheduleEditor(root, stu, { canCoach = false } = {})
       canCoach ? getCoachConfig() : null,
       canCoach ? loadCoachingSlots() : new Map(),
     ]);
-  }
-  catch (e) { root.innerHTML = `<div class="drawer-body"><p class="err">불러오기 실패: ${esc(e.message)}</p></div>`; return; }
+  } catch (e) { root.innerHTML = `<div class="drawer-body"><p class="err">불러오기 실패: ${esc(e.message)}</p></div>`; return; }
 
   const t = today();
+  const thisMon = mondayOf(t);
+  const mon = week && week >= thisMon ? week : thisMon;
   const coach = rows.filter((r) => r.category === '코칭' && r.valid_from <= t).sort((a, b) => b.valid_from.localeCompare(a.valid_from))[0];
   const groups = groupSchedules(rows.filter((r) => r.category !== '코칭'));
   const f = { category: '학원', weekdays: [], period: 'always' };
+  const again = (opts = {}) => renderScheduleEditor(root, stu, { canCoach, week: mon, ...opts });
 
   root.innerHTML = `
     <div class="drawer-body">
-      <div class="sched-sec">
-        <h4>코칭</h4>
-        <div class="sched-row">
-          <span class="pill ${CAT_PILL['코칭']}">코칭</span>
-          <div class="sched-main">${coach ? `<b>${DOW[coach.weekday]}요일 ${hm(coach.start_time)}~${hm(coach.end_time)}</b>` : '<span class="sub">미배정</span>'}
-            <span class="sub" id="c-warn"></span></div>
+      <section class="wk">
+        <div class="wk-head">
+          <h4>주간 시간표</h4>
+          <div class="spacer"></div>
+          <button type="button" class="icon-btn sm" id="wkPrev" aria-label="이전 주"${mon <= thisMon ? ' disabled' : ''}>${CHEV_L}</button>
+          <span class="wk-label">${mon === thisMon ? '이번 주' : mon === addDays(thisMon, 7) ? '다음 주' : ''} ${short(mon)} ~ ${short(addDays(mon, 6))}</span>
+          <button type="button" class="icon-btn sm" id="wkNext" aria-label="다음 주">${CHEV_R}</button>
+          <div class="wk-legend">${['학교', '학원', '기타', '코칭'].map((c) => `<span class="lg lg-${c}">${c}</span>`).join('')}</div>
         </div>
-        ${canCoach ? `<div class="coach-pick">
-          <div class="seg" id="c-day">${[...cfg.days].sort().map((d) => `<button type="button" data-v="${d}">${DOW[d]}</button>`).join('')}</div>
-          <div class="input"><select id="c-time" aria-label="코칭 시간"></select></div>
-          <button type="button" class="btn btn-primary btn-sm" id="c-save">${coach ? '변경' : '배정'}</button>
-          ${coach ? '<button type="button" class="btn btn-sm btn-danger-text" id="c-clear">해제</button>' : ''}
-        </div>` : ''}
-      </div>
+        ${weekGrid(rows, mon, t)}
+      </section>
 
-      <div class="sched-sec">
-        <h4>학교 · 학원 일정</h4>
-        ${groups.length ? groups.map((g, i) => `
-          <div class="sched-row">
-            <span class="pill ${CAT_PILL[g.category]}">${esc(g.category)}</span>
-            <div class="sched-main"><b>${esc(g.title)}</b>
-              <span class="sub">${g.weekdays.map((d) => DOW[d]).join('·')} ${hm(g.start_time)}~${hm(g.end_time)}</span></div>
-            <span class="period${g.valid_to ? ' temp' : ''}">${esc(periodLabel(g))}</span>
-            <button type="button" class="icon-btn sm" data-del="${i}" aria-label="일정 삭제">${TRASH}</button>
-          </div>`).join('') : '<p class="sub-s">등록된 일정이 없습니다.</p>'}
-      </div>
+      <div class="sched-cols">
+        <div>
+          <div class="sched-sec">
+            <h4>코칭</h4>
+            <div class="sched-row">
+              <span class="pill ${CAT_PILL['코칭']}">코칭</span>
+              <div class="sched-main">${coach ? `<b>${DOW[coach.weekday]}요일 ${hm(coach.start_time)}~${hm(coach.end_time)}</b>` : '<span class="sub">미배정</span>'}
+                <span class="sub" id="c-warn"></span></div>
+            </div>
+            ${canCoach ? `<div class="coach-pick">
+              <div class="seg" id="c-day">${[...cfg.days].sort().map((d) => `<button type="button" data-v="${d}">${DOW[d]}</button>`).join('')}</div>
+              <div class="input"><select id="c-time" aria-label="코칭 시간"></select></div>
+              <button type="button" class="btn btn-primary btn-sm" id="c-save">${coach ? '변경' : '배정'}</button>
+              ${coach ? '<button type="button" class="btn btn-sm btn-danger-text" id="c-clear">해제</button>' : ''}
+            </div>` : ''}
+          </div>
 
-      <div class="sched-add" id="addBox">
-        <h4>일정 추가</h4>
-        <div class="field"><span class="lbl">구분</span><div class="seg seg-wide" id="a-cat">${CATS.map((c) => `<button type="button" data-v="${c}">${c}</button>`).join('')}</div></div>
-        <div class="field"><label for="a-title">이름</label><div class="input"><input id="a-title" placeholder="예: 수학학원" autocomplete="off"></div></div>
-        <div class="field"><span class="lbl">요일 <span class="opt">복수 선택</span></span>
-          <div class="chips days" id="a-days">${[1, 2, 3, 4, 5, 6, 7].map((d) => `<button type="button" class="chip-t" data-v="${d}">${DOW[d]}</button>`).join('')}</div></div>
-        <div class="row2">
-          <div class="field"><label for="a-start">시작</label><div class="input"><input id="a-start" type="time" step="300"></div></div>
-          <div class="field"><label for="a-end">종료</label><div class="input"><input id="a-end" type="time" step="300"></div></div>
+          <div class="sched-sec">
+            <h4>학교 · 학원 일정</h4>
+            ${groups.length ? groups.map((g, i) => `
+              <div class="sched-row">
+                <span class="pill ${CAT_PILL[g.category]}">${esc(g.category)}</span>
+                <div class="sched-main"><b>${esc(g.title)}</b>
+                  <span class="sub">${g.weekdays.map((d) => DOW[d]).join('·')} ${hm(g.start_time)}~${hm(g.end_time)}</span></div>
+                <span class="period${g.valid_to ? ' temp' : ''}">${esc(periodLabel(g))}</span>
+                <button type="button" class="icon-btn sm" data-del="${i}" aria-label="일정 삭제">${TRASH}</button>
+              </div>`).join('') : '<p class="sub-s">등록된 일정이 없습니다.</p>'}
+          </div>
         </div>
-        <div class="field"><span class="lbl">기간</span>
-          <div class="seg seg-wide" id="a-period"><button type="button" data-v="always">계속</button><button type="button" data-v="week">이번 주만</button><button type="button" data-v="range">기간 지정</button></div></div>
-        <div class="row2" id="a-range" hidden>
-          <div class="field"><label for="a-from">시작일</label><div class="input"><input id="a-from" type="date" value="${t}"></div></div>
-          <div class="field"><label for="a-to">종료일</label><div class="input"><input id="a-to" type="date" value="${addDays(addMonths(t, 1), -1)}"></div></div>
+
+        <div class="sched-add">
+          <h4>일정 추가</h4>
+          <div class="field"><span class="lbl">구분</span><div class="seg seg-wide" id="a-cat">${CATS.map((c) => `<button type="button" data-v="${c}">${c}</button>`).join('')}</div></div>
+          <div class="field"><label for="a-title">이름</label><div class="input"><input id="a-title" placeholder="예: 수학학원" autocomplete="off"></div></div>
+          <div class="field"><span class="lbl">요일 <span class="opt">복수 선택</span></span>
+            <div class="chips days" id="a-days">${[1, 2, 3, 4, 5, 6, 7].map((d) => `<button type="button" class="chip-t" data-v="${d}">${DOW[d]}</button>`).join('')}</div></div>
+          <div class="row2">
+            <div class="field"><label for="a-start">시작</label><div class="input"><input id="a-start" type="time" step="300"></div></div>
+            <div class="field"><label for="a-end">종료</label><div class="input"><input id="a-end" type="time" step="300"></div></div>
+          </div>
+          <div class="field"><span class="lbl">기간</span>
+            <div class="seg seg-wide" id="a-period"><button type="button" data-v="always">계속</button><button type="button" data-v="week">이번 주만</button><button type="button" data-v="range">기간 지정</button></div></div>
+          <div class="row2" id="a-range" hidden>
+            <div class="field"><label for="a-from">시작일</label><div class="input"><input id="a-from" type="date" value="${t}"></div></div>
+            <div class="field"><label for="a-to">종료일</label><div class="input"><input id="a-to" type="date" value="${addDays(addMonths(t, 1), -1)}"></div></div>
+          </div>
+          <p class="err" id="a-err" role="alert"></p>
+          <button type="button" class="btn btn-primary btn-sm btn-block" id="a-go">추가</button>
         </div>
-        <p class="err" id="a-err" role="alert"></p>
-        <button type="button" class="btn btn-primary btn-sm btn-block" id="a-go">추가</button>
       </div>
     </div>`;
 
-  // 코칭 타임 배정 (요일 · 시간, 시간 옆에 그 타임 인원 표시)
+  $('.drawer-body', root).scrollTop = keepScroll;
+  $('#wkPrev', root).addEventListener('click', () => again({ week: addDays(mon, -7) }));
+  $('#wkNext', root).addEventListener('click', () => again({ week: addDays(mon, 7) }));
+
+  /* ---------- 코칭 타임 배정 ---------- */
   if (canCoach) {
     const pick = { day: coach?.weekday ?? [...cfg.days].sort()[0], time: coach ? hm(coach.start_time) : null };
     const count = (d, tm) => [...allSlots.entries()].filter(([sid, r]) => sid !== stu.id && r.weekday === d && hm(r.start_time) === tm).length;
@@ -89,7 +114,7 @@ export async function renderScheduleEditor(root, stu, { canCoach = false } = {})
         const n = count(pick.day, tm), c = clash(pick.day, tm);
         return `<option value="${tm}"${tm === pick.time ? ' selected' : ''}>${tm}${n ? ` · ${n}명` : ''}${c ? ` · ${c.title} 겹침` : ''}</option>`;
       }).join('');
-      if (!pick.time) pick.time = $('#c-time', root).value;
+      if (!pick.time || !slotTimes(cfg).includes(pick.time)) pick.time = $('#c-time', root).value;
       const c = clash(pick.day, pick.time);
       $('#c-warn', root).textContent = c ? `선택한 시간이 ${c.title}(${hm(c.start_time)}~${hm(c.end_time)})과 겹칩니다.` : '';
     };
@@ -97,17 +122,16 @@ export async function renderScheduleEditor(root, stu, { canCoach = false } = {})
     $('#c-time', root).addEventListener('change', (e) => { pick.time = e.target.value; drawPick(); });
     drawPick();
     $('#c-save', root).addEventListener('click', async () => {
-      try {
-        await setCoachingSlot(stu.id, { weekday: pick.day, start: pick.time }, cfg);
-        toast(`코칭 ${DOW[pick.day]} ${pick.time}`); renderScheduleEditor(root, stu, { canCoach });
-      } catch (e) { toast('저장 실패: ' + e.message); }
+      try { await setCoachingSlot(stu.id, { weekday: pick.day, start: pick.time }, cfg); toast(`코칭 ${DOW[pick.day]} ${pick.time}`); again(); }
+      catch (e) { toast('저장 실패: ' + e.message); }
     });
     $('#c-clear', root)?.addEventListener('click', async () => {
-      try { await setCoachingSlot(stu.id, null, cfg); toast('코칭 배정 해제'); renderScheduleEditor(root, stu, { canCoach }); }
+      try { await setCoachingSlot(stu.id, null, cfg); toast('코칭 배정 해제'); again(); }
       catch (e) { toast('저장 실패: ' + e.message); }
     });
   }
 
+  /* ---------- 일정 추가 ---------- */
   const paint = () => {
     $$('#a-cat button', root).forEach((b) => b.classList.toggle('on', b.dataset.v === f.category));
     $$('#a-days button', root).forEach((b) => b.classList.toggle('on', f.weekdays.includes(Number(b.dataset.v))));
@@ -135,8 +159,7 @@ export async function renderScheduleEditor(root, stu, { canCoach = false } = {})
     const btn = $('#a-go', root); btn.disabled = true; err.textContent = '';
     try {
       await addSchedule({ student_id: stu.id, category: f.category, title, weekdays: f.weekdays, start, end, period: f.period, from, to });
-      toast('일정이 추가되었습니다');
-      renderScheduleEditor(root, stu, { canCoach });
+      toast('일정이 추가되었습니다'); again();
     } catch (e) { err.textContent = '저장 실패: ' + e.message; btn.disabled = false; }
   });
 
@@ -145,10 +168,62 @@ export async function renderScheduleEditor(root, stu, { canCoach = false } = {})
     let armed = false;
     b.addEventListener('click', async () => {
       if (!armed) { armed = true; b.classList.add('armed'); setTimeout(() => { armed = false; b.classList.remove('armed'); }, 3000); return; }
-      try { await endSchedule(groups[Number(b.dataset.del)]); toast('일정이 삭제되었습니다'); renderScheduleEditor(root, stu, { canCoach }); }
+      try { await endSchedule(groups[Number(b.dataset.del)]); toast('일정이 삭제되었습니다'); again(); }
       catch (e) { toast('삭제 실패: ' + e.message); }
     });
   });
 }
 
+/* ---------- 주간 시간표 (월~일 × 08~23시) ---------- */
+function weekGrid(rows, mon, t) {
+  const H = ((DAY_END - DAY_START) / 60) * HOUR_PX;
+  const y = (m) => ((Math.min(Math.max(m, DAY_START), DAY_END) - DAY_START) / 60) * HOUR_PX;
+  const hours = [];
+  for (let h = DAY_START / 60; h <= DAY_END / 60; h++) hours.push(h);
+
+  const cols = [1, 2, 3, 4, 5, 6, 7].map((d) => {
+    const date = addDays(mon, d - 1);
+    // 그 날짜에 유효한 일정. '계속' 일정은 그 주 안에 시작했으면 주 전체에 표시(주간 패턴으로 보기)
+    const sun = addDays(mon, 6);
+    const items = rows
+      .filter((r) => r.weekday === d && (r.valid_to
+        ? r.valid_from <= date && r.valid_to >= date
+        : r.valid_from <= sun))
+      .filter((r) => toMin(r.end_time) > DAY_START && toMin(r.start_time) < DAY_END)
+      .sort((a, b) => toMin(a.start_time) - toMin(b.start_time));
+    // 겹치는 일정끼리만 나란히 (겹침 묶음별로 칸 나누기)
+    let cluster = [], clusterEnd = -1;
+    const flush = () => { const n = Math.max(...cluster.map((c) => c._lane)) + 1; cluster.forEach((c) => { c._n = n; }); cluster = []; };
+    for (const it of items) {
+      const s0 = toMin(it.start_time);
+      if (cluster.length && s0 >= clusterEnd) flush();
+      const used = cluster.filter((c) => toMin(c.end_time) > s0).map((c) => c._lane);
+      let li = 0; while (used.includes(li)) li++;
+      it._lane = li; cluster.push(it);
+      clusterEnd = Math.max(clusterEnd, toMin(it.end_time));
+    }
+    if (cluster.length) flush();
+    const blocks = items.map((it) => {
+      const n = it._n || 1;
+      const top = y(toMin(it.start_time)), h = Math.max(16, y(toMin(it.end_time)) - top);
+      return `<div class="blk blk-${it.category}${it.valid_to ? ' temp' : ''}${h < 30 ? ' thin' : ''}" style="top:${top}px;height:${h - 2}px;left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)"
+        title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">
+        <b>${esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title)}</b>${h >= 30 ? `<span>${hm(it.start_time)}~${hm(it.end_time)}</span>` : ''}</div>`;
+    }).join('');
+    const isToday = date === t;
+    return `<div class="wk-col${isToday ? ' today-col' : ''}">
+      <div class="wk-day">${DOW[d]}<span>${Number(date.slice(8))}</span></div>
+      <div class="wk-body" style="height:${H}px">${blocks}</div></div>`;
+  }).join('');
+
+  return `<div class="wk-grid">
+    <div class="wk-axis"><div class="wk-day"></div><div class="wk-body" style="height:${H}px">
+      ${hours.map((h) => `<span style="top:${(h * 60 - DAY_START) / 60 * HOUR_PX}px">${h}</span>`).join('')}</div></div>
+    ${cols}
+    <div class="wk-lines" style="height:${H}px">${hours.map((h) => `<i style="top:${(h * 60 - DAY_START) / 60 * HOUR_PX}px"></i>`).join('')}</div>
+  </div>`;
+}
+
 const TRASH = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
+const CHEV_L = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
+const CHEV_R = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';

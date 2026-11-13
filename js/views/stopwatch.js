@@ -16,8 +16,8 @@ export async function openStopwatch(student, { planSubjects = [], onChange } = {
   requestAnimationFrame(() => el.classList.add('open'));
   try { await el.requestFullscreen?.(); } catch {}
 
-  let s = null, doneSec = 0, subject = planSubjects[0] || '수학', busy = false, timer = null;
-  try { ({ active: s, doneSec } = await loadSessions(student.id)); if (s) subject = s.subject; }
+  let s = null, doneSec = 0, bySub = new Map(), subject = planSubjects[0] || '수학', busy = false, timer = null;
+  try { ({ active: s, doneSec, bySub } = await loadSessions(student.id)); if (s) subject = s.subject; }
   catch (e) { el.querySelector('.sw-in').innerHTML = `<p class="sw-load">불러오기 실패: ${esc(e.message)}</p>`; }
 
   const close = () => {
@@ -30,6 +30,9 @@ export async function openStopwatch(student, { planSubjects = [], onChange } = {
   };
 
   const subjects = [...new Set([...planSubjects, ...SUBJECTS])];
+  // 과목별 오늘 순공 (h:mm) — 과목 버튼 아래
+  const subSec = (x) => (bySub.get(x) || 0) + (s && s.subject === x ? elapsedSec(s) : 0);
+  const subT = (x) => { const v = subSec(x); return v >= 60 ? `${Math.floor(v / 3600)}:${pad(Math.floor(v / 60) % 60)}` : ''; };
   function draw() {
     const run = !!s, paused = !!s?.paused_at;
     el.innerHTML = `<div class="sw-in">
@@ -41,7 +44,7 @@ export async function openStopwatch(student, { planSubjects = [], onChange } = {
         <p class="sw-state ${run ? (paused ? 'paused' : 'on') : ''}">${run ? (paused ? '일시정지' : `${esc(subject)} 공부 중`) : '과목을 고르고 시작하세요'}</p>
         <p class="sw-lbl">오늘 순공</p>
         <div class="sw-time" id="sw-time">${clock(doneSec + elapsedSec(s))}</div>
-        <div class="sw-subs">${subjects.map((x) => `<button type="button" data-sub="${esc(x)}" class="${x === subject ? 'on' : ''}"${run ? ' disabled' : ''}>${esc(x)}</button>`).join('')}</div>
+        <div class="sw-subs">${subjects.map((x) => `<button type="button" data-sub="${esc(x)}" class="${x === subject ? 'on' : ''}"${run && x !== subject ? ' disabled' : ''}>${esc(x)}<small data-subt="${esc(x)}">${subT(x)}</small></button>`).join('')}</div>
       </div>
       <div class="sw-btns">
         ${run ? `<button type="button" class="sw-b ghost" id="sw-pause">${paused ? '계속' : '일시정지'}</button>
@@ -55,6 +58,7 @@ export async function openStopwatch(student, { planSubjects = [], onChange } = {
     // 큰 시계 = 오늘 누적 (끝난 세션 + 지금 세션) → 껐다 켜도 이어서 쌓임
     const t = $('#sw-time', el); if (t) t.textContent = clock(doneSec + elapsedSec(s));
     const ss = $('#sw-sess', el); if (ss) ss.textContent = dur(elapsedSec(s));
+    if (s) { const q = el.querySelector(`[data-subt="${CSS.escape(s.subject)}"]`); if (q) q.textContent = subT(s.subject); }
     checkTick();
   };
   // 2시간 확인 팝업 (10분 안에 응답 없으면 2시간만 기록하고 종료)
@@ -63,7 +67,7 @@ export async function openStopwatch(student, { planSubjects = [], onChange } = {
     if (!s || s.paused_at || !needsCheck(s)) { box?.remove(); return; }
     if (isStale(s)) {
       box?.remove();
-      act(async () => { const done = await autoEnd(s); doneSec += done.net_seconds || 0; s = null; toast('응답이 없어 2시간까지만 기록되었습니다'); });
+      act(async () => { const done = await autoEnd(s); doneSec += done.net_seconds || 0; bySub.set(s.subject, (bySub.get(s.subject) || 0) + (done.net_seconds || 0)); s = null; toast('응답이 없어 2시간까지만 기록되었습니다'); });
       return;
     }
     const left = CHECK_SEC + GRACE_SEC - sinceCheck(s);
@@ -89,7 +93,7 @@ export async function openStopwatch(student, { planSubjects = [], onChange } = {
     if (b.dataset.sub && !s) { subject = b.dataset.sub; return draw(); }
     if (b.id === 'sw-go') return act(async () => { s = await startSession(student.id, subject); });
     if (b.id === 'sw-pause') return act(async () => { s = s.paused_at ? await resumeSession(s) : await pauseSession(s); });
-    if (b.id === 'sw-stop') return $('#sw-check', el)?.remove(), act(async () => { const done = await stopSession(s); doneSec += done.net_seconds || 0; s = null; toast(`${dur(done.net_seconds || 0)} 기록되었습니다`); });
+    if (b.id === 'sw-stop') return $('#sw-check', el)?.remove(), act(async () => { const done = await stopSession(s); doneSec += done.net_seconds || 0; bySub.set(s.subject, (bySub.get(s.subject) || 0) + (done.net_seconds || 0)); s = null; toast(`${dur(done.net_seconds || 0)} 기록되었습니다`); });
   });
   document.addEventListener('keydown', function onKey(e) { if (e.key === 'Escape' && el.isConnected) { document.removeEventListener('keydown', onKey); close(); } });
 }

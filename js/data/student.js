@@ -59,8 +59,15 @@ export async function autoCheckout(studentId, rows) {
 export async function loadSessions(studentId) {
   const rows = await settleStale(check(await sb.from('study_sessions').select('*').eq('student_id', studentId).eq('study_date', today())));
   const active = rows.find((r) => !r.ended_at) || null;
-  const doneSec = rows.filter((r) => r.ended_at).reduce((a, r) => a + (r.net_seconds || 0), 0);
-  return { active, doneSec };
+  const done = rows.filter((r) => r.ended_at);
+  const doneSec = done.reduce((a, r) => a + (r.net_seconds || 0), 0);
+  return { active, doneSec, bySub: bySubject(done) };
+}
+// 과목별 순공 합계: Map(과목 → 초)
+export function bySubject(rows) {
+  const m = new Map();
+  for (const r of rows) m.set(r.subject || '기타', (m.get(r.subject || '기타') || 0) + (r.net_seconds || 0));
+  return m;
 }
 export function elapsedSec(s, at = Date.now()) {
   if (!s) return 0;
@@ -123,7 +130,8 @@ export async function deleteAttendance(id) {
 // 이번 주(월~오늘) 끝난 세션 순공 합계 (오늘 끝난 것 따로)
 export async function loadWeekDone(studentId) {
   const t = today(), mon = mondayOf(t);
-  const rows = check(await sb.from('study_sessions').select('net_seconds,study_date,ended_at').eq('student_id', studentId).gte('study_date', mon).not('ended_at', 'is', null));
+  const rows = check(await sb.from('study_sessions').select('subject,net_seconds,study_date,ended_at').eq('student_id', studentId).gte('study_date', mon).not('ended_at', 'is', null));
   const sum = (a) => a.reduce((x, r) => x + (r.net_seconds || 0), 0);
-  return { weekDone: sum(rows), todayDone: sum(rows.filter((r) => r.study_date === t)) };
+  const today_ = rows.filter((r) => r.study_date === t);
+  return { weekDone: sum(rows), todayDone: sum(today_), weekBySub: bySubject(rows), todayBySub: bySubject(today_) };
 }

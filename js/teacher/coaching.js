@@ -135,8 +135,7 @@ export async function renderCoaching(body) {
         <div class="stu-list">${makeup.map((s) => { const sl = st.slots.get(s.id); const p = st.open.get(s.id);
           const self = p && p.author_role === '학생' && p.start_date >= scheduledOn(sl.weekday);
           return chip(s) + `<span class="was ${self ? 'ok' : ''}">${self ? '계획 작성함' : '계획 미작성'}</span>`; }).join('')}</div></div>` : ''}
-      <div class="side-sec"><h4>배정 현황</h4><p class="big">${st.students.length - none.length}<span> / ${st.students.length}명</span></p>
-        <p class="legend"><span class="dot-o"></span>학교·학원 일정과 겹침</p></div>
+      <div class="side-sec"><h4>배정 현황</h4><p class="big">${st.students.length - none.length}<span> / ${st.students.length}명</span></p></div>
       ${out.length ? `<div class="side-sec"><h4 class="red">재배정 필요 ${out.length}</h4>
         <p class="sub-s">현재 설정 밖의 시간에 배정되어 있습니다.</p>
         <div class="stu-list">${out.map((s) => { const sl = st.slots.get(s.id); return chip(s) + `<span class="was">${DOW[sl.weekday]} ${hm(sl.start_time)}</span>`; }).join('')}</div></div>` : ''}

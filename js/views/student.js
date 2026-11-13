@@ -14,7 +14,7 @@ import {
 
 const REASONS = ['학원', '식사', '기타'];
 const SUM = `<div><span>평균 이행도</span><b class="sum-pct">-</b></div>
-        <div><span>이번 주 순공</span><b class="sum-week">-</b></div>
+        <button type="button" class="sum-wk" data-wk><span>이번 주 순공<em>›</em></span><b class="sum-week">-</b></button>
         <div><span>다음 코칭</span><b class="sum-coach">-</b></div>`;
 const md = (d) => short(d).replace(/\(.\)/, '');
 
@@ -144,9 +144,16 @@ ${SUM}
         const key = `${el.clientWidth}x${el.clientHeight}`;
         if (key === lastKey && el.querySelector('.wk-grid')) return;   // 크기 그대로면 다시 그리지 않음
         lastKey = key;
-        const avail = el.clientHeight - 40 - 52;          // 요일 머리 · 제목 줄
         // 학교 있는 주중은 학교 시간을 줄이고 오후·저녁을 크게 (주말·학교 없는 주는 고르게)
-        el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span><button type="button" class="link-s sa-edit" id="tt-edit">학원 일정</button></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: Math.max(innerWidth <= 820 ? 200 : 330, avail), squeezeSchool: true })}`;
+        const paint = (h) => { el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span><button type="button" class="link-s sa-edit" id="tt-edit">학원 일정</button></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true })}`; };
+        const min = innerWidth <= 820 ? 200 : 330;
+        let h = Math.max(min, el.clientHeight - 100);
+        paint(h);
+        // 카드 안에 다 들어오게: 넘친 만큼 줄여서 다시 그리기 (23시까지 안 잘리게)
+        const g = el.querySelector('.wk-grid');
+        const pb = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+        const over = g.getBoundingClientRect().bottom - (el.getBoundingClientRect().bottom - pb);
+        if (Math.abs(over) > 1) { h = Math.max(min, h - over); paint(h); }
       };
       draw();
       new ResizeObserver(() => draw()).observe($('.sa-main'));
@@ -271,8 +278,8 @@ ${SUM}
 
   /* ---------- 스톱워치 버튼 ---------- */
   async function loadSess() {
-    try { const r = await loadSessions(student.id); st.sess = r.active; st.doneSec = r.doneSec; } catch { st.sess = null; }
-    try { const w = await loadWeekDone(student.id); st.weekDone = w.weekDone; st.todayDoneInWeek = w.todayDone; } catch { /* 요약만 비움 */ }
+    try { const r = await loadSessions(student.id); st.sess = r.active; st.doneSec = r.doneSec; st.bySub = r.bySub; } catch { st.sess = null; }
+    try { const w = await loadWeekDone(student.id); Object.assign(st, { weekDone: w.weekDone, todayDoneInWeek: w.todayDone, weekBySub: w.weekBySub, todayBySub: w.todayBySub }); } catch { /* 요약만 비움 */ }
     paintFab(); paintSum();
   }
   function paintFab() {
@@ -286,6 +293,29 @@ ${SUM}
     }
     paintSum();
   }
+  // 이번 주 과목별 순공 (끝난 세션 + 지금 세션)
+  function weekModal() {
+    const add = (m, k, v) => m.set(k, (m.get(k) || 0) + v);
+    const wk = new Map(st.weekBySub || []), td = new Map(st.bySub || []);
+    for (const [k, v] of st.todayBySub || []) add(wk, k, -v);
+    for (const [k, v] of td) add(wk, k, v);
+    if (st.sess) { const e = elapsedSec(st.sess); add(wk, st.sess.subject, e); add(td, st.sess.subject, e); }
+    const rows = [...wk.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+    const total = rows.reduce((a, [, v]) => a + v, 0), max = rows[0]?.[1] || 1;
+    const hm_ = (sec) => { const m = Math.floor(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`; };
+    const mon = mondayOf(today());
+    sheet(`<div class="modal modal-s" role="dialog" aria-label="이번 주 순공">
+      <div class="drawer-head"><h3>이번 주 순공</h3><button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
+      <div class="drawer-body">
+        <div class="wk-total"><span>${md(mon)} – ${md(addDays(mon, 6))}</span><b>${hm_(total)}</b></div>
+        ${rows.length ? `<ul class="wk-subs">${rows.map(([k, v]) => `<li>
+          <span class="wk-s">${esc(k)}</span>
+          <div class="wk-bar"><i style="width:${Math.max(3, Math.round((v / max) * 100))}%"></i></div>
+          <span class="wk-v"><b>${hm_(v)}</b>${td.get(k) ? `<small>오늘 ${hm_(td.get(k))}</small>` : ''}</span></li>`).join('')}</ul>`
+          : '<p class="sa-empty">이번 주 기록이 없습니다.</p>'}
+      </div></div>`, 'center');
+  }
+  root.addEventListener('click', (e) => { if (e.target.closest('[data-wk]')) weekModal(); });
   let swOpen = false;
   const openSW = () => { swOpen = true; openStopwatch(student, {
     planSubjects: [...new Set(st.items.map((i) => i.subject))], onChange: () => { swOpen = false; loadSess(); },

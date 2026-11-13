@@ -4,7 +4,7 @@
 //  이행률 = 해간 횟수 / 지금까지 학원 간 횟수 (체크는 plan_progress에 pct 100 / 0 으로 저장)
 import { addDays, isoDow, today, DOW } from '../date.js';
 
-// 과학·사회는 세부 과목까지 맞아야 연결 (예: 과학 화학 학원 ↔ 과학 화학Ⅰ 계획만)
+// 과학·사회 세부 과목(선택): 지정하면 세부 과목까지 맞아야 연결 (예: 과학 화학 학원 ↔ 과학 화학Ⅰ 계획만)
 export const ACADEMY_DETAILS = {
   과학: ['통합과학', '물리학', '화학', '생명과학', '지구과학'],
   사회: ['통합사회', '한국지리', '세계지리', '생활과윤리', '윤리와사상', '사회문화', '정치와법', '경제', '세계사', '동아시아사'],
@@ -19,7 +19,7 @@ export const subjectLabel = (r) => (r.subject ? `${r.subject}${r.subject_detail 
 // 계획 항목 ↔ 학원 일정 연결
 export function matches(item, r) {
   if (r.category !== '학원' || !r.subject || r.subject !== item.subject) return false;
-  if (r.subject_detail || ACADEMY_DETAILS[r.subject]) return detailMatch(r.subject_detail, item.subject_detail);
+  if (r.subject_detail) return detailMatch(r.subject_detail, item.subject_detail);   // 세부 과목 없이 등록한 학원 = 그 과목 전체
   return true;
 }
 export const hasAcademy = (item, rows) => (rows || []).some((r) => matches(item, r));

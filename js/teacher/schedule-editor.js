@@ -212,8 +212,8 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
       to: Math.min(DAY_END, Math.max(...sch.map((r) => toMin(r.end_time)))), ratio: 0.35,
     };
   }
-  const W = mkScale(sq), E = mkScale(null);
-  const split = !!sq;   // 주중·주말 눈금이 다르면 주말 앞에 눈금 한 줄 더
+  const W = mkScale(sq), E = opt.splitWeekend ? mkScale(null) : W;
+  const split = !!sq && !!opt.splitWeekend;   // 주중·주말 눈금이 다르면 주말 앞에 눈금 한 줄 더
   const hours = [];
   for (let h = DAY_START / 60; h <= DAY_END / 60; h++) hours.push(h);
 

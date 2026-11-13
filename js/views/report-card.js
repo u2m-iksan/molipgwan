@@ -22,7 +22,6 @@ export function autoBadge(rates) {
 
 /* ---------- 도우미 ---------- */
 const tone = (v) => (v == null ? 'none' : v >= 90 ? 'g' : v >= 50 ? 'a' : 'r');
-const dot = (d) => { if (!d) return ''; const [y, m, dd] = d.split('-').map(Number); return `${y}. ${m}. ${dd}.`; };
 const sub = (x) => `${esc(x.subject)}${x.detail ? `<small>${esc(x.detail)}</small>` : ''}`;
 
 function ring(avg) {
@@ -42,15 +41,11 @@ export function reportCard(r, student) {
   rates.forEach((x) => cnt[tone(x.rate)]++);
   const fb = (r.subject_feedback || []).filter((x) => x.text);
   const plan = r.next_plan || [];
-  const checks = r.check_items || [];
   const period = r.period_start ? `${short(r.period_start)} – ${short(r.period_end)}` : (r.period_end ? short(r.period_end) : '');
 
   return `<article class="wr">
     <header class="wr-head">
-      <div class="wr-top">
-        <div class="wr-logo"><b>U2M</b><span>몰입관</span></div>
-        <span class="wr-kind">주간 학습 보고서</span>
-      </div>
+      <div class="wr-logo"><b>U2M</b><span>몰입관</span></div>
       <div class="wr-id">
         <div>
           <h3>${esc(student.name)} <span>학생</span></h3>
@@ -88,14 +83,10 @@ export function reportCard(r, student) {
       <p class="wr-sum">${esc(r.summary)}</p>
     </section>` : ''}
 
-    ${plan.length || checks.length ? `<section class="wr-next${plan.length && checks.length ? '' : ' one'}">
-      ${plan.length ? `<div><div class="wr-sec-h"><h4>다음 계획</h4></div>
-        <ul class="wr-plan">${plan.map((x) => `<li><span class="wr-sub">${sub(x)}</span><p>${esc(x.title)}</p></li>`).join('')}</ul></div>` : ''}
-      ${checks.length ? `<div><div class="wr-sec-h"><h4>다음 점검사항</h4></div>
-        <ul class="wr-check">${checks.map((c) => `<li><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.5"/><path d="M6.5 10.2l2.4 2.4 4.6-4.8"/></svg>${esc(c)}</li>`).join('')}</ul></div>` : ''}
+    ${plan.length ? `<section class="wr-sec">
+      <div class="wr-sec-h"><h4>다음 계획</h4></div>
+      <ul class="wr-plan">${plan.map((x) => `<li><span class="wr-sub">${sub(x)}</span><p>${esc(x.title)}</p></li>`).join('')}</ul>
     </section>` : ''}
-
-    <footer class="wr-foot"><span>유투엠 몰입관 학원 · 학습 코칭</span><span>${dot(r.period_end)} 발행</span></footer>
   </article>`;
 }
 

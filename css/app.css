@@ -707,16 +707,15 @@ body.has-foot .toast{bottom:92px}
 
 .wr-head{padding-bottom:28px;border-bottom:1px solid var(--line)}
 .wr-top{display:flex;align-items:center;justify-content:space-between}
-.wr-logo{display:flex;align-items:center;gap:10px}
-.wr-logo b{font-size:20px;font-weight:900;letter-spacing:-0.04em}
-.wr-logo span{font-size:15px;font-weight:700;padding-left:10px;border-left:2px solid var(--text);line-height:1.1}
+.wr-logo{display:flex;align-items:center;gap:14px}
+.wr-logo b{font-size:30px;font-weight:900;letter-spacing:-0.045em;line-height:1}
+.wr-logo span{font-size:21px;font-weight:700;padding-left:14px;border-left:2.5px solid var(--text);line-height:1.05}
 .wr-kind{font-size:13px;font-weight:700;color:var(--sub);letter-spacing:.02em}
-.wr-id{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-top:32px}
+.wr-id{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-top:36px}
 .wr-id h3{font-size:34px;font-weight:800;letter-spacing:-0.035em;line-height:1.2}
 .wr-id h3 span{font-size:22px;font-weight:700;color:var(--sub)}
 .wr-id p{font-size:15px;font-weight:600;color:var(--sub);margin-top:6px}
-.wr-badge{display:flex;align-items:center;gap:12px;padding:12px 18px 12px 14px;border-radius:16px;flex:none}
-.wr-badge.green{background:#F1FAEA}.wr-badge.gold{background:#FFF8E5}.wr-badge.siren{background:#FDEEEE}
+.wr-badge{display:flex;align-items:center;gap:12px;flex:none;padding-bottom:4px}
 .wr-badge-ic{display:flex;width:34px;height:34px;align-items:center;justify-content:center;flex:none}
 .wr-badge-ic svg{width:34px;height:34px}
 .wr-siren{font-size:26px;line-height:1}

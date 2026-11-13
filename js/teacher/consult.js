@@ -93,7 +93,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       if (c) {
         Object.assign(st, {
           heldOn: c.held_on || today(), absent: c.kind === '결석', isNew: c.is_new, isLeaving: c.is_leaving,
-          summary: c.summary_raw || '', checkItems: [...(c.check_items || [])], coachingId: c.id,
+          summary: c.summary_raw || '', coachingId: c.id,
         });
       } else st.isNew = !d.prevPlan;
       st.report = d.report;
@@ -183,14 +183,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
             ${nextHtml()}
           </section>
         </div>
-        <section class="cs-card cs-wide">
-          <div class="field"><label for="cs-sum">총평</label>
-            <textarea class="textarea" id="cs-sum" rows="4" placeholder="상담 내용, 학생 상태, 지도 방향">${esc(st.summary)}</textarea></div>
-          <div class="field"><label for="ck-in">다음 점검사항</label>
-            <div class="cs-check-add"><div class="input sm grow"><input id="ck-in" placeholder="입력 후 Enter"></div>
-              <button type="button" class="btn btn-gray btn-sm" id="ck-add">추가</button></div>
-            <div class="chips cs-checks">${st.checkItems.map((c, k) => `<span class="ck">${esc(c)}<button type="button" data-ck="${k}" aria-label="삭제">${X}</button></span>`).join('')}</div>
-          </div>
+        <section class="cs-card">
+          <div class="cs-card-h"><h4>총평</h4></div>
+          <textarea class="textarea" id="cs-sum" rows="4" aria-label="총평" placeholder="상담 내용, 학생 상태, 지도 방향">${esc(st.summary)}</textarea>
         </section>
       </div>
       <div class="cp-foot"><p class="err" id="cs-err" role="alert"></p><div class="spacer"></div>
@@ -256,24 +251,15 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         return keepScroll(drawConsult);
       }
       if (t.id === 'carry-btn') return toggleCarry();
-      if (t.id === 'ck-add') return addCheck();
-      if (t.dataset.ck != null) { st.checkItems.splice(Number(t.dataset.ck), 1); return keepScroll(drawConsult); }
       if (t.id === 'cs-save') return save(t);
     };
     // 패널은 다시 그릴 때마다 내용이 바뀌므로, 매번 새로 생기는 요소에만 연결
     $('.cp-body', body).addEventListener('click', onClick);
     $('.cp-foot', body).addEventListener('click', onClick);
-    $('#ck-in', body).addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addCheck(); } });
     $('#cs-sum', body).addEventListener('input', (e) => { st.summary = e.target.value; });
   }
 
-  function addCheck() {
-    const inp = $('#ck-in', panel); const v = inp.value.trim();
-    if (!v) return;
-    st.checkItems.push(v);
-    const y = window.scrollY; drawConsult(); window.scrollTo(0, y);
-    $('#ck-in', panel).focus();
-  }
+
 
   async function toggleCarry() {
     const box = $('#carry', panel);

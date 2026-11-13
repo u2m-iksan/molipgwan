@@ -474,3 +474,94 @@ html,body{touch-action:manipulation}
 .sa-pg>button{position:relative;z-index:1;background:none!important;box-shadow:none!important;transition:color .2s}
 .sa-pg-ind{position:absolute;left:0;top:4px;bottom:4px;border-radius:9px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);will-change:transform}
 button:disabled{cursor:default}
+
+/* =============================================================
+   성적 탭: 학생 카드 · 자세히 보기 · 입력 고르기
+   ============================================================= */
+.xc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;align-items:start}
+.xc-grid>.empty{grid-column:1/-1}
+.xc{padding:18px 20px 20px;cursor:pointer;transition:box-shadow var(--t),transform var(--t) var(--ease)}
+.xc:focus-visible{outline:none;box-shadow:var(--ring)}
+.xc-h{display:flex;align-items:center;gap:10px}
+.xc-name{display:flex;align-items:baseline;gap:6px;min-width:0;flex:1}
+.xc-name b{font-size:16px;font-weight:800;white-space:nowrap}
+.xc-name small{font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xc-acts{display:flex;gap:2px;margin-right:-6px}
+.xc-acts .icon-btn svg,.modal-xd .drawer-head .icon-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.xc-acts .icon-btn{color:var(--sub)}
+.xc-acts .icon-btn:hover{color:var(--text)}
+.xc-latest{margin:10px 0 12px;font-size:13px;color:var(--sub)}
+.xc-latest b{color:var(--text);font-weight:700}
+.xc .xs-compact{margin:0}
+.xc .xs-tile{border:0;background:#F6F7F9}
+.xc-empty{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:16px;border-radius:12px;background:#F6F7F9}
+.xc-empty p{font-size:14px;color:var(--faint)}
+.xc.none .xc-name b{color:var(--sub)}
+
+/* 자세히 보기 */
+.modal-xd{width:min(760px,100%);max-height:calc(100vh - 48px)}
+.modal-xd .drawer-head{gap:4px}
+.modal-xd .drawer-head h3{margin-right:auto}
+.xd-chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 2px 4px;margin:0 -2px 16px}
+.xd-chips::-webkit-scrollbar{display:none}
+.xd-chips .chip-t{flex:none}
+.xd-exam-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.xd-exam-h h4{font-size:18px;font-weight:800}
+.xd-exam-h span{display:block;margin-top:2px;font-size:13px;color:var(--sub)}
+.xd-exam-h .btn svg{width:15px;height:15px;margin-right:4px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.xd-list{list-style:none;display:flex;flex-direction:column}
+.xd-row{padding:12px 2px}
+.xd-row+.xd-row{border-top:1px solid var(--line)}
+.xd-line{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1.2fr);align-items:center;gap:12px;font-feature-settings:"tnum"}
+.xd-sub{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;min-width:0}
+.xd-sub i{width:8px;height:8px;border-radius:50%;flex:none}
+.xd-score{display:flex;align-items:baseline;gap:8px;font-size:13px;color:var(--sub)}
+.xd-score strong{font-size:17px;font-weight:800;color:var(--text);margin-right:1px}
+.xd-score em{font-style:normal;font-weight:700;color:var(--text);font-size:14px}
+.xd-chg{display:flex;align-items:center;justify-content:flex-end;gap:6px;font-size:13px;color:var(--sub)}
+.xd-chg i{display:grid;place-items:center}
+.xd-chg svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.xd-chg.up i{color:#0E9F55}.xd-chg.down i{color:#E5323F}.xd-chg.same i{color:var(--faint)}
+.xd-note{margin:8px 0 0 16px;padding:10px 12px;border-radius:10px;background:#F6F7F9;font-size:14px;line-height:1.55;color:var(--text);white-space:pre-wrap}
+.xd-fb{margin-top:14px;padding:14px 16px;border-radius:12px;background:#F5F8FD}
+.xd-fb h5{font-size:13px;font-weight:700;color:#1B64DA;margin-bottom:6px}
+.xd-fb p{font-size:14px;line-height:1.6;white-space:pre-wrap}
+.xd-sec{margin-top:28px}
+.xd-sec-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.xd-sec-h h4{font-size:15px;font-weight:800}
+.xd-sec-h span{font-size:12px;color:var(--faint)}
+.xd-sec .table-wrap{border:1px solid var(--line);border-radius:12px}
+.xd-sec .ex-hist tbody tr{cursor:pointer}
+.xd-sec .ex-hist tbody tr.on td{background:#F5F8FD}
+.xd-sec .ex-hist td small{display:block;font-size:11.5px;color:var(--faint);margin-top:1px}
+@media (max-width:640px){
+  .xd-line{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}
+  .xd-chg{grid-column:1/-1;justify-content:flex-start;padding-left:16px}
+  .xd-note{margin-left:16px}
+  .xc-grid{grid-template-columns:minmax(0,1fr)}
+}
+
+/* 입력 고르기 */
+.modal-xp{width:min(440px,100%)}
+.xp-year{margin-bottom:12px}
+.xp-list{list-style:none;display:flex;flex-direction:column}
+.xp-list li+li{border-top:1px solid var(--line)}
+.xp-list button{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:14px 4px;text-align:left;border-radius:10px}
+.xp-list button:hover{background:#F6F7F9}
+.xp-name{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.xp-now{font-style:normal;font-size:11.5px;font-weight:700;color:#1B64DA;background:#EAF2FE;padding:2px 7px;border-radius:6px}
+.xp-st{font-size:13px;color:var(--faint)}
+.xp-list button.done .xp-st{color:#0E9F55;font-weight:600}
+.xp-go{font-size:13px;font-weight:700;color:var(--blue,#3182F6);padding:6px 10px;border-radius:8px;background:#EAF2FE}
+.xp-list button.done .xp-go{color:var(--sub);background:#F2F4F6}
+/* 성적 입력: 과목 피드백 칸 항상 표시 · 과목 사이 구분선 */
+@media (min-width:641px){ .ex-rows-h,.ex-line{grid-template-columns:110px minmax(0,1fr) 92px 128px 36px} }
+.ex-rows{gap:0}
+.ex-row{padding:10px 0;gap:6px}
+.ex-row+.ex-row{border-top:1px solid var(--line)}
+.ex-memo input{font-size:14px}
+@media (max-width:640px){
+  .ex-line{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 32px;grid-template-areas:"sub det acts" "raw val val"}
+  .ex-line .ex-sub{grid-area:sub}.ex-line .ex-det{grid-area:det}.ex-line .ex-raw{grid-area:raw}.ex-line .ex-v{grid-area:val}
+  .ex-line .ex-acts{grid-area:acts;grid-column:auto}
+}

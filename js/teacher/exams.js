@@ -1,16 +1,15 @@
-// 선생님 · 성적: [시험별] 한 시험의 전체 학생 입력 현황 / [학생별] 한 학생의 시험 추이
-//  입력은 선생님만. 시험 총평(exams.feedback) + 과목 메모(exam_scores.note, 선택) → 상담 참고사항에 표시
+// 선생님 · 성적: [학생별] 학생 카드(최근 시험 요약) → 돋보기 자세히 · 연필 입력/수정 / [시험별 입력 현황] 한 시험의 전체 학생
+//  입력은 선생님만. 시험 총평(exams.feedback) + 과목 피드백(exam_scores.note, 선택) → 자세히 보기 · 상담 참고사항에 표시
 import { $, $$, esc, toast, sheet, X, fadeOut, popIn } from '../ui.js';
 import { SUBJECTS, loadStudents } from '../data/students.js';
 import {
   EXAM_TYPES, NAESIN, MOCK, isMock, examOrder, schoolYear, recentExam, scaleOf,
-  loadExamRound, loadStudentExams, loadStudentSubjects, saveExam, deleteExam, summarize,
+  loadExamRound, loadAllExams, loadStudentSubjects, saveExam, deleteExam, summarize, prevOf, subjectChange,
 } from '../data/exams.js';
 import { summaryCard } from '../views/exam-summary.js';
 
 const SUB_COLOR = { 국어: '#3182F6', 수학: '#F59E0B', 영어: '#10B981', 사회: '#8B5CF6', 과학: '#06B6D4', 한국사: '#EC4899', 기타: '#8B95A1' };
 const ACH = ['A', 'B', 'C', 'D', 'E'];
-const MEMO = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
 const bySeat = (a, b) => {
   if (!a.seat_no !== !b.seat_no) return a.seat_no ? -1 : 1;
   return String(a.seat_no || '').localeCompare(String(b.seat_no || ''), 'ko', { numeric: true }) || a.name.localeCompare(b.name, 'ko');
@@ -26,14 +25,14 @@ function scoreText(s, type) {
 export async function renderExams(body) {
   const sy = schoolYear();
   const st = {
-    view: 'round', students: [], year: sy, type: recentExam(), level: '전체', q: '',
-    sid: null, round: [],
+    view: 'student', students: [], all: new Map(),
+    year: sy, type: recentExam(), level: '전체', q: '', has: '전체', round: [],
   };
   st.cat = isMock(st.type) ? '모의' : '내신';
 
   body.innerHTML = `
     <div class="t-head"><h2>성적 <span class="count" id="cnt"></span></h2><div class="spacer"></div>
-      <div class="seg" id="ex-view"><button type="button" data-v="round">시험별</button><button type="button" data-v="student">학생별</button></div></div>
+      <div class="seg" id="ex-view"><button type="button" data-v="student">학생별</button><button type="button" data-v="round">시험별 입력 현황</button></div></div>
     <div id="ex-body"></div>`;
 
   const viewSeg = $('#ex-view');
@@ -46,12 +45,73 @@ export async function renderExams(body) {
 
   try { st.students = (await loadStudents()).filter((s) => s.status === '재원').sort(bySeat); }
   catch (e) { $('#ex-body').innerHTML = `<div class="card empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
-  st.sid = st.students[0]?.id || null;
   draw();
 
-  function draw() { return st.view === 'round' ? drawRound() : drawStudent(); }
+  function draw() { return st.view === 'round' ? drawRound() : drawCards(); }
+  const reload = () => draw();
 
-  /* ---------- 시험별 ---------- */
+  /* ---------- 학생별: 학생 카드 (최근 시험 요약) ---------- */
+  async function drawCards() {
+    $('#cnt').textContent = '';
+    $('#ex-body').innerHTML = `
+      <div class="t-tools">
+        <div class="seg" id="xc-level">${['전체', '중등', '고등'].map((l) => `<button type="button" data-v="${l}">${l}</button>`).join('')}</div>
+        <div class="seg" id="xc-has">${['전체', '입력됨', '미입력'].map((l) => `<button type="button" data-v="${l}">${l}</button>`).join('')}</div>
+        <div class="search"><input id="xc-q" type="search" placeholder="이름 · 자리 검색" aria-label="검색" value="${esc(st.q)}"></div>
+      </div>
+      <div class="xc-grid" id="xc-grid"><div class="card empty">불러오는 중</div></div>`;
+    const seg = (id, key) => {
+      const el = $(id);
+      const paint = () => $$('button', el).forEach((b) => b.classList.toggle('on', b.dataset.v === st[key]));
+      paint();
+      el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; st[key] = b.dataset.v; paint(); paintCards(); });
+    };
+    seg('#xc-level', 'level'); seg('#xc-has', 'has');
+    $('#xc-q').addEventListener('input', (e) => { st.q = e.target.value.trim(); paintCards(); });
+    try { st.all = await loadAllExams(); }
+    catch (e) { $('#xc-grid').innerHTML = `<div class="card empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
+    paintCards();
+  }
+
+  function paintCards() {
+    const grid = $('#xc-grid'); if (!grid) return;
+    const has = (s) => (st.all.get(s.id) || []).some((e) => e.scores.length);
+    const base = st.students.filter((s) => st.level === '전체' || s.grade.startsWith(st.level === '중등' ? '중' : '고'));
+    const list = base.filter((s) =>
+      (st.has === '전체' || (st.has === '입력됨') === has(s)) &&
+      (!st.q || s.name.includes(st.q) || (s.seat_no || '') === st.q));
+    $('#cnt').textContent = `입력 ${base.filter(has).length} / ${base.length}명`;
+    if (!list.length) { grid.innerHTML = '<div class="card empty">조건에 맞는 학생이 없습니다.</div>'; return; }
+    grid.innerHTML = list.map((s) => {
+      const exams = st.all.get(s.id) || [];
+      const sum = summarize(exams);
+      return `<article class="card xc${sum ? '' : ' none'}" data-id="${esc(s.id)}" tabindex="0" aria-label="${esc(s.name)} 성적 자세히">
+        <div class="xc-h">
+          <span class="seat${s.seat_no ? '' : ' none'}">${esc(s.seat_no || '-')}</span>
+          <div class="xc-name"><b>${esc(s.name)}</b><small>${esc(s.grade)}${s.school ? ` · ${esc(s.school)}` : ''}</small></div>
+          <div class="xc-acts">
+            ${sum ? `<button type="button" class="icon-btn" data-zoom aria-label="자세히 보기" title="자세히 보기">${ZOOM}</button>` : ''}
+            <button type="button" class="icon-btn" data-edit aria-label="성적 입력 · 수정" title="성적 입력 · 수정">${PEN}</button>
+          </div>
+        </div>
+        ${sum ? `<p class="xc-latest"><b>${esc(examName(sum.latest))}</b>${sum.prev ? ` · ${esc(examName(sum.prev))} 대비` : ''}</p>
+          ${summaryCard(sum, { compact: true })}`
+        : `<div class="xc-empty"><p>입력된 성적이 없습니다.</p><button type="button" class="btn btn-sm btn-gray" data-edit>성적 입력</button></div>`}
+      </article>`;
+    }).join('');
+    $$('.xc', grid).forEach((card) => {
+      const stu = st.students.find((x) => x.id === card.dataset.id);
+      const exams = () => st.all.get(stu.id) || [];
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('[data-edit]')) return openPicker(stu, exams(), reload);
+        if (!exams().some((x) => x.scores.length)) return openPicker(stu, exams(), reload);
+        openDetail(stu, exams(), reload);
+      });
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === card) card.click(); });
+    });
+  }
+
+  /* ---------- 시험별 입력 현황 ---------- */
   async function drawRound() {
     const years = [sy, sy - 1, sy - 2];
     const types = st.cat === '모의' ? MOCK : NAESIN;
@@ -97,7 +157,7 @@ export async function renderExams(body) {
         return `<tr data-id="${esc(s.id)}" tabindex="0"${sc.length ? '' : ' class="dim"'}>
           <td><span class="seat${s.seat_no ? '' : ' none'}">${esc(s.seat_no || '-')}</span></td>
           <td><b>${esc(s.name)}</b></td><td>${esc(s.grade)}</td>
-          <td class="ex-cells-td"><div class="ex-cells">${sc.length ? sc.map((x) => `<span class="ex-cell"><i style="background:${SUB_COLOR[x.subject]}"></i>${esc(subName(x))}<b>${esc(scoreText(x, st.type))}</b>${x.note ? '<em title="과목 메모">메모</em>' : ''}</span>`).join('') : '<span class="sub">미입력</span>'}</div></td>
+          <td class="ex-cells-td"><div class="ex-cells">${sc.length ? sc.map((x) => `<span class="ex-cell"><i style="background:${SUB_COLOR[x.subject]}"></i>${esc(subName(x))}<b>${esc(scoreText(x, st.type))}</b></span>`).join('') : '<span class="sub">미입력</span>'}</div></td>
           <td>${ex?.feedback ? '<span class="pill pill-green">작성</span>' : '<span class="sub">-</span>'}</td>
         </tr>`;
       }).join('')}</tbody></table>`;
@@ -107,60 +167,130 @@ export async function renderExams(body) {
       tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
     });
   }
+}
 
-  /* ---------- 학생별 ---------- */
-  async function drawStudent() {
-    const stu = st.students.find((s) => s.id === st.sid);
-    $('#cnt').textContent = '';
-    $('#ex-body').innerHTML = `
-      <div class="t-tools">
-        <div class="input sm ex-stu"><select id="ex-stu">${st.students.map((s) => `<option value="${esc(s.id)}"${s.id === st.sid ? ' selected' : ''}>${esc(s.seat_no ? s.seat_no + ' · ' : '')}${esc(s.name)} (${esc(s.grade)})</option>`).join('')}</select></div>
-        <div class="spacer"></div>
-        ${stu ? `<div class="input sm ex-add"><select id="ex-add"><option value="">성적 입력</option>
-          ${(stu.grade.startsWith('고') ? EXAM_TYPES : NAESIN)
-            .map((t) => `<option value="${t}">${sy} ${t}</option>`).join('')}</select></div>` : ''}
-      </div>
-      <div id="ex-stu-body">${stu ? '<div class="card empty">불러오는 중</div>' : '<div class="card empty">재원 학생이 없습니다.</div>'}</div>`;
-    if (!stu) return;
-    $('#ex-stu').addEventListener('change', (e) => { st.sid = e.target.value; drawStudent(); });
-    let exams = [];
-    try { exams = await loadStudentExams(stu.id); }
-    catch (e) { $('#ex-stu-body').innerHTML = `<div class="card empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
-    $('#ex-add').addEventListener('change', (e) => {
-      const t = e.target.value; e.target.value = ''; if (!t) return;
-      openEditor(stu, sy, t, exams.find((x) => x.school_year === sy && x.exam_type === t), drawStudent);
+const examName = (e) => `${e.school_year} ${e.exam_type}`;
+const ZOOM = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>';
+const PEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
+const UP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
+const DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
+const SAME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>';
+const valLabel = (s, type) => isMock(type) ? (s.percentile != null ? `백분위 ${s.percentile}` : '')
+  : s.grade_level != null ? `${s.grade_level}등급` : s.achievement ? `성취도 ${s.achievement}` : '';
+
+/* ---------- 자세히 보기 (돋보기): 시험 고르기 → 과목별 점수 · 변화 · 피드백 · 총평 + 전체 기록 ---------- */
+function openDetail(stu, exams, onChanged) {
+  const list = [...exams].filter((e) => e.scores.length || e.feedback).sort(examOrder).reverse();   // 최신 먼저
+  let cur = list[0]?.id;
+  const m = sheet(`
+    <div class="modal modal-xd" role="dialog" aria-label="${esc(stu.name)} 성적">
+      <div class="drawer-head"><h3>${esc(stu.name)} <span class="h-sub">${esc(stu.grade)}${stu.school ? ` · ${esc(stu.school)}` : ''}</span></h3>
+        <button type="button" class="icon-btn" id="xd-edit" aria-label="성적 입력 · 수정" title="성적 입력 · 수정">${PEN}</button>
+        <button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
+      <div class="drawer-body" id="xd-body"></div>
+    </div>`, 'center');
+  const bodyEl = $('#xd-body', m);
+
+  const hist = (title, l) => {
+    if (!l.length) return '';
+    const mock = title === '모의고사';
+    const subs = [...new Set(l.flatMap((e) => e.scores.map(subName)))];
+    const asc = [...l].sort(examOrder);
+    return `<section class="xd-sec"><div class="xd-sec-h"><h4>${title} 기록</h4><span>${mock ? '원점수 · 백분위' : '원점수 · 등급(성취도)'}</span></div>
+      <div class="table-wrap"><table class="tbl tbl-s ex-hist">
+        <thead><tr><th>시험</th>${subs.map((x) => `<th>${esc(x)}</th>`).join('')}</tr></thead>
+        <tbody>${asc.map((e) => `<tr data-ex="${esc(e.id)}"${e.id === cur ? ' class="on"' : ''}>
+          <td><b>${e.school_year} ${esc(e.exam_type)}</b><small>${esc(e.grade)}</small></td>
+          ${subs.map((n) => { const x = e.scores.find((q) => subName(q) === n); return `<td>${x ? esc(scoreText(x, e.exam_type)) : '<span class="sub">-</span>'}</td>`; }).join('')}
+        </tr>`).join('')}</tbody></table></div></section>`;
+  };
+
+  function draw() {
+    const e = list.find((x) => x.id === cur);
+    if (!e) { bodyEl.innerHTML = '<div class="ex-none">입력된 성적이 없습니다.</div>'; return; }
+    const prev = prevOf(exams, e);
+    const rows = e.scores.map((s) => {
+      const c = subjectChange(s, e.exam_type, prev);
+      const icon = c ? { up: UP, down: DOWN, same: SAME }[c.k] : '';
+      return `<li class="xd-row">
+        <div class="xd-line">
+          <b class="xd-sub"><i style="background:${SUB_COLOR[s.subject] || SUB_COLOR.기타}"></i>${esc(subName(s))}</b>
+          <span class="xd-score">${s.raw_score != null ? `<strong>${s.raw_score}</strong>점` : ''}${valLabel(s, e.exam_type) ? `<em>${esc(valLabel(s, e.exam_type))}</em>` : ''}</span>
+          <span class="xd-chg ${c ? c.k : ''}">${c ? `${esc(c.from)} → ${esc(c.to)}<i>${icon}</i>` : ''}</span>
+        </div>
+        ${s.note ? `<p class="xd-note">${esc(s.note)}</p>` : ''}
+      </li>`;
+    }).join('');
+    bodyEl.innerHTML = `
+      <div class="xd-chips" role="tablist">${list.map((x) => `<button type="button" role="tab" class="chip-t${x.id === cur ? ' on' : ''}" data-ex="${esc(x.id)}" aria-selected="${x.id === cur}">${x.school_year !== list[0].school_year || x.school_year !== schoolYear() ? `${String(x.school_year).slice(2)}년 ` : ''}${esc(x.exam_type)}</button>`).join('')}</div>
+      <section class="xd-exam">
+        <div class="xd-exam-h"><div><h4>${esc(examName(e))}</h4><span>${esc(e.grade)}${prev ? ` · ${esc(examName(prev))} 대비` : ''}</span></div>
+          <button type="button" class="btn btn-sm btn-gray" id="xd-fix">${PEN}수정</button></div>
+        ${e.scores.length ? `<ul class="xd-list">${rows}</ul>` : '<p class="ex-none">과목 성적이 없습니다.</p>'}
+        <div class="xd-fb"><h5>시험 총평</h5>${e.feedback ? `<p>${esc(e.feedback)}</p>` : '<p class="sub">작성된 총평이 없습니다.</p>'}</div>
+      </section>
+      ${hist('내신', list.filter((x) => !isMock(x.exam_type)))}
+      ${hist('모의고사', list.filter((x) => isMock(x.exam_type)))}`;
+    $('#xd-fix', bodyEl).addEventListener('click', () => {
+      m.close();
+      openEditor({ ...stu, grade: e.grade }, e.school_year, e.exam_type, e, onChanged);
     });
-    const sec = (title, list) => {
-      const mock = title === '모의고사';
-      if (!list.length) return `<section class="card ex-sec"><div class="ex-sec-h"><h3>${title}</h3></div><div class="ex-none">입력된 성적이 없습니다.</div></section>`;
-      const subs = [...new Set(list.flatMap((e) => e.scores.map(subName)))];
-      return `<section class="card ex-sec">
-        <div class="ex-sec-h"><h3>${title}</h3><span>${mock ? '원점수 · 백분위' : '원점수 · 등급(성취도)'}</span></div>
-        <div class="table-wrap"><table class="tbl tbl-s ex-hist">
-          <thead><tr><th>시험</th>${subs.map((s) => `<th>${esc(s)}</th>`).join('')}<th>총평</th></tr></thead>
-          <tbody>${list.map((e) => `<tr data-ex="${esc(e.id)}">
-            <td><b>${e.school_year} ${esc(e.exam_type)}</b><small>${esc(e.grade)}</small></td>
-            ${subs.map((n) => { const x = e.scores.find((s) => subName(s) === n); return `<td>${x ? esc(scoreText(x, e.exam_type)) : '<span class="sub">-</span>'}</td>`; }).join('')}
-            <td class="ex-fb-td"><div class="ex-fb">${e.feedback ? esc(e.feedback) : '<span class="sub">-</span>'}</div></td></tr>`).join('')}</tbody>
-        </table></div></section>`;
-    };
-    const nae = exams.filter((e) => !isMock(e.exam_type)), mk = exams.filter((e) => isMock(e.exam_type));
-    $('#ex-stu-body').innerHTML = summaryCard(summarize(exams)) + sec('내신', nae) + (stu.grade.startsWith('고') || mk.length ? sec('모의고사', mk) : '');
-    $$('#ex-stu-body tr[data-ex]').forEach((tr) => tr.addEventListener('click', () => {
-      const e = exams.find((x) => x.id === tr.dataset.ex);
-      openEditor({ ...stu, grade: e.grade }, e.school_year, e.exam_type, e, drawStudent);
-    }));
   }
+  draw();
+  bodyEl.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-ex]'); if (!b || b.dataset.ex === cur) return;
+    cur = b.dataset.ex; const top = bodyEl.scrollTop; draw();
+    if (b.tagName === 'TR') bodyEl.scrollTo({ top: 0, behavior: 'smooth' }); else bodyEl.scrollTop = top;
+    $('.xd-exam', bodyEl)?.classList.add('fx-in');
+    $('.xd-chips .on', bodyEl)?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  });
+  $('#xd-edit', m).addEventListener('click', () => { m.close(); openPicker(stu, exams, onChanged); });
+}
 
+/* ---------- 성적 입력 · 수정 (연필): 시험 고르기 → 입력 창 ---------- */
+function openPicker(stu, exams, onChanged) {
+  const sy = schoolYear();
+  let year = sy;
+  const m = sheet(`
+    <div class="modal modal-xp" role="dialog" aria-label="성적 입력">
+      <div class="drawer-head"><h3>성적 입력 <span class="h-sub">${esc(stu.name)} · ${esc(stu.grade)}</span></h3>
+        <button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
+      <div class="drawer-body" id="xp-body"></div>
+    </div>`, 'center');
+  const bodyEl = $('#xp-body', m);
+  const types = stu.grade.startsWith('고') ? EXAM_TYPES : NAESIN;
+  function draw() {
+    const now = recentExam();
+    bodyEl.innerHTML = `
+      <div class="seg xp-year">${[sy, sy - 1].map((y) => `<button type="button" data-y="${y}" class="${y === year ? 'on' : ''}">${y}학년도</button>`).join('')}</div>
+      <ul class="xp-list">${types.map((t) => {
+        const e = exams.find((x) => x.school_year === year && x.exam_type === t);
+        const n = e?.scores.length || 0;
+        const tag = year === sy && t === now ? '<em class="xp-now">이번 시험</em>' : '';
+        return `<li><button type="button" data-t="${esc(t)}" class="${e ? 'done' : ''}">
+          <span class="xp-name">${esc(t)}${tag}</span>
+          <span class="xp-st">${e ? `입력됨 · ${n}과목` : '미입력'}</span>
+          <span class="xp-go">${e ? '수정' : '입력'}</span>
+        </button></li>`;
+      }).join('')}</ul>`;
+  }
+  draw();
+  bodyEl.addEventListener('click', (ev) => {
+    const y = ev.target.closest('[data-y]'); if (y) { year = Number(y.dataset.y); return draw(); }
+    const b = ev.target.closest('[data-t]'); if (!b) return;
+    const e = exams.find((x) => x.school_year === year && x.exam_type === b.dataset.t);
+    m.close();
+    openEditor(e ? { ...stu, grade: e.grade } : stu, year, b.dataset.t, e, onChanged);
+  });
 }
 
 /* ---------- 입력 (가운데 모달) ---------- */
 async function openEditor(stu, year, type, exam, onSaved) {
   const scale = scaleOf(stu.grade, year, type);
-  const rows = (exam?.scores || []).map((s) => ({ ...s, memoOpen: !!s.note }));
+  const rows = (exam?.scores || []).map((s) => ({ ...s }));
   let subs = [];
   try { subs = await loadStudentSubjects(stu.id); } catch { subs = []; }
-  if (!exam && !rows.length) subs.forEach((s) => rows.push({ subject: s.subject, subject_detail: s.subject_detail, memoOpen: false }));
+  if (!exam && !rows.length) subs.forEach((s) => rows.push({ subject: s.subject, subject_detail: s.subject_detail }));
   let feedback = exam?.feedback || '';
 
   const panel = sheet(`
@@ -197,11 +327,10 @@ async function openEditor(stu, year, type, exam, onSaved) {
             <div class="input sm ex-raw"><input data-f="raw_score" data-k="${k}" inputmode="decimal" maxlength="5" value="${r.raw_score ?? ''}" placeholder="-"><em>점</em></div>
             ${valCell(r, k)}
             <div class="ex-acts">
-              <button type="button" class="icon-btn sm${r.memoOpen ? ' on' : ''}" data-memo="${k}" aria-label="과목 메모" title="과목 메모">${MEMO}</button>
               <button type="button" class="icon-btn sm" data-del="${k}" aria-label="삭제">${X}</button>
             </div>
           </div>
-          ${r.memoOpen ? `<div class="input sm ex-memo"><input data-f="note" data-k="${k}" value="${esc(r.note || '')}" placeholder="과목 메모 (선택)"></div>` : ''}
+          <div class="input sm ex-memo"><input data-f="note" data-k="${k}" value="${esc(r.note || '')}" placeholder="${esc(subName(r) || '과목')} 피드백 (선택)" aria-label="과목 피드백"></div>
         </div>`).join('') || '<div class="ex-none">과목을 추가하세요.</div>'}</div>
       <div class="ex-quick">${quick.map((s, i) => `<button type="button" class="chip-t" data-q="${i}">+ ${esc(subName(s))}</button>`).join('')}
         <button type="button" class="chip-t" data-q="-1">+ 과목</button></div>
@@ -209,7 +338,7 @@ async function openEditor(stu, year, type, exam, onSaved) {
         <textarea id="ee-fb" class="textarea" rows="4" placeholder="시험 결과 분석, 다음 시험 준비 방향">${esc(feedback)}</textarea></div>`;
     $$('[data-q]', bodyEl).forEach((b) => b.addEventListener('click', () => {
       const i = Number(b.dataset.q);
-      rows.push(i >= 0 ? { subject: quick[i].subject, subject_detail: quick[i].subject_detail, memoOpen: false } : { subject: '국어', subject_detail: '', memoOpen: false });
+      rows.push(i >= 0 ? { subject: quick[i].subject, subject_detail: quick[i].subject_detail } : { subject: '국어', subject_detail: '' });
       draw();
       const nr = $$('.ex-row', bodyEl).pop(); popIn(nr);
       nr?.querySelector('[data-f=raw_score]')?.focus({ preventScroll: true });
@@ -230,10 +359,6 @@ async function openEditor(stu, year, type, exam, onSaved) {
   bodyEl.addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.del != null) { const k = Number(b.dataset.del); fadeOut(b.closest('.ex-row')).then(() => { rows.splice(k, 1); draw(); }); }
-    if (b.dataset.memo != null) {
-      const r = rows[Number(b.dataset.memo)]; r.memoOpen = !r.memoOpen; draw();
-      if (r.memoOpen) $(`[data-f=note][data-k="${b.dataset.memo}"]`, bodyEl)?.focus();
-    }
   });
 
   const num = (v) => (v === '' || v == null ? null : Number(v));

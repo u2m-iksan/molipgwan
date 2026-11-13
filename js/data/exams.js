@@ -52,6 +52,23 @@ export async function loadStudentExams(sid) {
   return exams.map((e) => ({ ...e, scores: scores.filter((s) => s.exam_id === e.id) })).sort(examOrder);
 }
 
+// 전체 학생 성적 (성적 탭 학생 카드용) → Map(student_id → 시험[])
+export async function loadAllExams() {
+  const [exams, scores] = await Promise.all([
+    sb.from('exams').select('*').then(check),
+    sb.from('exam_scores').select('*').then(check),
+  ]);
+  const byExam = new Map();
+  scores.forEach((s) => { if (!byExam.has(s.exam_id)) byExam.set(s.exam_id, []); byExam.get(s.exam_id).push(s); });
+  const out = new Map();
+  exams.forEach((e) => {
+    if (!out.has(e.student_id)) out.set(e.student_id, []);
+    out.get(e.student_id).push({ ...e, scores: byExam.get(e.id) || [] });
+  });
+  out.forEach((l) => l.sort(examOrder));
+  return out;
+}
+
 export async function loadStudentSubjects(sid) {
   return check(await sb.from('student_subjects').select('subject,subject_detail,sort_order').eq('student_id', sid).order('sort_order'));
 }
@@ -120,4 +137,22 @@ export function summarize(exams) {
   const last = sorted[sorted.length - 1];
   const weak = sorted.length >= 2 && last.m.v !== sorted[0].m.v ? sorted.filter((x) => x.m.v === last.m.v).slice(-2).map(pick) : [];
   return { latest, prev, dir, changes, best, weak };
+}
+
+// 과목 하나의 직전 같은 종류 시험 대비 변화 (자세히 보기용) → { from, to, k: up|down|same } | null
+export function prevOf(exams, exam) {
+  const list = [...exams].filter((e) => e.scores?.length).sort(examOrder);
+  const i = list.findIndex((e) => e.id === exam.id);
+  return list.slice(0, Math.max(0, i)).reverse().find((e) => isMock(e.exam_type) === isMock(exam.exam_type)) || null;
+}
+export function subjectChange(s, type, prev) {
+  if (!prev) return null;
+  const p = prev.scores.find((q) => scoreName(q) === scoreName(s));
+  const m = metric(s, type), pm = p && metric(p, prev.exam_type);
+  if (!m || !pm || m.unit !== pm.unit) return null;
+  const raw = s.raw_score != null && p.raw_score != null ? s.raw_score - p.raw_score : null;
+  const d = m.v - pm.v;
+  const k = d > 0 || (d === 0 && raw > 0) ? 'up' : d < 0 || (d === 0 && raw < 0) ? 'down' : 'same';
+  const same = d === 0 && raw != null && pm.unit !== '점';
+  return { from: same ? `${p.raw_score}점` : pm.text, to: same ? `${s.raw_score}점` : m.text, k };
 }

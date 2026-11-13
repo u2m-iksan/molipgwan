@@ -1153,3 +1153,21 @@ body.has-foot .toast{bottom:92px}
 @media (max-width:640px){.ov-req li{grid-template-columns:auto 1fr auto;}.ov-req-s{grid-column:1/-1;order:5;white-space:normal}.ov-req time{display:none}}
 .sched-btns{display:flex;gap:8px;margin-top:4px}
 .sched-btns .btn{flex:1}
+.back-row{display:flex;flex-direction:column;gap:10px;margin:16px 0 20px}
+.back-row .input input{font-size:20px;font-weight:700;font-feature-settings:"tnum"}
+.back-row .chips{display:flex;gap:6px}
+
+/* 상황판 토요일 출결 */
+.ov-att{margin-left:auto;cursor:pointer;border-radius:99px;transition:box-shadow .15s}
+.ov-att:hover{box-shadow:0 0 0 2px var(--blue-soft)}
+.ov-foot .ov-att .pill{margin-left:0}
+.ov-alert{font-size:12px;font-weight:700;color:var(--sub);margin-top:-4px}
+.ov-alert.late{color:var(--red)}
+.ov-alert.lateIn{color:var(--orange)}
+.ae-list{list-style:none;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;margin:4px 0 8px}
+.ae-list li{display:grid;grid-template-columns:52px 44px minmax(0,1fr) 32px;align-items:center;gap:8px;padding:8px 10px 8px 14px;border-top:1px solid var(--line);font-size:14px}
+.ae-list li:first-child{border-top:0}
+.ae-list li.sub{display:block;color:var(--sub);padding:14px}
+.ae-list time{font-weight:700;font-feature-settings:"tnum"}
+.ae-list span{color:var(--sub);font-size:13px}
+.modal-m #ae-go{margin-top:20px}

@@ -1,5 +1,6 @@
 // 선생님 · 전체 현황(상황판): 자리순 학생 카드, 빨강·주황·초록 + 몰입 중 · 오늘 순공 · (토) 등원 상태
-import { $, $$, esc, toast } from '../ui.js';
+import { $, $$, esc, toast, sheet, X } from '../ui.js';
+import { teacherAttendance, deleteAttendance } from '../data/student.js';
 import { isoDow, today } from '../date.js';
 import { loadOverview, judge } from '../data/overview.js';
 import { loadOpenRequests, checkRequests } from '../data/schedules.js';
@@ -49,6 +50,44 @@ export async function renderOverview(body, { me } = {}) {
     box.querySelectorAll('[data-req]').forEach((b) => b.addEventListener('click', () => done([b.dataset.req])));
   }
 
+  // 토요일 출결 수정 (선생님): 오늘 기록 보기·삭제 + 등원/외출/복귀/하원 추가(시각 지정)
+  function attEditor(stu) {
+    if (!stu) return;
+    const nowT = () => new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
+    const f = { kind: '등원', reason: '', time: nowT(), back: '' };
+    const m = sheet(`<div class="modal modal-m" role="dialog" aria-label="출결 수정">
+      <div class="drawer-head"><h3>${esc(stu.name)} <span class="h-sub">오늘 출결</span></h3><button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
+      <div class="drawer-body" id="ae"></div></div>`, 'center');
+    const tm = (iso) => new Date(iso).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
+    const draw = () => {
+      const rows = stu.attRows || [];
+      $('#ae', m).innerHTML = `
+        <ul class="ae-list">${rows.length ? rows.map((r) => `<li><time>${tm(r.at)}</time><b>${esc(r.kind)}</b>
+          <span>${esc([r.reason, r.expect_back ? r.expect_back.slice(0, 5) + ' 복귀 예정' : '', r.auto ? '자동' : ''].filter(Boolean).join(' · '))}</span>
+          <button type="button" class="icon-btn sm" data-del="${esc(r.id)}" aria-label="삭제">${X}</button></li>`).join('') : '<li class="sub">기록이 없습니다.</li>'}</ul>
+        <div class="field"><span class="lbl">추가</span><div class="seg seg-wide" id="ae-k">${['등원', '외출', '복귀', '하원'].map((k) => `<button type="button" data-v="${k}" class="${f.kind === k ? 'on' : ''}">${k}</button>`).join('')}</div></div>
+        <div class="row2"><div class="field"><label for="ae-t">시각</label><div class="input"><input type="time" id="ae-t" value="${f.time}"></div></div>
+          ${f.kind === '외출' ? `<div class="field"><label for="ae-b">복귀 예정</label><div class="input"><input type="time" id="ae-b" value="${f.back}"></div></div>` : ''}</div>
+        ${['외출', '하원'].includes(f.kind) ? `<div class="field"><span class="lbl">사유</span><div class="seg seg-wide" id="ae-r">${['학원', '식사', '기타'].map((r) => `<button type="button" data-v="${r}" class="${f.reason === r ? 'on' : ''}">${r}</button>`).join('')}</div></div>` : ''}
+        <p class="err" id="ae-err"></p>
+        <button type="button" class="btn btn-primary btn-block" id="ae-go">${f.kind} 기록</button>`;
+    };
+    draw();
+    const reload = async () => { await load(); stu = st.list.find((x) => x.id === stu.id) || stu; draw(); };
+    m.addEventListener('input', (e) => { if (e.target.id === 'ae-t') f.time = e.target.value; if (e.target.id === 'ae-b') f.back = e.target.value; });
+    m.addEventListener('click', async (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.closest('#ae-k')) { f.kind = b.dataset.v; f.reason = ''; return draw(); }
+      if (b.closest('#ae-r')) { f.reason = b.dataset.v; return draw(); }
+      if (b.dataset.del) { try { await deleteAttendance(b.dataset.del); toast('삭제되었습니다'); reload(); } catch (x) { toast('삭제 실패: ' + x.message); } return; }
+      if (b.id === 'ae-go') {
+        if (!f.time) return ($('#ae-err', m).textContent = '시각을 입력하세요.');
+        try { await teacherAttendance(stu.id, f); toast(`${f.kind} 기록되었습니다`); f.time = nowT(); f.back = ''; reload(); }
+        catch (x) { $('#ae-err', m).textContent = '저장 실패: ' + x.message; }
+      }
+    });
+  }
+
   async function load() {
     try { st.data = await loadOverview(); }
     catch (e) { $('#ov-grid').innerHTML = `<div class="card empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
@@ -75,18 +114,24 @@ export async function renderOverview(body, { me } = {}) {
     grid.innerHTML = groups.filter(([, a]) => a.length).map(([t, a, k]) => `
       <section class="ov-sec ${k}"><h3>${k === 'on' ? '<i></i>' : ''}${t}<span>${a.length}</span></h3>
         <div class="ov-cards">${a.map(card).join('')}</div></section>`).join('');
-    $$('.ov-card', grid).forEach((c) => c.addEventListener('click', () => { location.hash = `#/students?open=${c.dataset.id}`; }));
+    $$('.ov-card', grid).forEach((c) => c.addEventListener('click', (e) => {
+      const a = e.target.closest('[data-att]');
+      if (a) return attEditor(st.list.find((x) => x.id === a.dataset.att));
+      location.hash = `#/students?open=${c.dataset.id}`;
+    }));
   }
 
   function card(s) {
     const on = s.active && !s.active.paused_at;
-    const att = !sat ? '' : !s.att ? '<span class="pill pill-red">미등원</span>'
+    const pill = !s.att ? '<span class="pill pill-red">미등원</span>'
       : s.att.kind === '외출' ? `<span class="pill pill-orange">외출${s.att.reason ? ' · ' + esc(s.att.reason) : ''}</span>`
         : s.att.kind === '하원' ? '<span class="pill pill-gray">하원</span>' : '<span class="pill pill-green">등원</span>';
+    const att = sat ? `<span class="ov-att" data-att="${esc(s.id)}" role="button" tabindex="0" title="출결 수정">${pill}</span>` : '';
+    const al = s.alert?.text ? `<div class="ov-alert ${s.alert.kind}">${esc(s.alert.text)}</div>` : '';
     return `<button type="button" class="ov-card ${s.color}" data-id="${esc(s.id)}">
       <div class="ov-top"><span class="seat${s.seat_no ? '' : ' none'}">${esc(s.seat_no || '-')}</span>
         <b class="ov-name">${esc(s.name)}</b><span class="ov-grade">${esc(s.grade)}</span><i class="ov-dot ${s.color}" title="${COLOR[s.color]}"></i></div>
-      <div class="ov-why">${s.reasons.length ? s.reasons.map((r) => `<span>${esc(r)}</span>`).join('') : '<span class="ok">정상</span>'}</div>
+      ${al}<div class="ov-why">${s.reasons.length ? s.reasons.map((r) => `<span>${esc(r)}</span>`).join('') : '<span class="ok">정상</span>'}</div>
       <div class="ov-foot">
         ${on ? `<span class="ov-on"><i></i>${esc(s.active.subject)} 몰입 중</span>` : s.active ? '<span class="ov-pause">일시정지</span>' : ''}
         <span class="ov-today">오늘 ${s.todaySec ? hm(s.todaySec) : '-'}</span>${att}

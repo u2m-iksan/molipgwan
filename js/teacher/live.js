@@ -7,6 +7,7 @@ import { $, esc } from '../ui.js';
 import { sb } from '../sb.js';
 import { DOW, today, mondayOf, isoDow, toMin, hm } from '../date.js';
 import { settleStale } from '../data/student.js';
+import { satAlert } from '../data/att-rules.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const kst = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -25,9 +26,9 @@ const bySeat = (a, b) => {
 async function loadLive() {
   const t = today(), mon = mondayOf(t);
   const [students, sessions, att, sched] = await Promise.all([
-    sb.from('students').select('id,name,grade,seat_no,status').eq('status', '재원').then(check),
+    sb.from('students').select('id,name,grade,seat_no,status,sat_arrive').eq('status', '재원').then(check),
     sb.from('study_sessions').select('id,student_id,subject,started_at,ended_at,paused_at,pause_seconds,net_seconds,checked_net,study_date').gte('study_date', mon).then(check),
-    sb.from('attendance').select('student_id,kind,reason,at').eq('on_date', t).order('at').then(check).catch(() => []),
+    sb.from('attendance').select('*').eq('on_date', t).order('at').then(check).catch(() => []),
     sb.from('schedules').select('student_id,category,title,weekday,start_time,end_time,valid_from,valid_to').eq('weekday', isoDow(t)).then(check),
   ]);
   return { t, students, sessions: await settleStale(sessions), att, sched: sched.filter((r) => r.valid_from <= t && (!r.valid_to || r.valid_to >= t)) };
@@ -67,13 +68,14 @@ export async function openLive() {
     const att = rows[rows.length - 1];
     const sat = isoDow(data.t) === 6;
     const blk = data.sched.find((r) => r.student_id === s.id && ['학원', '학교'].includes(r.category) && toMin(r.start_time) <= nowMin && nowMin < toMin(r.end_time));
+    const al = sat ? satAlert(s, rows, data.sched, nowMin) : null;
     let k, label, sub = '';
     if (active && !active.paused_at) { k = 'on'; label = `${active.subject} 몰입 중`; sub = clockSec(elapsed(active, at)); }
     else if (active) { k = 'rest'; label = '휴식 중'; sub = `${active.subject} ${clockSec(elapsed(active, at))}`; }
-    else if (sat && att?.kind === '외출') { k = 'out'; label = `외출${att.reason ? ' · ' + att.reason : ''}`; }
+    else if (sat && att?.kind === '외출') { k = al?.kind === 'late' ? 'none' : 'out'; label = `외출${att.reason ? ' · ' + att.reason : ''}`; sub = al?.text || ''; }
     else if (sat && att?.kind === '하원') { k = 'off'; label = '하원'; }
     else if (blk) { k = blk.category === '학원' ? 'acad' : 'school'; label = `${blk.category === '학원' ? (blk.title || '학원') : '학교'} ~${hm(blk.end_time)}`; }
-    else if (sat && !att) { k = 'none'; label = '미등원'; }
+    else if (sat && !att) { k = al?.kind === 'late' ? 'none' : 'idle'; label = al?.kind === 'late' ? al.text : al?.text || '미등원'; }
     else { k = 'idle'; label = sat && att ? '등원' : '대기'; }
     return { k, label, sub, todaySec };
   }

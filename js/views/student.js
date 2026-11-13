@@ -1,6 +1,6 @@
 // 학생 앱 (태블릿 가로 우선): 위 = 등원 체크 · 이름 / 왼쪽 = 시간표 / 오른쪽 = 이번 계획 + 오늘 진행률 / 오른쪽 아래 = 스톱워치
 import { mount, $, $$, esc, toast, sheet, BRAND, X } from '../ui.js';
-import { DOW, today, mondayOf, short, isoDow } from '../date.js';
+import { DOW, today, mondayOf, short, isoDow, toMin, toTime, hm } from '../date.js';
 import { loadStudentSchedules } from '../data/schedules.js';
 import { weekGrid, renderScheduleEditor } from '../teacher/schedule-editor.js';
 import { segBar } from './progress-bar.js';
@@ -47,7 +47,7 @@ export async function renderStudentHome({ student, onLogout }) {
     const tm = last ? new Date(last.at).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
     if (!s) { el.innerHTML = isSaturday() ? '<button type="button" class="att-btn need" id="att-in">등원 체크</button>' : ''; }
     else if (s === '하원') el.innerHTML = `<span class="att-state">${last.auto ? '자동 하원' : '하원'} ${tm}</span>`;
-    else if (s === '외출') el.innerHTML = `<span class="att-state out">외출 중 · ${esc(last.reason || '')}</span>
+    else if (s === '외출') el.innerHTML = `<span class="att-state out">외출 중 · ${esc(last.reason || '')}${last.expect_back ? ` · ${hm(last.expect_back)} 복귀` : ''}</span>
       <button type="button" class="att-btn" data-k="복귀">복귀</button><button type="button" class="att-btn" data-k="하원">하원</button>`;
     else el.innerHTML = `<span class="att-state in">등원 ${tm}</span>
       <button type="button" class="att-btn" data-k="외출">외출</button><button type="button" class="att-btn" data-k="하원">하원</button>`;
@@ -59,8 +59,8 @@ export async function renderStudentHome({ student, onLogout }) {
     if (k === '복귀') return record('복귀');
     reasonModal(k);
   });
-  async function record(kind, reason = null) {
-    try { await addAttendance(student.id, kind, reason); toast(`${kind} 처리되었습니다`); await loadAtt(); }
+  async function record(kind, reason = null, expectBack = null) {
+    try { await addAttendance(student.id, kind, reason, false, expectBack); toast(`${kind} 처리되었습니다`); await loadAtt(); }
     catch (e) { toast('저장 실패: ' + e.message); }
   }
   function pinModal() {
@@ -92,9 +92,29 @@ export async function renderStudentHome({ student, onLogout }) {
       <div class="drawer-head"><h3>${kind}</h3><button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
       <div class="drawer-body"><p class="desc-s">사유를 선택하세요.</p>
         <div class="reason">${REASONS.map((r) => `<button type="button" data-r="${r}">${r}</button>`).join('')}</div></div></div>`, 'center');
-    $('.reason', m).addEventListener('click', (e) => {
+    $('.reason', m).addEventListener('click', async (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      m.close(); record(kind, b.dataset.r);
+      if (kind !== '외출') { m.close(); return record(kind, b.dataset.r); }
+      // 외출: 복귀 예정 시각 (학원이면 지금 걸린/곧 시작하는 학원 끝 + 20분, 그 외 1시간 후)
+      const reason = b.dataset.r;
+      const n = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const now = n.getHours() * 60 + n.getMinutes();
+      let back = now + 60;
+      if (reason === '학원') {
+        try {
+          const rows = await loadStudentSchedules(student.id);
+          const blk = rows.filter((r) => r.category === '학원' && r.weekday === isoDow(today()) && r.valid_from <= today() && (!r.valid_to || r.valid_to >= today()))
+            .find((r) => toMin(r.end_time) > now && toMin(r.start_time) <= now + 60);
+          back = blk ? toMin(blk.end_time) + 20 : now + 120;
+        } catch { back = now + 120; }
+      }
+      back = Math.min(Math.ceil(back / 10) * 10, 23 * 60 + 50);
+      $('.drawer-body', m).innerHTML = `<p class="desc-s">${esc(reason)} · 복귀 예정 시각을 확인하세요.</p>
+        <div class="back-row"><div class="input"><input type="time" id="bk" value="${toTime(back)}" step="600"></div>
+          <div class="chips">${[30, 60, 120].map((x) => `<button type="button" class="chip-t" data-add="${x}">${x < 60 ? x + '분' : x / 60 + '시간'} 후</button>`).join('')}</div></div>
+        <button type="button" class="btn btn-primary btn-block" id="bk-go">외출</button>`;
+      $$('[data-add]', m).forEach((c) => c.addEventListener('click', () => { $('#bk', m).value = toTime(Math.min(now + Number(c.dataset.add), 23 * 60 + 59)); }));
+      $('#bk-go', m).addEventListener('click', () => { m.close(); record('외출', reason, $('#bk', m).value || null); });
     });
   }
 

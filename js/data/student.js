@@ -40,8 +40,10 @@ export const AUTO_OUT_HOUR = 20;   // 토요일 20:00 자동 하원
 export async function checkIn(studentId, code) {
   return check(await sb.rpc('check_in', { sid: studentId, code }));
 }
-export async function addAttendance(studentId, kind, reason = null, auto = false) {
-  check(await sb.from('attendance').insert({ student_id: studentId, on_date: today(), kind, reason, auto, at: nowIso() }));
+export async function addAttendance(studentId, kind, reason = null, auto = false, expectBack = null) {
+  const row = { student_id: studentId, on_date: today(), kind, reason, auto, at: nowIso() };
+  if (expectBack) row.expect_back = expectBack;
+  check(await sb.from('attendance').insert(row));
 }
 // 토요일 20시 이후 아직 하원 안 했으면 자동 하원
 export async function autoCheckout(studentId, rows) {
@@ -104,4 +106,16 @@ export async function settleStale(rows, at = Date.now()) {
     if (!isStale(r, at)) return r;
     try { return await autoEnd(r); } catch { return { ...r, ended_at: new Date(at).toISOString(), net_seconds: (r.checked_net || 0) + CHECK_SEC, auto_ended: true }; }
   }));
+}
+
+/* ---------- 선생님 출결 수정 (토요일) ---------- */
+export async function teacherAttendance(studentId, { kind, reason, time, back }) {
+  const [h, m] = time.split(':').map(Number);
+  const at = new Date(`${today()}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00+09:00`).toISOString();
+  const row = { student_id: studentId, on_date: today(), kind, reason: reason || null, at };
+  if (kind === '외출' && back) row.expect_back = back;
+  check(await sb.from('attendance').insert(row));
+}
+export async function deleteAttendance(id) {
+  check(await sb.from('attendance').delete().eq('id', id));
 }

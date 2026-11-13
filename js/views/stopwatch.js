@@ -34,12 +34,13 @@ export async function openStopwatch(student, { planSubjects = [], onChange } = {
     const run = !!s, paused = !!s?.paused_at;
     el.innerHTML = `<div class="sw-in">
       <div class="sw-top">
-        <span class="sw-today">오늘 순공 <b id="sw-total">${dur(doneSec + elapsedSec(s))}</b></span>
+        <span class="sw-today">${run ? `이번 세션 <b id="sw-sess">${dur(elapsedSec(s))}</b>` : ''}</span>
         <button type="button" class="sw-x" id="sw-x" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
       <div class="sw-mid">
         <p class="sw-state ${run ? (paused ? 'paused' : 'on') : ''}">${run ? (paused ? '일시정지' : `${esc(subject)} 공부 중`) : '과목을 고르고 시작하세요'}</p>
-        <div class="sw-time" id="sw-time">${clock(elapsedSec(s))}</div>
+        <p class="sw-lbl">오늘 순공</p>
+        <div class="sw-time" id="sw-time">${clock(doneSec + elapsedSec(s))}</div>
         <div class="sw-subs">${subjects.map((x) => `<button type="button" data-sub="${esc(x)}" class="${x === subject ? 'on' : ''}"${run ? ' disabled' : ''}>${esc(x)}</button>`).join('')}</div>
       </div>
       <div class="sw-btns">
@@ -51,8 +52,9 @@ export async function openStopwatch(student, { planSubjects = [], onChange } = {
     el.classList.toggle('running', run && !paused);
   }
   const tick = () => {
-    const t = $('#sw-time', el); if (t) t.textContent = clock(elapsedSec(s));
-    const tt = $('#sw-total', el); if (tt) tt.textContent = dur(doneSec + elapsedSec(s));
+    // 큰 시계 = 오늘 누적 (끝난 세션 + 지금 세션) → 껐다 켜도 이어서 쌓임
+    const t = $('#sw-time', el); if (t) t.textContent = clock(doneSec + elapsedSec(s));
+    const ss = $('#sw-sess', el); if (ss) ss.textContent = dur(elapsedSec(s));
     checkTick();
   };
   // 2시간 확인 팝업 (10분 안에 응답 없으면 2시간만 기록하고 종료)

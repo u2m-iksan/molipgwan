@@ -12,7 +12,6 @@ import {
   loadSessions, elapsedSec, needsCheck, loadWeekDone,
 } from '../data/student.js';
 
-const SW_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 3h5M12 3v3M18.5 6.5l1.5-1.5"/></svg>';
 const REASONS = ['학원', '식사', '기타'];
 const md = (d) => short(d).replace(/\(.\)/, '');
 
@@ -34,9 +33,11 @@ export async function renderStudentHome({ student, onLogout }) {
     </div>
     <main class="sa-main" id="sam">
       <section class="card sa-tt" id="tt"><div class="empty">불러오는 중</div></section>
-      <section class="card sa-plan" id="plan"><div class="empty">불러오는 중</div></section>
+      <div class="sa-col">
+        <button type="button" class="sa-today sa-today-w" id="today2"><span class="sa-today-l"><i></i>오늘 공부시간</span><b id="today2-t">0분</b><em>›</em></button>
+        <section class="card sa-plan" id="plan"><div class="empty">불러오는 중</div></section>
+      </div>
     </main>
-    <button type="button" class="sa-fab" id="fab" aria-label="스톱워치">${SW_IC}<span id="fab-t"></span></button>
   </div>`);
   const root = $('#sa'); root._view = token;
   $('#lo').addEventListener('click', onLogout);
@@ -273,23 +274,21 @@ export async function renderStudentHome({ student, onLogout }) {
     paintFab(); paintSum();
   }
   function paintFab() {
-    // 폰: 위쪽 "오늘 공부시간" (오늘 누적 = 끝난 세션 + 지금 세션)
-    const tt = $('#today-t');
-    if (tt) {
-      const sec = (st.doneSec || 0) + (st.sess ? elapsedSec(st.sess) : 0);
-      tt.textContent = st.sess && !st.sess.paused_at ? clock(sec) : `${Math.floor(sec / 3600)}시간 ${Math.floor(sec / 60) % 60}분`;
-      $('#today').classList.toggle('on', !!st.sess && !st.sess.paused_at);
+    // "오늘 공부시간" (오늘 누적 = 끝난 세션 + 지금 세션) — 폰은 위쪽, 태블릿·PC는 이번주 계획 위
+    const sec = (st.doneSec || 0) + (st.sess ? elapsedSec(st.sess) : 0);
+    const on = !!st.sess && !st.sess.paused_at;
+    const txt = on ? clock(sec) : `${Math.floor(sec / 3600)}시간 ${Math.floor(sec / 60) % 60}분`;
+    for (const id of ['today', 'today2']) {
+      const b = $('#' + id); if (!b) continue;
+      $('#' + id + '-t').textContent = txt; b.classList.toggle('on', on);
     }
     paintSum();
-    const f = $('#fab'); if (!f) return;
-    f.classList.toggle('on', !!st.sess && !st.sess.paused_at);
-    $('#fab-t').textContent = st.sess ? clock(elapsedSec(st.sess)) : '';
   }
   let swOpen = false;
   const openSW = () => { swOpen = true; openStopwatch(student, {
     planSubjects: [...new Set(st.items.map((i) => i.subject))], onChange: () => { swOpen = false; loadSess(); },
   }); };
-  $('#fab').addEventListener('click', openSW);
+  $('#today2').addEventListener('click', openSW);
   $('#today').addEventListener('click', openSW);
   // 폰: 시간표 | 이번주 계획 옆으로 넘기기
   const sam = $('#sam'), pg = $('#pg');

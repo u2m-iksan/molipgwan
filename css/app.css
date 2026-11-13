@@ -897,21 +897,12 @@ body.has-foot .toast{bottom:92px}
 .reason{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
 .reason button{height:56px;border-radius:14px;background:var(--surface);font-size:16px;font-weight:700}
 .reason button:hover{background:var(--surface2)}
-/* 스톱워치 버튼 */
-.sa-fab{position:fixed;right:24px;bottom:24px;z-index:30;min-width:64px;height:64px;border-radius:32px;background:var(--text);color:#fff;
-  display:flex;align-items:center;justify-content:center;gap:8px;padding:0 18px;box-shadow:0 10px 30px rgba(0,27,55,.25);transition:transform .15s}
-.sa-fab:active{transform:scale(.95)}
-.sa-fab svg{width:26px;height:26px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round}
-.sa-fab span{font-size:15px;font-weight:800;font-feature-settings:"tnum"}
-.sa-fab span:empty{display:none}
-.sa-fab.on{background:#12A150}
 @media (max-width:820px){
   .sa{height:100dvh;overflow:hidden}
   .sa-mtop{display:flex;flex-direction:column;gap:8px;padding:10px 12px 0}
   .sa-main{display:flex;gap:0;padding:10px 0 12px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
   .sa-main::-webkit-scrollbar{display:none}
   .sa-main>.card{flex:0 0 calc(100% - 24px);margin:0 12px;scroll-snap-align:center;height:100%}
-  .sa-fab{display:none}
   .sa-tt{overflow:hidden;padding:12px 10px 10px!important}
   .sa-tt .sa-h{padding:0 4px}
   .sa-tt .wk-grid{min-width:0;grid-template-columns:24px repeat(7,minmax(0,1fr));border-radius:10px}
@@ -927,6 +918,9 @@ body.has-foot .toast{bottom:92px}
   .sa-tt .wk-axis .wk-body span:last-child{display:none}
   .sa-tt .blk span{display:none}
   .sa-plan{overflow-y:auto}
+  .sa-col{display:contents}
+  .sa-col>.card{flex:0 0 calc(100% - 24px);margin:0 12px;scroll-snap-align:center;height:100%;padding:18px 20px;border-radius:18px;min-height:0;display:flex;flex-direction:column}
+  .sa-col .sa-today-w{display:none}
   .sa-steps{grid-template-columns:repeat(6,minmax(0,1fr))}
 }
 
@@ -1263,3 +1257,10 @@ body.has-foot .toast{bottom:92px}
 .ac-fb{display:grid;gap:8px}
 .wr-ac{display:block;font-style:normal;font-size:11px;font-weight:600;color:var(--blue-dark,#1B64DA);margin:-2px 0 5px}
 .ac-fb .input em{font-style:normal;flex:none;margin-right:8px;font-size:12px;font-weight:700;color:var(--sub)}
+@media (min-width:821px){
+  .sa-col{display:flex;flex-direction:column;gap:12px;min-height:0}
+  .sa-col>.card{flex:1;margin:0;padding:18px 20px;border-radius:18px;min-height:0;display:flex;flex-direction:column}
+  .sa-today-w{flex:none;padding:16px 20px;border-radius:18px}
+  .sa-today-w b{font-size:24px}
+}
+.sw-lbl{font-size:14px;font-weight:600;color:#6B7684;margin:14px 0 -6px}

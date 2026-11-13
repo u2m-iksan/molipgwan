@@ -1,12 +1,14 @@
 // 선생님 · 코칭: 맨 위 이전/현재/다음 타임 → 아래 코칭 요일별 시간표(보기용)
-// 코칭 타임 배정·변경은 학생 관리 탭(학생 클릭 → 일정)에서 함. 여기서 이름을 누르면 그 학생 일정이 열림.
+// 코칭 타임 배정·변경은 학생 관리 탭(학생 클릭 → 일정)에서 함. 여기서 이름을 누르면 상담이 열림.
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import { DOW, today, isoDow, toMin, toTime, hm } from '../date.js';
 import { loadStudents } from '../data/students.js';
+import { loadWeekCoachings, loadOpenPlans, scheduledOn } from '../data/coaching.js';
+import { openConsult } from './consult.js';
 import { getCoachConfig, saveCoachConfig, slotTimes, loadCoachingSlots, loadAllFixedSchedules } from '../data/schedules.js';
 
 export async function renderCoaching(body) {
-  const st = { cfg: null, students: [], slots: new Map(), fixed: [] };
+  const st = { cfg: null, students: [], slots: new Map(), fixed: [], done: new Map(), open: new Map() };
   const token = {}; body._view = token;   // 다른 탭으로 바뀌면 타이머 중지용
 
   body.innerHTML = `
@@ -25,8 +27,9 @@ export async function renderCoaching(body) {
 
   async function reload() {
     try {
-      const [cfg, students, slots, fixed] = await Promise.all([getCoachConfig(), loadStudents(), loadCoachingSlots(), loadAllFixedSchedules()]);
-      Object.assign(st, { cfg, students: students.filter((s) => s.status === '재원'), slots, fixed });
+      const [cfg, students, slots, fixed, done, open] = await Promise.all([
+        getCoachConfig(), loadStudents(), loadCoachingSlots(), loadAllFixedSchedules(), loadWeekCoachings(), loadOpenPlans()]);
+      Object.assign(st, { cfg, students: students.filter((s) => s.status === '재원'), slots, fixed, done, open });
       draw();
     } catch (e) {
       $('#grid').innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`;
@@ -45,9 +48,11 @@ export async function renderCoaching(body) {
 
   const chip = (s, slot, big = false) => {
     const c = slot && conflict(s.id, slot);
-    return `<button type="button" class="stu${big ? ' big' : ''}${c ? ' warn' : ''}" data-sid="${esc(s.id)}"
+    const dn = st.done.get(s.id);
+    const state = dn ? (dn.kind === '결석' ? ' absent' : ' done') : '';
+    return `<button type="button" class="stu${big ? ' big' : ''}${c ? ' warn' : ''}${state}" data-sid="${esc(s.id)}"
       title="${c ? esc(`${c.title} ${hm(c.start_time)}~${hm(c.end_time)}와 겹침`) : ''}">
-      ${s.seat_no ? `<i>${esc(s.seat_no)}</i>` : ''}${esc(s.name)}<small>${esc(s.grade)}</small></button>`;
+      ${dn ? `<span class="ok-ic">${dn.kind === '결석' ? '결' : '✓'}</span>` : ''}${s.seat_no ? `<i>${esc(s.seat_no)}</i>` : ''}${esc(s.name)}<small>${esc(s.grade)}</small></button>`;
   };
 
   /* ---------- 이전 · 현재 · 다음 타임 ---------- */
@@ -84,7 +89,12 @@ export async function renderCoaching(body) {
   }
 
   function wireChip(b) {
-    b.addEventListener('click', () => { location.hash = `#/students?open=${b.dataset.sid}`; });
+    b.addEventListener('click', () => {
+      const s = st.students.find((x) => x.id === b.dataset.sid);
+      const sl = st.slots.get(s.id);
+      if (!sl) { location.hash = `#/students?open=${s.id}`; return; }   // 미배정 → 일정에서 배정
+      openConsult(s, scheduledOn(sl.weekday), { onSaved: refreshDone });
+    });
   }
 
   /* ---------- 시간표 ---------- */
@@ -113,7 +123,19 @@ export async function renderCoaching(body) {
     const inGrid = (sl) => sl && days.includes(sl.weekday) && times.includes(hm(sl.start_time));
     const none = st.students.filter((s) => !st.slots.get(s.id));
     const out = st.students.filter((s) => st.slots.get(s.id) && !inGrid(st.slots.get(s.id)));
+    const td0 = today();
+    const makeup = st.students.filter((s) => {
+      const sl = st.slots.get(s.id);
+      return sl && scheduledOn(sl.weekday) < td0 && !st.done.has(s.id);
+    });
+    const doneN = st.students.filter((s) => st.done.has(s.id)).length;
     $('#side').innerHTML = `
+      <div class="side-sec"><h4>이번 주 상담</h4><p class="big">${doneN}<span> / ${st.students.length - none.length}명</span></p></div>
+      ${makeup.length ? `<div class="side-sec"><h4 class="red">보강 대상 ${makeup.length}</h4>
+        <p class="sub-s">토요일까지 상담하지 않으면 결석 처리합니다.</p>
+        <div class="stu-list">${makeup.map((s) => { const sl = st.slots.get(s.id); const p = st.open.get(s.id);
+          const self = p && p.author_role === '학생' && p.start_date >= scheduledOn(sl.weekday);
+          return chip(s) + `<span class="was ${self ? 'ok' : ''}">${self ? '계획 작성함' : '계획 미작성'}</span>`; }).join('')}</div></div>` : ''}
       <div class="side-sec"><h4>배정 현황</h4><p class="big">${st.students.length - none.length}<span> / ${st.students.length}명</span></p>
         <p class="legend"><span class="dot-o"></span>학교·학원 일정과 겹침</p></div>
       ${out.length ? `<div class="side-sec"><h4 class="red">재배정 필요 ${out.length}</h4>
@@ -121,9 +143,13 @@ export async function renderCoaching(body) {
         <div class="stu-list">${out.map((s) => { const sl = st.slots.get(s.id); return chip(s) + `<span class="was">${DOW[sl.weekday]} ${hm(sl.start_time)}</span>`; }).join('')}</div></div>` : ''}
       <div class="side-sec"><h4>미배정 ${none.length}</h4>
         <div class="stu-list">${none.map((s) => chip(s)).join('') || '<p class="sub-s">모든 학생이 배정되었습니다.</p>'}</div></div>
-      <p class="sub-s">이름을 누르면 학생 관리의 일정으로 이동합니다.</p>`;
+      <p class="sub-s">이름을 누르면 상담이 열립니다. 코칭 시간 변경은 학생 관리에서 합니다.</p>`;
 
     $$('#grid .stu, #side .stu').forEach(wireChip);
+  }
+
+  async function refreshDone() {
+    try { [st.done, st.open] = await Promise.all([loadWeekCoachings(), loadOpenPlans()]); if (body._view === token) draw(); } catch {}
   }
 
   // 1분마다 이전/현재/다음 갱신 (탭을 떠나면 자동 중지)

@@ -48,6 +48,7 @@ export const ICON = {
 
 // 화면 아래 잠깐 뜨는 알림
 export function toast(msg) {
+  document.querySelectorAll('.toast').forEach((o) => o.remove());   // 겹치지 않게 이전 알림 제거
   const t = document.createElement('div');
   t.className = 'toast';
   t.setAttribute('role', 'status');

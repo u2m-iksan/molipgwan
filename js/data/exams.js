@@ -75,3 +75,49 @@ export async function saveExam({ id, student_id, school_year, grade, exam_type, 
 export async function deleteExam(id) {
   check(await sb.from('exams').delete().eq('id', id));
 }
+
+/* ---------- 최근 시험 요약: 변화(직전 같은 종류 시험 대비) · 잘 본 과목 · 보완할 과목 ---------- */
+const ACH = ['A', 'B', 'C', 'D', 'E'];
+export const scoreName = (s) => `${s.subject}${s.subject_detail ? ` ${s.subject_detail}` : ''}`;
+
+// 비교용 점수(클수록 좋음) + 표시 글자
+function metric(s, type) {
+  if (isMock(type)) {
+    if (s.percentile != null) return { v: Number(s.percentile), tie: Number(s.raw_score ?? 0), text: `백분위 ${s.percentile}`, unit: 'p' };
+  } else if (s.grade_level != null) return { v: -Number(s.grade_level), tie: Number(s.raw_score ?? 0), text: `${s.grade_level}등급`, unit: '등급' };
+  else if (s.achievement) return { v: -ACH.indexOf(s.achievement), tie: Number(s.raw_score ?? 0), text: `성취도 ${s.achievement}`, unit: 'ach' };
+  if (s.raw_score != null) return { v: Number(s.raw_score), tie: 0, text: `${s.raw_score}점`, unit: '점' };
+  return null;
+}
+
+export function summarize(exams) {
+  const list = [...exams].filter((e) => e.scores?.length).sort(examOrder);
+  const latest = list[list.length - 1];
+  if (!latest) return null;
+  const prev = [...list].reverse().find((e) => e !== latest && isMock(e.exam_type) === isMock(latest.exam_type)) || null;
+  const cur = latest.scores.map((s) => ({ s, m: metric(s, latest.exam_type) })).filter((x) => x.m);
+
+  // 변화: 같은 과목끼리 비교
+  const changes = [];
+  if (prev) {
+    for (const { s, m } of cur) {
+      const p = prev.scores.find((q) => scoreName(q) === scoreName(s));
+      const pm = p && metric(p, prev.exam_type);
+      if (!pm || pm.unit !== m.unit) continue;
+      const raw = s.raw_score != null && p.raw_score != null ? s.raw_score - p.raw_score : null;
+      // 등급(백분위)이 같으면 원점수로 비교해서 보여줌
+      const same = m.v === pm.v && raw != null && pm.unit !== '점';
+      changes.push({ name: scoreName(s), from: same ? `${p.raw_score}점` : pm.text, to: same ? `${s.raw_score}점` : m.text, d: m.v - pm.v, raw });
+    }
+  }
+  const sum = changes.reduce((a, c) => a + Math.sign(c.d || c.raw || 0), 0);
+  const dir = !changes.length ? null : sum > 0 ? 'up' : sum < 0 ? 'down' : 'same';
+
+  // 잘 본 / 보완할 과목 (과목 2개 이상일 때)
+  const sorted = [...cur].sort((a, b) => (b.m.v - a.m.v) || (b.m.tie - a.m.tie));
+  const pick = (x) => ({ name: scoreName(x.s), text: x.m.text, raw: x.s.raw_score });
+  const best = sorted.length >= 2 ? sorted.filter((x) => x.m.v === sorted[0].m.v).slice(0, 2).map(pick) : [];
+  const last = sorted[sorted.length - 1];
+  const weak = sorted.length >= 2 && last.m.v !== sorted[0].m.v ? sorted.filter((x) => x.m.v === last.m.v).slice(-2).map(pick) : [];
+  return { latest, prev, dir, changes, best, weak };
+}

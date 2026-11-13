@@ -4,8 +4,9 @@ import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import { SUBJECTS, loadStudents } from '../data/students.js';
 import {
   EXAM_TYPES, NAESIN, MOCK, isMock, examOrder, schoolYear, recentExam, scaleOf,
-  loadExamRound, loadStudentExams, loadStudentSubjects, saveExam, deleteExam,
+  loadExamRound, loadStudentExams, loadStudentSubjects, saveExam, deleteExam, summarize,
 } from '../data/exams.js';
+import { summaryCard } from '../views/exam-summary.js';
 
 const SUB_COLOR = { 국어: '#3182F6', 수학: '#F59E0B', 영어: '#10B981', 사회: '#8B5CF6', 과학: '#06B6D4', 한국사: '#EC4899', 기타: '#8B95A1' };
 const ACH = ['A', 'B', 'C', 'D', 'E'];
@@ -13,11 +14,6 @@ const MEMO = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke
 const bySeat = (a, b) => {
   if (!a.seat_no !== !b.seat_no) return a.seat_no ? -1 : 1;
   return String(a.seat_no || '').localeCompare(String(b.seat_no || ''), 'ko', { numeric: true }) || a.name.localeCompare(b.name, 'ko');
-};
-// 그래프 가로축: "1학기 중간" → "1-중간", "3월 모의" → "3월" (여러 학년도면 앞에 '26)
-const axisLabel = (e, list) => {
-  const t = e.exam_type.replace('학기 ', '-').replace(' 모의', '');
-  return new Set(list.map((x) => x.school_year)).size > 1 ? `'${String(e.school_year).slice(2)} ${t}` : t;
 };
 const subName = (s) => `${s.subject}${s.subject_detail ? ` ${s.subject_detail}` : ''}`;
 
@@ -140,7 +136,6 @@ export async function renderExams(body) {
       const subs = [...new Set(list.flatMap((e) => e.scores.map(subName)))];
       return `<section class="card ex-sec">
         <div class="ex-sec-h"><h3>${title}</h3><span>${mock ? '원점수 · 백분위' : '원점수 · 등급(성취도)'}</span></div>
-        ${list.length >= 2 ? `<div class="ex-trend" data-tr="${mock ? 'm' : 'n'}"></div>` : ''}
         <div class="table-wrap"><table class="tbl tbl-s ex-hist">
           <thead><tr><th>시험</th>${subs.map((s) => `<th>${esc(s)}</th>`).join('')}<th>총평</th></tr></thead>
           <tbody>${list.map((e) => `<tr data-ex="${esc(e.id)}">
@@ -150,48 +145,13 @@ export async function renderExams(body) {
         </table></div></section>`;
     };
     const nae = exams.filter((e) => !isMock(e.exam_type)), mk = exams.filter((e) => isMock(e.exam_type));
-    $('#ex-stu-body').innerHTML = sec('내신', nae) + (stu.grade.startsWith('고') || mk.length ? sec('모의고사', mk) : '');
-    const paintTrends = () => $$('[data-tr]').forEach((el) => {
-      const mock = el.dataset.tr === 'm', list = mock ? mk : nae;
-      el.innerHTML = trend(list, [...new Set(list.flatMap((e) => e.scores.map(subName)))], mock, el.clientWidth);
-    });
-    st.paintTrends = paintTrends; paintTrends();
-    if (!st.ro) { st.ro = new ResizeObserver(() => st.paintTrends?.()); }
-    st.ro.disconnect(); $$('[data-tr]').forEach((el) => st.ro.observe(el));
+    $('#ex-stu-body').innerHTML = summaryCard(summarize(exams)) + sec('내신', nae) + (stu.grade.startsWith('고') || mk.length ? sec('모의고사', mk) : '');
     $$('#ex-stu-body tr[data-ex]').forEach((tr) => tr.addEventListener('click', () => {
       const e = exams.find((x) => x.id === tr.dataset.ex);
       openEditor({ ...stu, grade: e.grade }, e.school_year, e.exam_type, e, drawStudent);
     }));
   }
 
-  // 추이 그래프: 내신 = 등급(위가 1등급) / 모의 = 백분위
-  function trend(list, subs, mock, W = 640) {
-    const H = 168, L = 34, R = 14, T = 14, B = 26;
-    const val = (s, e) => {
-      if (mock) return s.percentile;
-      if (s.grade_level != null) return s.grade_level;
-      return s.achievement ? ACH.indexOf(s.achievement) + 1 : null;
-    };
-    const max = mock ? 100 : Math.max(5, ...list.flatMap((e) => e.scores.map((s) => (s.grade_level ?? 0))));
-    const x = (i) => L + (list.length === 1 ? 0 : (i * (W - L - R)) / (list.length - 1));
-    const y = (v) => mock ? T + ((100 - v) / 100) * (H - T - B) : T + ((v - 1) / (max - 1)) * (H - T - B);
-    const ticks = mock ? [0, 50, 100] : [1, Math.ceil(max / 2), max];
-    const lines = subs.map((n) => {
-      const pts = list.map((e, i) => { const s = e.scores.find((q) => subName(q) === n); const v = s && val(s, e); return v != null ? [x(i), y(v)] : null; });
-      const c = SUB_COLOR[n.split(' ')[0]] || '#8B95A1';
-      const segs = pts.filter(Boolean);
-      return `<polyline fill="none" stroke="${c}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="${segs.map((p) => p.join(',')).join(' ')}"/>
-        ${segs.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="3.6" fill="#fff" stroke="${c}" stroke-width="2"/>`).join('')}`;
-    }).join('');
-    const n = list.length;
-    return `
-      <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
-        ${ticks.map((t) => `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" stroke="#EEF0F3"/><text x="${L - 8}" y="${y(t) + 4}" text-anchor="end">${mock ? t : t + '등급'}</text>`).join('')}
-        ${list.map((e, i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 && n > 1 ? 'start' : i === n - 1 && n > 1 ? 'end' : 'middle'}">${esc(axisLabel(e, list))}</text>`).join('')}
-        ${lines}
-      </svg>
-      <div class="ex-legend">${subs.map((n) => `<span><i style="background:${SUB_COLOR[n.split(' ')[0]] || '#8B95A1'}"></i>${esc(n)}</span>`).join('')}</div>`;
-  }
 }
 
 /* ---------- 입력 (가운데 모달) ---------- */

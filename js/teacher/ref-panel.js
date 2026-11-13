@@ -1,11 +1,12 @@
 // 상담 화면 왼쪽 "상담 참고사항" 패널
-//  ① 계획 이행도 (최근 마감 계획)  ② 과목별 순공시간 (학생 스톱워치)  ③ 최근 중간고사 성적 · 성적 피드백
+//  ① 계획 이행도 (최근 마감 계획)  ② 과목별 순공시간 (학생 스톱워치)  ③ 최근 시험 요약 · 성적 · 시험 총평
 // 학생 화면(스톱워치·진행률)과 성적 입력(5-6)을 만들면 데이터가 채워진다.
 import { $, esc, X } from '../ui.js';
 import { sb } from '../sb.js';
 import { today, addDays, short } from '../date.js';
+import { loadStudentExams, summarize, isMock } from '../data/exams.js';
+import { summaryCard } from '../views/exam-summary.js';
 
-const EXAM_ORDER = ['1학기 중간', '1학기 기말', '2학기 중간', '2학기 기말'];
 const check = (r) => { if (r.error) throw r.error; return r.data || []; };
 const empty = (m) => `<div class="ep-empty">${m}</div>`;
 const dur = (sec) => { const m = Math.round(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`; };
@@ -27,7 +28,7 @@ export async function refPanel(el, stu, { onClose } = {}) {
       <section class="ep-sec"><h5>학생 목표</h5>${goalHtml(stu)}</section>
       <section class="ep-sec" data-s="rate"><h5>계획 이행도</h5>${empty('불러오는 중')}</section>
       <section class="ep-sec" data-s="time"><h5>과목별 순공시간</h5>${empty('불러오는 중')}</section>
-      <section class="ep-sec" data-s="exam"><h5>최근 중간고사</h5>${empty('불러오는 중')}</section>
+      <section class="ep-sec" data-s="exam"><h5>최근 시험</h5>${empty('불러오는 중')}</section>
       <section class="ep-sec" data-s="fb"><h5>성적 피드백</h5>${empty('등록된 피드백이 없습니다.')}</section>
     </div>`;
   $('.ep-x', el).addEventListener('click', () => onClose?.());
@@ -69,19 +70,18 @@ export async function refPanel(el, stu, { onClose } = {}) {
         : empty('스톱워치 기록이 없습니다.')}`);
   });
 
-  // ③ 최근 중간고사
+  // ③ 최근 시험: 변화 · 잘 본 과목 · 보완할 과목 + 성적표 · 과목 메모 · 시험 총평
   safe('exam', async () => {
-    const exams = check(await sb.from('exams').select('*').eq('student_id', stu.id));
-    const ex = exams.filter((e) => /중간$/.test(e.exam_type))
-      .sort((a, b) => (b.school_year - a.school_year) || (EXAM_ORDER.indexOf(b.exam_type) - EXAM_ORDER.indexOf(a.exam_type)))[0];
-    if (!ex) return fill('exam', empty('등록된 성적이 없습니다.'));
-    const scores = check(await sb.from('exam_scores').select('*').eq('exam_id', ex.id));
-    fill('exam', `<p class="ep-label">${esc(ex.school_year)} ${esc(ex.exam_type)} · ${esc(ex.grade)}</p>
-      ${scores.length ? `<table class="ep-tbl"><thead><tr><th>과목</th><th>점수</th><th>등급</th></tr></thead><tbody>
-        ${scores.map((s) => `<tr><td>${esc(s.subject)}${s.subject_detail ? `<small>${esc(s.subject_detail)}</small>` : ''}</td>
-          <td>${s.raw_score ?? '-'}</td><td>${s.grade_level ?? s.achievement ?? '-'}</td></tr>
+    const sum = summarize(await loadStudentExams(stu.id));
+    if (!sum) return fill('exam', empty('등록된 성적이 없습니다.'));
+    const ex = sum.latest;
+    fill('exam', `<p class="ep-label">${esc(ex.school_year)} ${esc(ex.exam_type)} · ${esc(ex.grade)}${sum.prev ? `<small> · ${esc(sum.prev.exam_type)} 대비</small>` : ''}</p>
+      ${summaryCard(sum, { compact: true })}
+      <table class="ep-tbl"><thead><tr><th>과목</th><th>점수</th><th>${isMock(ex.exam_type) ? '백분위' : '등급'}</th></tr></thead><tbody>
+        ${ex.scores.map((s) => `<tr><td>${esc(s.subject)}${s.subject_detail ? `<small>${esc(s.subject_detail)}</small>` : ''}</td>
+          <td>${s.raw_score ?? '-'}</td><td>${isMock(ex.exam_type) ? (s.percentile ?? '-') : (s.grade_level ?? s.achievement ?? '-')}</td></tr>
           ${s.note ? `<tr class="ep-note"><td colspan="3">${esc(s.note)}</td></tr>` : ''}`).join('')}
-      </tbody></table>` : empty('입력된 과목이 없습니다.')}
+      </tbody></table>
       ${ex.feedback ? `<p class="ep-fb">${esc(ex.feedback)}</p>` : ''}`);
   });
 }

@@ -836,9 +836,9 @@ body.has-foot .toast{bottom:92px}
 .cs-cols.one{grid-template-columns:1fr}
 /* 신규생 보고서: 자신 있는 과목 · 보완할 과목 정사각형 타일 */
 .wr-sw{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:32px}
-.wr-tile{width:100%;aspect-ratio:1/1;min-width:0;border-radius:14px;background:#fff;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center}
-.wr-tile-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;margin-bottom:4px}
-.wr-tile-ic svg{width:20px;height:20px;fill:none;stroke-width:1.8;stroke-linejoin:round}
+.wr-tile{width:100%;min-width:0;padding:16px 6px 14px;border-radius:14px;background:#fff;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center}
+.wr-tile-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;margin-bottom:6px}
+.wr-tile-ic svg{width:18px;height:18px;fill:none;stroke-width:1.8;stroke-linejoin:round}
 .wr-tile.st .wr-tile-ic{background:#E8F3FF}.wr-tile.st svg{stroke:#1D5FC4}
 .wr-tile.wk .wr-tile-ic{background:#FFF1E8}.wr-tile.wk svg{stroke:#C2510E}
 .wr-tile small{font-size:10.5px;font-weight:600;color:var(--sub)}

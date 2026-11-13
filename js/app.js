@@ -4,7 +4,8 @@
 import { whoAmI, signOut, setRole, getRole, savedPick, savePick } from './auth.js';
 import { renderRole, renderFamilyLogin, renderTeacherLogin } from './views/login.js';
 import { renderWho } from './views/who.js';
-import { renderStudentHome, renderUnknown } from './views/home.js';
+import { renderUnknown } from './views/home.js';
+import { renderStudentHome } from './views/student.js';
 import { renderParentHome } from './views/parent.js';
 import { renderTeacher } from './teacher/shell.js';
 

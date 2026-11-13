@@ -3,6 +3,7 @@ import { mount, $, $$, esc, BRAND } from '../ui.js';
 import { renderStudents } from './students.js';
 import { renderCoaching } from './coaching.js';
 import { renderConsultPage } from './consult-page.js';
+import { openBoard } from './board.js';
 
 const TABS = [
   { id: 'overview', label: '전체 현황' },
@@ -30,12 +31,14 @@ export function renderTeacher({ me, onLogout }) {
           ${TABS.map((t) => `<a href="#/${t.id}" class="t-tab" data-tab="${t.id}">${t.label}</a>`).join('')}
         </nav>
         <div class="spacer"></div>
+        <button type="button" class="t-board" id="board" aria-label="전자칠판" title="전자칠판"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8 20h8M12 16.5V20"/></svg></button>
         <span class="chip t-me">${esc(me.name)} 선생님</span>
         <button type="button" class="chip muted" id="lo">로그아웃</button>
       </div></header>
       <main class="page" id="t-body"></main>
     </div>`);
 
+  $('#board').addEventListener('click', () => openBoard());
   $('#lo').addEventListener('click', () => { window.removeEventListener('hashchange', show); onLogout(); });
 
   function show() {

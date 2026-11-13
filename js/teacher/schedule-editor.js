@@ -175,9 +175,9 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
 }
 
 /* ---------- 주간 시간표 (월~일 × 08~23시) ---------- */
-function weekGrid(rows, mon, t) {
-  const H = ((DAY_END - DAY_START) / 60) * HOUR_PX;
-  const y = (m) => ((Math.min(Math.max(m, DAY_START), DAY_END) - DAY_START) / 60) * HOUR_PX;
+export function weekGrid(rows, mon, t, hourPx = HOUR_PX) {
+  const H = ((DAY_END - DAY_START) / 60) * hourPx;
+  const y = (m) => ((Math.min(Math.max(m, DAY_START), DAY_END) - DAY_START) / 60) * hourPx;
   const hours = [];
   for (let h = DAY_START / 60; h <= DAY_END / 60; h++) hours.push(h);
 
@@ -218,9 +218,9 @@ function weekGrid(rows, mon, t) {
 
   return `<div class="wk-grid">
     <div class="wk-axis"><div class="wk-day"></div><div class="wk-body" style="height:${H}px">
-      ${hours.map((h) => `<span style="top:${(h * 60 - DAY_START) / 60 * HOUR_PX}px">${h}</span>`).join('')}</div></div>
+      ${hours.map((h) => `<span style="top:${(h * 60 - DAY_START) / 60 * hourPx}px">${h}</span>`).join('')}</div></div>
     ${cols}
-    <div class="wk-lines" style="height:${H}px">${hours.map((h) => `<i style="top:${(h * 60 - DAY_START) / 60 * HOUR_PX}px"></i>`).join('')}</div>
+    <div class="wk-lines" style="height:${H}px">${hours.map((h) => `<i style="top:${(h * 60 - DAY_START) / 60 * hourPx}px"></i>`).join('')}</div>
   </div>`;
 }
 

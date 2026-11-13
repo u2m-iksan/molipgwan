@@ -1,7 +1,8 @@
 // 상담 화면 (전체 페이지 #/consult?sid=…&on=…): ① 상담 (지난 계획 이행도 → 다음 계획 → 총평) ② 보고 (GPT 정돈 → 학부모 카드 공개)
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
-import { today, short } from '../date.js';
+import { today, short, addDays } from '../date.js';
 import { refPanel } from './ref-panel.js';
+import { segBar } from '../views/progress-bar.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
 import {
@@ -95,7 +96,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
           heldOn: c.held_on || today(), absent: c.kind === '결석', isNew: c.is_new, isLeaving: c.is_leaving,
           summary: c.summary_raw || '', coachingId: c.id,
         });
-      } else st.isNew = !d.prevPlan;
+      }   // 신규생은 선생님이 직접 체크 (기존 재원생은 지난 계획을 직접 입력)
       st.report = d.report;
       const last = (id) => { const h = d.progress.get(id); return h?.length ? h[h.length - 1].pct : null; };
       st.prevItems = d.prevItems.map((i) => ({ ...i, final_rate: i.final_rate ?? last(i.id) }));
@@ -140,7 +141,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
 
   function prevHtml() {
     const { prevPlan } = st.d;
-    if (!prevPlan) return `<div class="cs-empty">지난 계획이 없습니다.</div>`;
+    // 지난 계획이 없으면(이전 시스템에서 옮겨 오는 학생 등) 직접 입력 → 저장 시 마감된 계획으로 기록
+    if (!prevPlan && !st.prevItems.length) return `<div class="cs-empty">지난 계획이 없습니다.
+      <button type="button" class="btn btn-gray btn-sm cs-manual" id="prev-add">지난 계획 직접 입력</button></div>`;
     return `
       <div class="cs-list" id="prev-list">${st.prevItems.map((i, k) => {
         const h = i.id ? st.d.progress.get(i.id) || [] : [];
@@ -148,11 +151,11 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
           <div class="cs-item-top">
             ${i.id ? `<span class="cs-sub">${subLabel(i)}</span><span class="cs-title">${esc(i.title)}</span>`
               : `<div class="input sm cs-subsel"><select data-f="subject">${subOpts(i.subject)}</select></div>
-                 <div class="input sm grow"><input data-f="title" value="${esc(i.title)}" placeholder="추가 항목"></div>`}
+                 <div class="input sm grow"><input data-f="title" value="${esc(i.title)}" placeholder="${prevPlan ? '추가 항목' : '지난 계획 분량'}"></div>`}
             <div class="input sm rate"><input data-f="final_rate" inputmode="numeric" maxlength="3" value="${i.final_rate ?? ''}" placeholder="-"><em>%</em></div>
             ${i.id ? '' : `<button type="button" class="icon-btn sm" data-del-prev="${k}" aria-label="삭제">${X}</button>`}
           </div>
-          ${h.length ? `<div class="cs-hist">${h.map((p) => `<span>${short(p.on_date).replace(/\(.\)/, '')} <b>${p.pct}</b></span>`).join('')}</div>` : (i.id ? '<div class="cs-hist none">진행률 입력 없음</div>' : '')}
+          ${h.length ? segBar(h) : (i.id ? '<div class="cs-hist none">진행률 입력 없음</div>' : '')}
           <div class="input sm"><input data-f="final_note" value="${esc(i.final_note || '')}" placeholder="세부 이행도"></div>
         </div>`;
       }).join('') || '<div class="cs-empty">항목이 없습니다.</div>'}</div>
@@ -335,11 +338,21 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     btn.disabled = true; btn.textContent = '저장 중';
     try {
       // 상담 중 추가한 지난 계획 항목
+      // 지난 계획 직접 입력분 → 마감된 계획 1장으로 기록 (기간: 상담일 7일 전 ~ 상담일)
+      if (!st.d.prevPlan && !st.isNew && prevItems.some((i) => !i.id)) {
+        const { data: pl, error: pe } = await sb.from('plans').insert({
+          student_id: stu.id, start_date: addDays(scheduled, -7), due_date: scheduled,
+          author_role: '선생님', status: '마감', closed_at: new Date().toISOString(), created_by: st.me,
+        }).select('*').single();
+        if (pe) throw pe;
+        st.d.prevPlan = pl;
+      }
       for (const it of prevItems) {
         if (it.id || !st.d.prevPlan || st.isNew) continue;
         const { data, error } = await sb.from('plan_items').insert({
           plan_id: st.d.prevPlan.id, student_id: stu.id, subject: it.subject, title: it.title.trim(),
-          source: '추가', created_by: st.me,
+          source: st.d.prevPlan.status === '마감' && !st.d.prevItems.length ? '계획' : '추가', created_by: st.me,
+          final_rate: it.final_rate ?? null, final_note: it.final_note || null,
         }).select('*').single();
         if (error) throw error;
         it.id = data.id;

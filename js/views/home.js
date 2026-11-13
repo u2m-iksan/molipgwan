@@ -11,12 +11,6 @@ function topbar(label) {
     </div></header>`;
 }
 
-export function renderStudentHome({ student, onLogout }) {
-  mount(`<div>${topbar(student.name)}
-    <main class="page"><div class="card empty"><b>${esc(student.name)}</b>준비 중입니다.</div></main></div>`);
-  $('#lo').addEventListener('click', onLogout);
-}
-
 export function renderUnknown({ onLogout }) {
   mount(`<main class="auth"><div class="auth-card" style="text-align:center">${BRAND}
     <h1 style="margin-top:4px">등록되지 않은 계정입니다</h1>

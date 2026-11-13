@@ -306,3 +306,24 @@ export async function loadAllPlans() {
     coach: new Map(live.filter((r) => r.category === '코칭').map((r) => [r.student_id, r])),
   };
 }
+
+/* ---------- 학부모 보고 탭: 한 주(월~일) 상담 · 보고 현황 ---------- */
+// { mon, students, slots: Map(sid → 코칭 일정), coachings: Map(sid → coaching), reports: Map(coachingId → report) }
+export async function loadWeekReports(mon) {
+  const sun = addDays(mon, 6);
+  const [students, slots, coachings] = await Promise.all([
+    sb.from('students').select('id,name,grade,seat_no,status').eq('status', '재원').then(check),
+    sb.from('schedules').select('student_id,weekday,start_time,valid_from,valid_to').eq('category', '코칭').then(check),
+    sb.from('coachings').select('id,student_id,scheduled_on,held_on,kind').gte('scheduled_on', mon).lte('scheduled_on', sun).then(check),
+  ]);
+  const reports = coachings.length ? check(await sb.from('reports').select('*').in('coaching_id', coachings.map((c) => c.id))) : [];
+  const slotBy = new Map();
+  for (const r of slots.filter((x) => x.valid_from <= sun && (!x.valid_to || x.valid_to >= mon))) {
+    const cur = slotBy.get(r.student_id); if (!cur || r.valid_from > cur.valid_from) slotBy.set(r.student_id, r);
+  }
+  return {
+    mon, students, slots: slotBy,
+    coachings: new Map(coachings.map((c) => [c.student_id, c])),
+    reports: new Map(reports.map((r) => [r.coaching_id, r])),
+  };
+}

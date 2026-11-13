@@ -8,9 +8,9 @@ import {
   loadConsult, loadCarryCandidates, saveConsult, saveReport,
   buildPrompt, parseGpt, reportSubjects, noticeText,
 } from '../data/coaching.js';
-import { reportCard } from '../views/report-card.js';
+import { reportCard, autoBadge } from '../views/report-card.js';
 
-const BADGES = ['없음', '우수', '최우수', '주말등원'];
+const BADGES = ['자동', '없음', '우수', '최우수', '주말등원'];
 
 async function copy(text) {
   try { await navigator.clipboard.writeText(text); return true; }
@@ -347,6 +347,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     const fbOf = (s) => (r.subject_feedback || []).find((x) => x.subject === s)?.text || '';
     const extra = (r.subject_feedback || []).filter((x) => !subs.includes(x.subject));
     const pane = $('#p-r', panel);
+    // 배지: 아직 공개 전이고 따로 고르지 않았으면 '자동' (이행도 전부 90 이상 → 우수, 하나라도 미만 → 주말등원)
+    let badgeMode = !r.published_at && (r.badge || '없음') === '없음' ? '자동' : r.badge;
+    if (badgeMode === '자동') r.badge = autoBadge(r.rates);
     pane.innerHTML = `
       <div class="cp-body">
         <div class="rp-cols">
@@ -363,7 +366,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
               <div class="field"><label for="rp-sum">총평<span class="opt">3문장 이내</span></label>
                 <textarea class="textarea" id="rp-sum" rows="3">${esc(r.summary || '')}</textarea></div>
               <div class="field"><span class="lbl">배지</span>
-                <div class="seg" id="rp-badge">${BADGES.map((b) => `<button type="button" data-v="${b}" class="${r.badge === b ? 'on' : ''}">${b === '없음' ? '없음' : b}</button>`).join('')}</div></div>
+                <div class="seg" id="rp-badge">${BADGES.map((b) => `<button type="button" data-v="${b}" class="${badgeMode === b ? 'on' : ''}">${b}</button>`).join('')}</div>
+                <p class="hint" id="rp-badge-hint"></p></div>
             </div>
           </div>
           <div class="rp-preview"><p class="lbl">학부모 화면</p><div id="rp-card"></div></div>
@@ -386,7 +390,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         : r.published_at ? '<span class="pill pill-blue">공개됨 · 미전송</span>' : '<span class="pill pill-gray">작성 중</span>';
       p.textContent = r.sent_at ? '안내 문자 다시 복사' : r.published_at ? '전송 완료' : '공개 · 안내 문자 복사';
     };
-    preview(); paintState();
+    const paintBadgeHint = () => { $('#rp-badge-hint', pane).textContent = badgeMode === '자동' ? `이행도 기준: ${r.badge}` : ''; };
+    preview(); paintState(); paintBadgeHint();
 
     $('.cp-body', pane).addEventListener('input', (e) => {
       if (e.target.id === 'rp-paste') {
@@ -405,7 +410,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     });
     $('#rp-badge', pane).addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      r.badge = b.dataset.v;
+      badgeMode = b.dataset.v;
+      r.badge = badgeMode === '자동' ? autoBadge(r.rates) : badgeMode;
+      paintBadgeHint();
       $$('#rp-badge button', pane).forEach((x) => x.classList.toggle('on', x === b));
       preview();
     });

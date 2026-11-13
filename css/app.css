@@ -707,9 +707,9 @@ body.has-foot .toast{bottom:92px}
 .wr-scale{position:absolute;left:0;top:0;width:794px;transform-origin:0 0}
 
 /* 머리: 로고 → 학생 정보 | 배지 (한 묶음) */
-.wr-head{padding:4px 0 0}
-.wr-band{margin:-44px -52px 0;padding:8px 28px;background:#191F28;border-radius:19px 19px 0 0;display:flex;align-items:center}
-.wr-band b{color:#fff;font-size:17px;font-weight:900;letter-spacing:-0.045em;line-height:1}
+.wr-head{padding:4px 0 26px;border-bottom:1px solid var(--line)}
+.wr-band{margin:-44px -52px 0;padding:14px 52px;background:#191F28;border-radius:19px 19px 0 0;display:flex;align-items:center}
+.wr-band b{color:#fff;font-size:20px;font-weight:900;letter-spacing:-0.045em;line-height:1}
 .wr-id{display:flex;align-items:center;gap:28px}
 .wr-id h3{font-size:32px;font-weight:800;letter-spacing:-0.035em;line-height:1.2}
 .wr-id h3 span{font-size:21px;font-weight:700;color:var(--sub)}

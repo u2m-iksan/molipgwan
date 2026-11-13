@@ -2,6 +2,7 @@
 import { mount, $, $$, esc, BRAND } from '../ui.js';
 import { renderStudents } from './students.js';
 import { renderCoaching } from './coaching.js';
+import { renderConsultPage } from './consult-page.js';
 
 const TABS = [
   { id: 'overview', label: '전체 현황' },
@@ -11,13 +12,14 @@ const TABS = [
   { id: 'exams', label: '성적' },
   { id: 'reports', label: '학부모 보고' },
 ];
-const READY = { students: renderStudents, coaching: renderCoaching };
+const READY = { students: renderStudents, coaching: renderCoaching, consult: renderConsultPage };
+const PARENT = { consult: 'coaching' };   // 하위 화면 → 메뉴 강조
 const DEFAULT_TAB = 'students';
 
 export function renderTeacher({ me, onLogout }) {
   const current = () => {
     const id = location.hash.replace(/^#\//, '').split('?')[0];
-    return TABS.some((t) => t.id === id) ? id : DEFAULT_TAB;
+    return TABS.some((t) => t.id === id) || READY[id] ? id : DEFAULT_TAB;
   };
 
   mount(`
@@ -38,7 +40,8 @@ export function renderTeacher({ me, onLogout }) {
 
   function show() {
     const tab = current();
-    $$('.t-tab').forEach((a) => a.classList.toggle('on', a.dataset.tab === tab));
+    $$('.t-tab').forEach((a) => a.classList.toggle('on', a.dataset.tab === (PARENT[tab] || tab)));
+    document.body.classList.toggle('has-foot', tab === 'consult');
     const body = $('#t-body');
     if (!body) return;
     body.classList.remove('swap'); void body.offsetWidth; body.classList.add('swap');

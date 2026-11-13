@@ -1,6 +1,7 @@
-// 상담 모달: ① 상담 (지난 계획 이행도 → 다음 계획 → 총평) ② 보고 (GPT 정돈 → 학부모 카드 공개)
+// 상담 화면 (전체 페이지 #/consult?sid=…&on=…): ① 상담 (지난 계획 이행도 → 다음 계획 → 총평) ② 보고 (GPT 정돈 → 학부모 카드 공개)
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import { today, short } from '../date.js';
+import { examPanel } from './exam-panel.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
 import {
@@ -19,18 +20,45 @@ async function copy(text) {
   }
 }
 
-export function openConsult(stu, scheduled, { onSaved } = {}) {
-  const panel = sheet(`
-    <div class="modal modal-lg" id="cs">
-      <div class="drawer-head">
-        <h3>${esc(stu.name)}<span class="h-sub">${stu.seat_no ? esc(stu.seat_no) + '번 · ' : ''}${esc(stu.grade)} · ${short(scheduled)} 상담</span></h3>
-        <a class="link-s head-link" href="#/students?open=${esc(stu.id)}" data-close>일정 보기</a>
-        <button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button>
+const SIDE_KEY = 'molip-exam-side';
+
+export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
+  const panel = root;
+  const wide = () => window.innerWidth > 720;
+  const sideOpen = wide() && localStorage.getItem(SIDE_KEY) === '1';   // 폰에서는 항상 접힌 채로 시작
+  root.innerHTML = `
+    <div class="cp">
+      <div class="cp-top">
+        <a href="#/coaching" class="cp-back" aria-label="코칭으로">‹</a>
+        <h2>${esc(stu.name)}<span class="h-sub">${stu.seat_no ? esc(stu.seat_no) + '번 · ' : ''}${esc(stu.grade)} · ${short(scheduled)} 상담</span></h2>
+        <div class="spacer"></div>
+        <a class="link-s" href="#/students?open=${esc(stu.id)}">일정 보기</a>
+        <div class="seg" id="cs-tabs"><button type="button" data-v="c" class="on">상담</button><button type="button" data-v="r">보고</button></div>
       </div>
-      <div class="seg drawer-tabs" id="cs-tabs"><button type="button" data-v="c" class="on">상담</button><button type="button" data-v="r">보고</button></div>
-      <div class="pane" id="p-c"><div class="drawer-body"><div class="empty">불러오는 중</div></div></div>
-      <div class="pane" id="p-r" hidden></div>
-    </div>`, 'center');
+      <div class="cp-wrap${sideOpen ? ' side-open' : ''}" id="cp-wrap">
+        <aside class="cp-side" id="cp-side" aria-label="성적"></aside>
+        <button type="button" class="cp-toggle" id="cp-toggle" aria-label="성적 펼치기"><span class="cp-chev"></span><b>성적</b></button>
+        <div class="cp-main">
+          <div class="pane" id="p-c"><div class="cp-body"><div class="empty">불러오는 중</div></div></div>
+          <div class="pane" id="p-r" hidden></div>
+        </div>
+      </div>
+    </div>`;
+
+  // 왼쪽 성적 패널
+  const wrap = $('#cp-wrap', root);
+  examPanel($('#cp-side', root), stu, { onClose: () => setSide(false) });
+  function setSide(on) {
+    wrap.classList.toggle('side-open', on);
+    $('#cp-toggle', root).setAttribute('aria-label', on ? '성적 접기' : '성적 펼치기');
+    if (wide()) localStorage.setItem(SIDE_KEY, on ? '1' : '0');
+  }
+  $('#cp-toggle', root).addEventListener('click', () => {
+    if (wide()) return setSide(!wrap.classList.contains('side-open'));
+    // 폰: 왼쪽에서 밀려 나오는 패널
+    const d = sheet('<aside class="drawer drawer-left cp-side-m" aria-label="성적"></aside>', 'left');
+    examPanel($('.cp-side-m', d), stu, { onClose: () => d.close() });
+  });
 
   const st = {
     d: null, me: null,
@@ -46,6 +74,7 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
     $('#p-c', panel).hidden = v !== 'c';
     $('#p-r', panel).hidden = v !== 'r';
     if (v === 'r' && !st.rDrawn) { drawReport(); st.rDrawn = true; }
+    window.scrollTo(0, 0);
   }
   tabs.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) showTab(b.dataset.v); });
 
@@ -67,7 +96,7 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
       st.newItems = d.newItems.map((i) => ({ ...i }));
       drawConsult();
     } catch (e) {
-      $('#p-c .drawer-body', panel).innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`;
+      $('#p-c .cp-body', panel).innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`;
     }
   })();
 
@@ -123,7 +152,7 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
   function drawConsult() {
     const body = $('#p-c', panel);
     body.innerHTML = `
-      <div class="drawer-body">
+      <div class="cp-body">
         <div class="cs-bar">
           <div class="field cs-date"><label for="cs-held">상담일</label><div class="input sm"><input type="date" id="cs-held" value="${st.heldOn}"${st.absent ? ' disabled' : ''}></div></div>
           <div class="chips" id="cs-flags">
@@ -148,8 +177,8 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
         </div>
         <p class="err" id="cs-err" role="alert"></p>
       </div>
-      <div class="drawer-foot"><div class="spacer"></div>
-        <button type="button" class="btn btn-gray btn-sm" data-close>닫기</button>
+      <div class="cp-foot"><div class="spacer"></div>
+        <a href="#/coaching" class="btn btn-gray btn-sm">목록</a>
         <button type="button" class="btn btn-primary btn-sm" id="cs-save">저장 · 보고 작성</button></div>`;
     paintKind();
     wireConsult(body);
@@ -162,8 +191,7 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
   }
 
   function wireConsult(body) {
-    const bodyEl = $('.drawer-body', body);
-    const keepScroll = (fn) => { const y = bodyEl.scrollTop; fn(); $('#p-c .drawer-body', panel).scrollTop = y; };
+    const keepScroll = (fn) => { const y = window.scrollY; fn(); window.scrollTo(0, y); };
 
     $('#cs-held', body).addEventListener('change', (e) => { st.heldOn = e.target.value || today(); paintKind(); });
     $('#cs-flags', body).addEventListener('click', (e) => {
@@ -217,8 +245,8 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
       if (t.id === 'cs-save') return save(t);
     };
     // 패널은 다시 그릴 때마다 내용이 바뀌므로, 매번 새로 생기는 요소에만 연결
-    $('.drawer-body', body).addEventListener('click', onClick);
-    $('.drawer-foot', body).addEventListener('click', onClick);
+    $('.cp-body', body).addEventListener('click', onClick);
+    $('.cp-foot', body).addEventListener('click', onClick);
     $('#ck-in', body).addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addCheck(); } });
     $('#cs-sum', body).addEventListener('input', (e) => { st.summary = e.target.value; });
   }
@@ -227,7 +255,7 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
     const inp = $('#ck-in', panel); const v = inp.value.trim();
     if (!v) return;
     st.checkItems.push(v);
-    const y = $('#p-c .drawer-body', panel).scrollTop; drawConsult(); $('#p-c .drawer-body', panel).scrollTop = y;
+    const y = window.scrollY; drawConsult(); window.scrollTo(0, y);
     $('#ck-in', panel).focus();
   }
 
@@ -254,7 +282,7 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
         const i = all.find((x) => x.id === id);
         st.newItems.push({ subject: i.subject, subject_detail: i.subject_detail, title: i.title, detail: i.detail || '', source: '이월', carried_from: i.id });
       }
-      const y = $('#p-c .drawer-body', panel).scrollTop; drawConsult(); $('#p-c .drawer-body', panel).scrollTop = y;
+      const y = window.scrollY; drawConsult(); window.scrollTo(0, y);
       if (ids.length) toast(`${ids.length}개 항목을 가져왔습니다`);
     });
   }
@@ -305,7 +333,7 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
     const extra = (r.subject_feedback || []).filter((x) => !subs.includes(x.subject));
     const pane = $('#p-r', panel);
     pane.innerHTML = `
-      <div class="drawer-body">
+      <div class="cp-body">
         <div class="rp-cols">
           <div class="rp-edit">
             <div class="rp-step"><span class="num">1</span><div class="grow"><b>프롬프트 복사</b><p class="sub-s">GPT에 붙여넣으면 과목별 피드백과 총평이 정돈됩니다.</p></div>
@@ -327,7 +355,7 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
         </div>
         <p class="err" id="rp-err" role="alert"></p>
       </div>
-      <div class="drawer-foot">
+      <div class="cp-foot">
         <span id="rp-state"></span><div class="spacer"></div>
         <button type="button" class="btn btn-gray btn-sm" id="rp-save">저장</button>
         <button type="button" class="btn btn-primary btn-sm" id="rp-pub"></button>
@@ -346,7 +374,7 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
     };
     preview(); paintState();
 
-    $('.drawer-body', pane).addEventListener('input', (e) => {
+    $('.cp-body', pane).addEventListener('input', (e) => {
       if (e.target.id === 'rp-paste') {
         const g = parseGpt(e.target.value);
         let n = 0;
@@ -395,5 +423,4 @@ export function openConsult(stu, scheduled, { onSaved } = {}) {
     });
   }
 
-  return panel;
 }

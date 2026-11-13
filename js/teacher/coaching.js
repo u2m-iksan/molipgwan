@@ -4,7 +4,6 @@ import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import { DOW, today, isoDow, toMin, toTime, hm } from '../date.js';
 import { loadStudents } from '../data/students.js';
 import { loadWeekCoachings, loadOpenPlans, scheduledOn } from '../data/coaching.js';
-import { openConsult } from './consult.js';
 import { getCoachConfig, saveCoachConfig, slotTimes, loadCoachingSlots, loadAllFixedSchedules } from '../data/schedules.js';
 
 export async function renderCoaching(body) {
@@ -93,7 +92,7 @@ export async function renderCoaching(body) {
       const s = st.students.find((x) => x.id === b.dataset.sid);
       const sl = st.slots.get(s.id);
       if (!sl) { location.hash = `#/students?open=${s.id}`; return; }   // 미배정 → 일정에서 배정
-      openConsult(s, scheduledOn(sl.weekday), { onSaved: refreshDone });
+      location.hash = `#/consult?sid=${s.id}&on=${scheduledOn(sl.weekday)}`;
     });
   }
 
@@ -146,10 +145,6 @@ export async function renderCoaching(body) {
       <p class="sub-s">이름을 누르면 상담이 열립니다. 코칭 시간 변경은 학생 관리에서 합니다.</p>`;
 
     $$('#grid .stu, #side .stu').forEach(wireChip);
-  }
-
-  async function refreshDone() {
-    try { [st.done, st.open] = await Promise.all([loadWeekCoachings(), loadOpenPlans()]); if (body._view === token) draw(); } catch {}
   }
 
   // 1분마다 이전/현재/다음 갱신 (탭을 떠나면 자동 중지)

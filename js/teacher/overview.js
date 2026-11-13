@@ -16,8 +16,7 @@ export async function renderOverview(body) {
   const sat = isoDow(today()) === 6;
 
   body.innerHTML = `
-    <div class="t-head"><h2>전체 현황 <span class="count" id="ov-at"></span></h2><div class="spacer"></div>
-      <span class="ov-live" id="ov-live"></span></div>
+    <div class="t-head"><h2>전체 현황 <span class="count" id="ov-at"></span></h2></div>
     <div class="t-tools">
       <div class="seg" id="ov-f"></div>
       <div class="seg" id="ov-l">${['전체', '중등', '고등'].map((l) => `<button type="button" data-v="${l}">${l}</button>`).join('')}</div>
@@ -45,11 +44,16 @@ export async function renderOverview(body) {
     const segs = [['전체', lvl.length], ['red', n('red')], ['orange', n('orange')], ['green', n('green')]];
     $('#ov-f').innerHTML = segs.map(([v, c]) => `<button type="button" data-v="${v}" class="${st.filter === v ? 'on' : ''}">${v === '전체' ? '전체' : `<i class="ov-dot ${v}"></i>${COLOR[v]}`}<b>${c}</b></button>`).join('');
     $$('button', lv).forEach((b) => b.classList.toggle('on', b.dataset.v === st.level));
-    const live = lvl.filter((s) => s.active && !s.active.paused_at).length;
-    $('#ov-live').innerHTML = live ? `<i></i>몰입 중 ${live}명` : '';
     const list = lvl.filter((s) => st.filter === '전체' || s.color === st.filter);
     if (!list.length) { grid.innerHTML = `<div class="card empty">${st.list.length ? '해당 학생이 없습니다.' : '재원 학생이 없습니다.'}</div>`; return; }
-    grid.innerHTML = list.map(card).join('');
+    // 몰입 중 / 그 외로 나누고, 각각 빨강 → 주황 → 초록 → 자리순
+    const RANK = { red: 0, orange: 1, green: 2 };
+    const sort = (a) => a.sort((x, y) => (RANK[x.color] - RANK[y.color]) || bySeat(x, y));
+    const isOn = (s) => s.active && !s.active.paused_at;
+    const groups = [['몰입 중', sort(list.filter(isOn)), 'on'], ['몰입 중 아님', sort(list.filter((s) => !isOn(s))), 'off']];
+    grid.innerHTML = groups.filter(([, a]) => a.length).map(([t, a, k]) => `
+      <section class="ov-sec ${k}"><h3>${k === 'on' ? '<i></i>' : ''}${t}<span>${a.length}</span></h3>
+        <div class="ov-cards">${a.map(card).join('')}</div></section>`).join('');
     $$('.ov-card', grid).forEach((c) => c.addEventListener('click', () => { location.hash = `#/students?open=${c.dataset.id}`; }));
   }
 

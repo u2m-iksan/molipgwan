@@ -34,3 +34,15 @@ export async function promoteAll(students) {
     if (groups[g]?.length) check(await sb.from('students').update({ grade: NEXT_GRADE[g] }).in('id', groups[g]));
   }
 }
+
+/* ---------- 학교별 학사일정 (직접 입력) ---------- */
+export const EVENT_KINDS = ['방학', '시험', '휴업', '기타'];
+export async function loadSchoolEvents() {
+  return check(await sb.from('school_events').select('*').order('start_date'));
+}
+export async function addSchoolEvents(rows) {
+  return check(await sb.from('school_events').insert(rows));
+}
+export async function deleteSchoolEvent(id) {
+  return check(await sb.from('school_events').delete().eq('id', id));
+}

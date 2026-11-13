@@ -1,10 +1,10 @@
 // 선생님 · 설정: 선생님 관리 / 교시 시간표(전자칠판) / 학년 올리기
-//  (학교별 학사일정 · 방학은 추후 이 탭에 추가)
+//  학교별 학사일정(방학 · 시험 · 휴업, 직접 입력)
 import { $, $$, esc, toast, X } from '../ui.js';
 import { loadStudents } from '../data/students.js';
 import { getPeriods, savePeriods, DEFAULT_PERIODS } from '../data/schedules.js';
-import { loadTeachers, addTeacher, removeTeacher, changeMyPassword, teacherId, promoteAll, NEXT_GRADE } from '../data/settings.js';
-import { toMin } from '../date.js';
+import { loadTeachers, addTeacher, removeTeacher, changeMyPassword, teacherId, promoteAll, NEXT_GRADE, EVENT_KINDS, loadSchoolEvents, addSchoolEvents, deleteSchoolEvent } from '../data/settings.js';
+import { toMin, today, short } from '../date.js';
 
 export async function renderSettings(body, { me } = {}) {
   body.innerHTML = `
@@ -12,10 +12,11 @@ export async function renderSettings(body, { me } = {}) {
     <div class="set-grid">
       <section class="card set-sec" id="s-teach"><div class="set-h"><h3>선생님 관리</h3></div><div class="empty">불러오는 중</div></section>
       <section class="card set-sec" id="s-per"><div class="set-h"><h3>교시 시간표</h3><span>전자칠판</span></div><div class="empty">불러오는 중</div></section>
+      <section class="card set-sec set-wide" id="s-cal"><div class="set-h"><h3>학교별 학사일정</h3><span>방학 · 시험 · 휴업</span></div><div class="empty">불러오는 중</div></section>
       <section class="card set-sec" id="s-grade"><div class="set-h"><h3>학년 올리기</h3><span>새 학년도 시작 때 1회</span></div></section>
     </div>`;
   let per = [];
-  drawTeachers(); drawPeriods(); drawGrade();
+  drawTeachers(); drawPeriods(); drawGrade(); drawCal();
 
   /* ---------- 선생님 관리 ---------- */
   async function drawTeachers() {
@@ -119,6 +120,72 @@ export async function renderSettings(body, { me } = {}) {
       if (!armed) { armed = true; b.textContent = '한 번 더 누르면 실행'; b.classList.add('btn-danger'); setTimeout(() => { armed = false; b.textContent = '전체 학년 올리기'; b.classList.remove('btn-danger'); }, 4000); return; }
       b.disabled = true;
       try { await promoteAll(list); toast('학년을 올렸습니다'); drawGrade(); } catch (x) { toast('실패: ' + x.message); b.disabled = false; }
+    });
+  }
+
+  /* ---------- 학교별 학사일정 ---------- */
+  //  학교 = 재원생 학교 이름 그대로 · 여러 학교 한 번에 추가 가능
+  const cal = { schools: [], kind: '방학' };
+  async function drawCal() {
+    const el = $('#s-cal'); if (!el) return;
+    let stu = [], evs = [];
+    try { [stu, evs] = await Promise.all([loadStudents(), loadSchoolEvents()]); }
+    catch (e) { el.innerHTML = `<div class="set-h"><h3>학교별 학사일정</h3></div><div class="empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
+    const t = today();
+    const count = new Map();
+    for (const s of stu.filter((x) => x.status === '재원' && x.school)) count.set(s.school, (count.get(s.school) || 0) + 1);
+    for (const e of evs) if (!count.has(e.school)) count.set(e.school, 0);
+    const schools = [...count.keys()].sort((a, b) => a.localeCompare(b, 'ko'));
+    const md = (d) => short(d).replace(/\(.\)/, '');
+    const dday = (e) => (e.end_date < t ? '' : e.start_date <= t ? '<em class="cal-now">진행 중</em>'
+      : `<em>D-${Math.round((new Date(e.start_date) - new Date(t)) / 86400000)}</em>`);
+    el.innerHTML = `<div class="set-h"><h3>학교별 학사일정</h3><span>방학 · 시험 · 휴업</span></div>
+      <div class="cal-form">
+        <div class="field"><span class="lbl">학교 <span class="opt">여러 개 선택 가능</span></span>
+          <div class="chips" id="c-sch">${schools.map((x) => `<button type="button" class="chip-t" data-v="${esc(x)}">${esc(x)}${count.get(x) ? ` <small>${count.get(x)}</small>` : ''}</button>`).join('') || '<span class="sub-s">학생 정보에 학교가 없습니다.</span>'}</div></div>
+        <div class="cal-row">
+          <div class="field"><span class="lbl">구분</span><div class="seg" id="c-kind">${EVENT_KINDS.map((k) => `<button type="button" data-v="${k}">${k}</button>`).join('')}</div></div>
+          <div class="field grow"><label for="c-title">이름 <span class="opt">선택</span></label><div class="input"><input id="c-title" placeholder="예: 겨울방학, 2학기 기말고사" autocomplete="off"></div></div>
+          <div class="field"><label for="c-from">시작</label><div class="input"><input id="c-from" type="date"></div></div>
+          <div class="field"><label for="c-to">끝</label><div class="input"><input id="c-to" type="date"></div></div>
+          <button type="button" class="btn btn-primary" id="c-add">추가</button>
+        </div>
+        <p class="err" id="c-err"></p>
+      </div>
+      <div class="cal-grid">${schools.map((x) => {
+        const list = evs.filter((e) => e.school === x);
+        return `<div class="cal-sch"><h4>${esc(x)}</h4>${list.length ? `<ul>${list.map((e) => `<li class="${e.end_date < t ? 'past' : ''}">
+          <span class="cal-k k-${esc(e.kind)}">${esc(e.kind)}</span>
+          <div class="cal-t"><b>${esc(e.title || e.kind)}</b><span>${md(e.start_date)}${e.end_date !== e.start_date ? ` – ${md(e.end_date)}` : ''}</span></div>
+          ${dday(e)}<button type="button" class="icon-btn sm" data-del="${esc(e.id)}" aria-label="삭제">${X}</button></li>`).join('')}</ul>` : '<p class="sub-s">등록된 일정이 없습니다.</p>'}</div>`;
+      }).join('')}</div>`;
+    const paint = () => {
+      $$('#c-sch [data-v]', el).forEach((b) => b.classList.toggle('on', cal.schools.includes(b.dataset.v)));
+      $$('#c-kind button', el).forEach((b) => b.classList.toggle('on', b.dataset.v === cal.kind));
+    };
+    paint();
+    $('#c-sch', el).addEventListener('click', (e) => {
+      const b = e.target.closest('[data-v]'); if (!b) return;
+      const v = b.dataset.v; cal.schools = cal.schools.includes(v) ? cal.schools.filter((x) => x !== v) : [...cal.schools, v]; paint();
+    });
+    $('#c-kind', el).addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { cal.kind = b.dataset.v; paint(); } });
+    $('#c-from', el).addEventListener('change', (e) => { const to = $('#c-to', el); if (!to.value || to.value < e.target.value) to.value = e.target.value; });
+    $('#c-add', el).addEventListener('click', async () => {
+      const err = $('#c-err', el); err.textContent = '';
+      const from = $('#c-from', el).value, to = $('#c-to', el).value || from, title = $('#c-title', el).value.trim();
+      if (!cal.schools.length) return (err.textContent = '학교를 선택하세요.');
+      if (!from || to < from) return (err.textContent = '날짜를 확인하세요.');
+      try {
+        await addSchoolEvents(cal.schools.map((school) => ({ school, kind: cal.kind, title: title || null, start_date: from, end_date: to })));
+        toast(`${cal.schools.length}개 학교에 추가했습니다`); drawCal();
+      } catch (x) { err.textContent = '저장 실패: ' + x.message; }
+    });
+    $$('[data-del]', el).forEach((b) => {
+      let armed = false;
+      b.addEventListener('click', async () => {
+        if (!armed) { armed = true; b.classList.add('armed'); setTimeout(() => { armed = false; b.classList.remove('armed'); }, 3000); return; }
+        try { await deleteSchoolEvent(b.dataset.del); toast('삭제했습니다'); drawCal(); } catch (x) { toast('삭제 실패: ' + x.message); }
+      });
     });
   }
 }

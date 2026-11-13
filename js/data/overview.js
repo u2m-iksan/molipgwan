@@ -29,7 +29,7 @@ export async function loadOverview() {
     .eq('weekday', 6).then(check).then((r) => r.filter((x) => x.valid_from <= t && (!x.valid_to || x.valid_to >= t))).catch(() => []) : [];
   const sessions2 = await settleStale(sessions);   // 2시간 무응답 세션 정리
   sessions.splice(0, sessions.length, ...sessions2);
-  const items = plans.length ? check(await sb.from('plan_items').select('id,plan_id').in('plan_id', plans.map((p) => p.id))) : [];
+  const items = plans.length ? check(await sb.from('plan_items').select('id,plan_id,academy').in('plan_id', plans.map((p) => p.id))) : [];
   const prog = items.length ? check(await sb.from('plan_progress').select('item_id,on_date').in('item_id', items.map((i) => i.id)).gte('on_date', from)) : [];
   return { students, plans, items, prog, sessions, att, win, t, sched };
 }
@@ -42,7 +42,6 @@ const elapsed = (s, at) => {
 // 학생별 상태: { color, reasons[], todaySec, active, att }
 export function judge(d, at = Date.now()) {
   const planBy = new Map(d.plans.map((p) => [p.student_id, p]));
-  const itemPlan = new Map(d.items.map((i) => [i.id, i.plan_id]));
   return d.students.map((s) => {
     const plan = planBy.get(s.id) || null;
     const ses = d.sessions.filter((x) => x.student_id === s.id);
@@ -63,9 +62,11 @@ export function judge(d, at = Date.now()) {
     if (!winSes.length && !active) reasons.push(`스톱워치 ${d.win.length}일 미사용`);
     if (plan) {
       // 진행률은 계획 시작 이후 날짜만 따짐
+      // 학원 숙제 항목은 학원 가는 날만 체크하므로 제외 (학원 숙제만 있는 계획은 판정 안 함)
       const days = d.win.filter((x) => x >= plan.start_date);
-      if (days.length) {
-        const has = d.prog.some((p) => itemPlan.get(p.item_id) === plan.id && days.includes(p.on_date));
+      const normal = new Set(d.items.filter((i) => i.plan_id === plan.id && !i.academy).map((i) => i.id));
+      if (days.length && normal.size) {
+        const has = d.prog.some((p) => normal.has(p.item_id) && days.includes(p.on_date));
         if (!has) reasons.push(`진행률 ${days.length}일 미입력`);
       }
     }

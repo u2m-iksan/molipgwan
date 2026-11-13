@@ -20,9 +20,9 @@ export async function loadOpenPlan(studentId) {
 }
 
 // 오늘 진행률 (하루 1개, 다시 고르면 덮어씀)
-export async function saveProgress(item, pct) {
+export async function saveProgress(item, pct, onDate = today()) {
   check(await sb.from('plan_progress').upsert({
-    item_id: item.id, student_id: item.student_id, on_date: today(), pct, updated_at: nowIso(),
+    item_id: item.id, student_id: item.student_id, on_date: onDate, pct, updated_at: nowIso(),
   }, { onConflict: 'item_id,on_date' }));
 }
 

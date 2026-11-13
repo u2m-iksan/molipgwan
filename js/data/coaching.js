@@ -109,7 +109,7 @@ export async function saveConsult(s, me) {
     for (const [i, it] of s.newItems.entries()) {
       const row = {
         subject: it.subject, subject_detail: it.subject_detail || null, title: it.title.trim(),
-        detail: it.detail?.trim() || null, sort_order: i,
+        detail: it.detail?.trim() || null, sort_order: i, academy: !!it.academy,
       };
       if (it.id) check(await sb.from('plan_items').update(row).eq('id', it.id));
       else check(await sb.from('plan_items').insert({

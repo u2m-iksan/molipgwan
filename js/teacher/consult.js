@@ -5,6 +5,8 @@ import { refPanel } from './ref-panel.js';
 import { segBar } from '../views/progress-bar.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
+import { loadStudentSchedules } from '../data/schedules.js';
+import { academySubjects, academyStat, dayLabel } from '../data/academy.js';
 import {
   loadConsult, loadCarryCandidates, saveConsult, saveReport, computeReportStats,
   buildPrompt, parseGpt, reportSubjects, noticeText,
@@ -88,8 +90,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   /* ---------- 불러오기 ---------- */
   (async () => {
     try {
-      const [d, ses] = await Promise.all([loadConsult(stu.id, scheduled), sb.auth.getSession()]);
+      const [d, ses, sched] = await Promise.all([loadConsult(stu.id, scheduled), sb.auth.getSession(), loadStudentSchedules(stu.id).catch(() => [])]);
       st.d = d; st.me = ses?.data?.session?.user?.email || null;
+      st.sched = sched; st.acSet = academySubjects(sched);
       const c = d.coaching;
       if (c) {
         Object.assign(st, {
@@ -99,7 +102,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       }   // 신규생은 선생님이 직접 체크 (기존 재원생은 지난 계획을 직접 입력)
       st.report = d.report;
       const last = (id) => { const h = d.progress.get(id); return h?.length ? h[h.length - 1].pct : null; };
-      st.prevItems = d.prevItems.map((i) => ({ ...i, final_rate: i.final_rate ?? last(i.id) }));
+      const acRate = (i) => (i.academy && d.prevPlan ? academyStat(i, d.prevPlan, sched, d.progress.get(i.id), d.prevPlan.due_date ? d.prevPlan.due_date : today()).rate : null);
+      st.prevItems = d.prevItems.map((i) => ({ ...i, final_rate: i.final_rate ?? (i.academy ? acRate(i) : last(i.id)) }));
       st.newItems = d.newItems.map((i) => ({ ...i }));
       drawConsult();
     } catch (e) {
@@ -139,6 +143,16 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     return `<span class="cs-meta">${p.author_role === '학생' ? '<span class="pill pill-gray">학생 작성</span>' : ''}${short(p.start_date)} ~ ${p.due_date ? short(p.due_date) : ''}</span>`;
   }
 
+  // 학원 숙제: 학원 간 날마다 ✓/✗ + n/m회
+  function acHist(i, h) {
+    const a = academyStat(i, st.d.prevPlan, st.sched || [], h, st.d.prevPlan.due_date || today());
+    if (!a.dates.length) return '<div class="cs-hist none">학원 숙제 · 기간 안에 학원 일정 없음</div>';
+    return `<div class="ac-hist"><span class="ac-tag">학원 숙제 ${a.done}/${a.total}회</span>${a.dates.map((d) => {
+      const v = a.checks.get(d);
+      return `<span class="ac-d ${v === true ? 'ok' : v === false ? 'no' : ''}">${dayLabel(d)}${v === true ? ' ✓' : v === false ? ' ✗' : ''}</span>`;
+    }).join('')}</div>`;
+  }
+
   function prevHtml() {
     const { prevPlan } = st.d;
     // 지난 계획이 없으면(이전 시스템에서 옮겨 오는 학생 등) 직접 입력 → 저장 시 마감된 계획으로 기록
@@ -155,7 +169,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
             <div class="input sm rate"><input data-f="final_rate" inputmode="numeric" maxlength="3" value="${i.final_rate ?? ''}" placeholder="-"><em>%</em></div>
             ${i.id ? '' : `<button type="button" class="icon-btn sm" data-del-prev="${k}" aria-label="삭제">${X}</button>`}
           </div>
-          ${h.length ? segBar(h) : (i.id ? '<div class="cs-hist none">진행률 입력 없음</div>' : '')}
+          ${i.academy && st.d.prevPlan ? acHist(i, h) : h.length ? segBar(h) : (i.id ? '<div class="cs-hist none">진행률 입력 없음</div>' : '')}
           <div class="input sm"><input data-f="final_note" value="${esc(i.final_note || '')}" placeholder="세부 이행도"></div>
         </div>`;
       }).join('') || '<div class="cs-empty">항목이 없습니다.</div>'}</div>
@@ -176,6 +190,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
             <div class="input sm cs-subsel"><select data-f="subject">${subOpts(i.subject)}</select></div>
             <div class="input sm cs-detail"><input data-f="subject_detail" value="${esc(i.subject_detail || '')}" placeholder="세부 과목"></div>
             ${i.source === '이월' ? '<span class="pill pill-orange">이월</span>' : ''}
+            <button type="button" class="chip-t ac-chip${i.academy ? ' on' : ''}" data-ac="${k}" title="학원 가는 날마다 숙제 해갔는지 체크">학원 숙제</button>
             <button type="button" class="icon-btn sm" data-del-next="${k}" aria-label="삭제">${X}</button>
           </div>
           <div class="input sm"><input data-f="title" value="${esc(i.title)}" placeholder="분량 (예: 쎈 B단계 p.40–72)"></div>
@@ -249,6 +264,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
           e.target.value = v;
           it.final_rate = v === '' ? null : Math.min(100, Number(v));
         } else it[f] = e.target.value;
+        // 과목을 바꾸면 학원 과목인지 다시 판정 (직접 바꾼 적 없을 때)
+        if (f === 'subject' && listSel === '#next-list' && !it.acManual) { it.academy = !!st.acSet?.has(it.subject); keepScroll(drawConsult); }
       });
       list.addEventListener('blur', (e) => {
         if (e.target.dataset.f === 'final_rate' && e.target.value) e.target.value = String(Math.min(100, Number(e.target.value)));
@@ -274,12 +291,13 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       if (t.dataset.delPrev != null) { st.prevItems.splice(Number(t.dataset.delPrev), 1); return keepScroll(drawConsult); }
       if (t.dataset.quick != null) {
         const s = Number(t.dataset.quick) >= 0 ? st.d.subjects[Number(t.dataset.quick)] : { subject: '국어', subject_detail: null };
-        st.newItems.push({ subject: s.subject, subject_detail: s.subject_detail, title: '', detail: '', source: '계획' });
+        st.newItems.push({ subject: s.subject, subject_detail: s.subject_detail, title: '', detail: '', source: '계획', academy: !!st.acSet?.has(s.subject) });
         keepScroll(drawConsult);
         const last = $$('#next-list .cs-item', panel).pop();
         last?.querySelector('[data-f=title]')?.focus();
         return;
       }
+      if (t.dataset.ac != null) { const it = st.newItems[Number(t.dataset.ac)]; it.academy = !it.academy; it.acManual = true; t.classList.toggle('on', it.academy); return; }
       if (t.dataset.delNext != null) {
         const [it] = st.newItems.splice(Number(t.dataset.delNext), 1);
         if (it?.id) st.removedIds.push(it.id);
@@ -321,7 +339,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       const all = st.carry.flatMap((p) => p.items);
       for (const id of ids) {
         const i = all.find((x) => x.id === id);
-        st.newItems.push({ subject: i.subject, subject_detail: i.subject_detail, title: i.title, detail: i.detail || '', source: '이월', carried_from: i.id });
+        st.newItems.push({ subject: i.subject, subject_detail: i.subject_detail, title: i.title, detail: i.detail || '', source: '이월', carried_from: i.id, academy: i.academy ?? !!st.acSet?.has(i.subject) });
       }
       const y = window.scrollY; drawConsult(); window.scrollTo(0, y);
       if (ids.length) toast(`${ids.length}개 항목을 가져왔습니다`);

@@ -4,6 +4,7 @@ import { mount, $, $$, esc, toast, sheet, BRAND, X } from '../ui.js';
 import { DOW, today, mondayOf, short, isoDow, toMin, toTime, hm, addDays } from '../date.js';
 import { loadStudentSchedules } from '../data/schedules.js';
 import { weekGrid, renderScheduleEditor } from '../teacher/schedule-editor.js';
+import { academyStat, dayLabel } from '../data/academy.js';
 import { segBar } from './progress-bar.js';
 import { openStopwatch, clock } from './stopwatch.js';
 import {
@@ -133,7 +134,7 @@ export async function renderStudentHome({ student, onLogout }) {
     const el = $('#tt');
     try {
       const rows = await loadStudentSchedules(student.id);
-      st.sched = rows; paintSum();
+      st.sched = rows; paintSum(); if (st.items.some((i) => i.academy)) drawPlan();
       let lastKey = '';
       const draw = () => {
         if (root._view !== token || !$('#tt')) return;
@@ -188,7 +189,12 @@ export async function renderStudentHome({ student, onLogout }) {
     }
     return '-';
   }
-  const lastPct = (id) => { const h = st.progress.get(id) || []; return h.length ? h[h.length - 1].pct : 0; };
+  const ac = (i) => academyStat(i, st.plan, st.sched || [], st.progress.get(i.id));
+  const lastPct = (id) => {
+    const it = st.items.find((x) => x.id === id);
+    if (it?.academy && st.plan) return ac(it).rate ?? 0;
+    const h = st.progress.get(id) || []; return h.length ? h[h.length - 1].pct : 0;
+  };
   const todayPct = (id) => (st.progress.get(id) || []).find((r) => r.on_date === today())?.pct;
   function drawPlan() {
     const el = $('#plan');
@@ -199,6 +205,22 @@ export async function renderStudentHome({ student, onLogout }) {
     const p = st.plan;
     el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3><span>${md(p.start_date)} – ${p.due_date ? md(p.due_date) : ''}</span></div>
       <ul class="sa-items">${st.items.map((i) => {
+        if (i.academy) {
+          // 학원 숙제: 학원 가는 날마다 해갔는지 체크
+          const a = ac(i);
+          return `<li class="sa-item ac" data-id="${esc(i.id)}">
+            <div class="sa-item-h">
+              <span class="sa-sub">${esc(i.subject)}${i.subject_detail ? `<small>${esc(i.subject_detail)}</small>` : ''}</span>
+              <span class="sa-title">${esc(i.title)}<small>학원 숙제 · 학원 간 날 해갔는지 체크</small></span>
+              <b class="sa-pct">${a.total ? `${a.done}/${a.total}회` : '-'}</b>
+            </div>
+            <div class="sa-ac">${a.dates.length ? a.dates.map((d) => {
+              const v = a.checks.get(d), fut = d > today();
+              return `<button type="button" class="sa-ac-d ${v === true ? 'ok' : v === false ? 'no' : ''}" data-ac-d="${d}"${fut ? ' disabled' : ''}>
+                <span>${dayLabel(d)}</span><b>${v === true ? '해감' : v === false ? '안 해감' : fut ? '예정' : '체크'}</b></button>`;
+            }).join('') : '<span class="sa-ac-none">이번 기간에 학원 일정이 없습니다.</span>'}</div>
+          </li>`;
+        }
         const open = st.open === i.id, tp = todayPct(i.id);
         return `<li class="sa-item${open ? ' open' : ''}" data-id="${esc(i.id)}">
           <button type="button" class="sa-item-h" data-tg="${esc(i.id)}">
@@ -214,6 +236,21 @@ export async function renderStudentHome({ student, onLogout }) {
     paintSum();
   }
   $('#plan').addEventListener('click', async (e) => {
+    const acb = e.target.closest('[data-ac-d]');
+    if (acb) {
+      // 체크 안 함 → 해감 → 안 해감 → 해감 …
+      const item = st.items.find((i) => i.id === acb.closest('.sa-item').dataset.id), d = acb.dataset.acD;
+      const cur = (st.progress.get(item.id) || []).find((r) => r.on_date === d);
+      const v = cur && cur.pct >= 100 ? 0 : 100;
+      try {
+        await saveProgress(item, v, d);
+        const h = (st.progress.get(item.id) || []).filter((r) => r.on_date !== d);
+        h.push({ item_id: item.id, on_date: d, pct: v }); h.sort((x, y) => (x.on_date < y.on_date ? -1 : 1));
+        st.progress.set(item.id, h);
+        drawPlan();
+      } catch (ex) { toast('저장 실패: ' + ex.message); }
+      return;
+    }
     const tg = e.target.closest('[data-tg]');
     if (tg) { st.open = st.open === tg.dataset.tg ? null : tg.dataset.tg; return drawPlan(); }
     const b = e.target.closest('[data-pct]'); if (!b) return;

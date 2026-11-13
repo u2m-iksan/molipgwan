@@ -7,6 +7,8 @@ import {
   loadStudentSchedules, groupSchedules, addSchedule, endSchedule, periodLabel,
   getCoachConfig, slotTimes, loadCoachingSlots, setCoachingSlot, logScheduleRequest,
 } from '../data/schedules.js';
+import { guessSubject, subjectOf } from '../data/academy.js';
+import { SUBJECTS } from '../data/students.js';
 
 const CATS = ['학교', '학원', '기타'];
 const CAT_PILL = { 학교: 'pill-gray', 학원: 'pill-blue', 기타: 'pill-orange', 코칭: 'pill-green' };
@@ -74,7 +76,7 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
             ${groups.length ? groups.map((g, i) => `
               <div class="sched-row">
                 <span class="pill ${CAT_PILL[g.category]}">${esc(g.category)}</span>
-                <div class="sched-main"><b>${esc(g.title)}</b>
+                <div class="sched-main"><b>${esc(g.title)}${g.category === '학원' && subjectOf(g) ? `<em class="sched-sub">${esc(subjectOf(g))}</em>` : ''}</b>
                   <span class="sub">${g.weekdays.map((d) => DOW[d]).join('·')} ${hm(g.start_time)}~${hm(g.end_time)}</span></div>
                 <span class="period${g.valid_to ? ' temp' : ''}">${esc(periodLabel(g))}</span>
                 ${mine(g) ? `${student ? `<button type="button" class="icon-btn sm${editIdx === i ? ' on' : ''}" data-edit="${i}" aria-label="일정 변경">${PEN}</button>` : ''}
@@ -87,6 +89,8 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
           <h4>${editing ? '학원 일정 변경' : student ? '학원 일정 추가' : '일정 추가'}</h4>
           ${student ? '' : `<div class="field"><span class="lbl">구분</span><div class="seg seg-wide" id="a-cat">${CATS.map((c) => `<button type="button" data-v="${c}">${c}</button>`).join('')}</div></div>`}
           <div class="field"><label for="a-title">이름</label><div class="input"><input id="a-title" placeholder="예: 수학학원" autocomplete="off" value="${esc(editing?.title || '')}"></div></div>
+          <div class="field" id="a-subw"><span class="lbl">학원 과목 <span class="opt">이름으로 자동 · 숙제 이행률에 사용</span></span>
+            <div class="chips" id="a-sub">${[...SUBJECTS.filter((x) => x !== '기타'), '없음'].map((x) => `<button type="button" class="chip-t" data-v="${x}">${x}</button>`).join('')}</div></div>
           <div class="field"><span class="lbl">요일 <span class="opt">복수 선택</span></span>
             <div class="chips days" id="a-days">${[1, 2, 3, 4, 5, 6, 7].map((d) => `<button type="button" class="chip-t" data-v="${d}">${DOW[d]}</button>`).join('')}</div></div>
           <div class="row2">
@@ -146,7 +150,17 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
     $$('#a-days button', root).forEach((b) => b.classList.toggle('on', f.weekdays.includes(Number(b.dataset.v))));
     $$('#a-period button', root).forEach((b) => b.classList.toggle('on', b.dataset.v === f.period));
     $('#a-range', root).hidden = f.period !== 'range';
+    // 학원 과목: 직접 고르기 전까지는 이름으로 추정
+    $('#a-subw', root).hidden = f.category !== '학원';
+    const sub = f.subjectSet ? f.subject : guessSubject($('#a-title', root).value);
+    $$('#a-sub button', root).forEach((b) => b.classList.toggle('on', b.dataset.v === (sub || '없음')));
   };
+  if (editing && editing.subject != null) { f.subjectSet = true; f.subject = editing.subject || null; }
+  $('#a-title', root).addEventListener('input', () => { if (!f.subjectSet) paint(); });
+  $('#a-sub', root).addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    f.subjectSet = true; f.subject = b.dataset.v === '없음' ? null : b.dataset.v; paint();
+  });
   $('#a-cancel', root)?.addEventListener('click', () => again({ editIdx: null }));
   $$('[data-edit]', root).forEach((b) => b.addEventListener('click', () => again({ editIdx: Number(b.dataset.edit) })));
   $('#a-cat', root)?.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { f.category = b.dataset.v; paint(); } });
@@ -170,7 +184,9 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
     const btn = $('#a-go', root); btn.disabled = true; err.textContent = '';
     try {
       if (editing) await endSchedule(editing);
-      await addSchedule({ student_id: stu.id, category: f.category, title, weekdays: f.weekdays, start, end, period: f.period, from, to });
+      // 과목: 직접 고른 값 저장(없음 = ''), 안 고르면 null(이름 추정)
+      const subject = f.category !== '학원' ? null : f.subjectSet ? (f.subject || '') : null;
+      await addSchedule({ student_id: stu.id, category: f.category, title, weekdays: f.weekdays, start, end, period: f.period, from, to, subject });
       if (editing) await log('변경', `${summary(editing.title, editing.weekdays, editing.start_time, editing.end_time)} → ${summary(title, f.weekdays, start, end)}`);
       else await log('추가', summary(title, f.weekdays, start, end));
       toast(editing ? '일정이 변경되었습니다' : '일정이 추가되었습니다'); again({ editIdx: null });

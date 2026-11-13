@@ -1241,3 +1241,20 @@ body.has-foot .toast{bottom:92px}
 .sa-sum>div{display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-radius:14px;background:#fff;border:1px solid var(--line)}
 .sa-sum span{font-size:12px;font-weight:600;color:var(--sub)}
 .sa-sum b{font-size:16px;font-weight:800;font-feature-settings:"tnum";white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sched-sub{font-style:normal;margin-left:6px;padding:1px 6px;border-radius:6px;background:var(--blue-soft,#EAF2FE);color:var(--blue-dark,#1B64DA);font-size:11px;font-weight:700;vertical-align:1px}
+/* 학원 숙제 */
+.ac-chip{height:28px;font-size:12px;flex:none}
+.ac-hist{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:2px 0 8px}
+.ac-tag{font-size:12px;font-weight:800;color:var(--text);margin-right:2px}
+.ac-d{font-size:12px;font-weight:600;padding:3px 8px;border-radius:7px;background:var(--surface2);color:var(--faint);border:1px solid var(--line)}
+.ac-d.ok{background:#E7F7EE;border-color:#C5EBD5;color:#0E9F55}
+.ac-d.no{background:#FDECEE;border-color:#F8D0D5;color:#E5323F}
+.sa-item.ac .sa-item-h{cursor:default}
+.sa-ac{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.sa-ac-d{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:84px;padding:8px 12px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);text-align:left;transition:background .15s,border-color .15s}
+.sa-ac-d span{font-size:12px;color:var(--sub);font-weight:600}
+.sa-ac-d b{font-size:14px;font-weight:800;color:var(--faint)}
+.sa-ac-d.ok{background:#E7F7EE;border-color:#BFE8D0}.sa-ac-d.ok b{color:#0E9F55}
+.sa-ac-d.no{background:#FDECEE;border-color:#F6CDD2}.sa-ac-d.no b{color:#E5323F}
+.sa-ac-d:disabled{opacity:.5}
+.sa-ac-none{font-size:13px;color:var(--faint)}

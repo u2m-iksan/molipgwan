@@ -1,5 +1,5 @@
 // 학부모 주간 보고서 (선생님 미리보기 · 학부모 앱 공용)
-// A4 비율 고정(794 × 최소 1123) → mountReport 가 들어갈 자리 폭에 맞춰 축소
+// A4 폭 794 고정, 높이는 내용만큼 → mountReport 가 들어갈 자리 폭에 맞춰 축소
 import { esc } from '../ui.js';
 import { short } from '../date.js';
 

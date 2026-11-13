@@ -701,7 +701,7 @@ body.has-foot .toast{bottom:92px}
 /* ---------- 학부모 주간 보고서 (A4 794 × 최소 1123, .wr-fit 이 축소) ----------
    기준: 좌우 여백 52 · 과목 열 84 (이행도·피드백·다음 계획 공통) · 섹션 간격 32 · 제목↔내용 12 */
 .wr{--g:#12A150;--a:#E8930C;--r:#E5484D;--col:84px;
-  width:794px;min-height:1123px;display:flex;flex-direction:column;gap:30px;padding:44px 52px 52px;
+  width:794px;display:flex;flex-direction:column;gap:30px;padding:44px 52px 52px;
   background:#fff;border:1px solid var(--line);border-radius:20px;color:var(--text);font-feature-settings:"tnum";letter-spacing:-0.01em}
 .wr-fit{position:relative;overflow:hidden}
 .wr-scale{position:absolute;left:0;top:0;width:794px;transform-origin:0 0}

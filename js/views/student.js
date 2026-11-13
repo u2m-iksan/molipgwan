@@ -1,14 +1,14 @@
 // 학생 앱 (태블릿 가로 우선): 위 = 등원 체크 · 이름 / 왼쪽 = 시간표 / 오른쪽 = 이번주 계획 + 오늘 진행률 / 오른쪽 아래 = 스톱워치
 // 폰: 오늘 공부시간(누르면 스톱워치) + [시간표 | 이번주 계획] 옆으로 넘기기, 세로 스크롤 없음
 import { mount, $, $$, esc, toast, sheet, BRAND, X } from '../ui.js';
-import { DOW, today, mondayOf, short, isoDow, toMin, toTime, hm } from '../date.js';
+import { DOW, today, mondayOf, short, isoDow, toMin, toTime, hm, addDays } from '../date.js';
 import { loadStudentSchedules } from '../data/schedules.js';
 import { weekGrid, renderScheduleEditor } from '../teacher/schedule-editor.js';
 import { segBar } from './progress-bar.js';
 import { openStopwatch, clock } from './stopwatch.js';
 import {
   loadOpenPlan, saveProgress, loadAttendance, attState, isSaturday, checkIn, addAttendance, autoCheckout,
-  loadSessions, elapsedSec, needsCheck,
+  loadSessions, elapsedSec, needsCheck, loadWeekDone,
 } from '../data/student.js';
 
 const SW_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 3h5M12 3v3M18.5 6.5l1.5-1.5"/></svg>';
@@ -24,6 +24,11 @@ export async function renderStudentHome({ student, onLogout }) {
       <button type="button" class="chip muted" id="lo">로그아웃</button></div></header>
     <div class="sa-mtop">
       <button type="button" class="sa-today" id="today"><span class="sa-today-l"><i></i>오늘 공부시간</span><b id="today-t">0분</b><em>›</em></button>
+      <div class="sa-sum" id="sum">
+        <div><span>평균 이행도</span><b id="sum-pct">-</b></div>
+        <div><span>이번 주 순공</span><b id="sum-week">-</b></div>
+        <div><span>다음 코칭</span><b id="sum-coach">-</b></div>
+      </div>
       <div class="sa-pg" id="pg"><button type="button" data-p="0" class="on">시간표</button><button type="button" data-p="1">이번주 계획</button></div>
     </div>
     <main class="sa-main" id="sam">
@@ -128,6 +133,7 @@ export async function renderStudentHome({ student, onLogout }) {
     const el = $('#tt');
     try {
       const rows = await loadStudentSchedules(student.id);
+      st.sched = rows; paintSum();
       let lastKey = '';
       const draw = () => {
         if (root._view !== token || !$('#tt')) return;
@@ -160,6 +166,28 @@ export async function renderStudentHome({ student, onLogout }) {
     catch (e) { $('#plan').innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
     drawPlan();
   }
+  /* ---------- 폰: 이번주 한눈 요약 (평균 이행도 · 이번 주 순공 · 다음 코칭) ---------- */
+  function paintSum() {
+    const pe = $('#sum-pct'); if (!pe) return;
+    pe.textContent = st.items.length ? `${Math.round(st.items.reduce((a, i) => a + lastPct(i.id), 0) / st.items.length)}%` : '-';
+    const wk = (st.weekDone || 0) + (st.sess ? elapsedSec(st.sess) : 0) + (st.doneSec || 0) - (st.todayDoneInWeek || 0);
+    const m = Math.floor(wk / 60);
+    $('#sum-week').textContent = `${Math.floor(m / 60)}시간 ${m % 60}분`;
+    $('#sum-coach').textContent = nextCoach();
+  }
+  function nextCoach() {
+    const rows = (st.sched || []).filter((r) => r.category === '코칭');
+    if (!rows.length) return '-';
+    const n = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const now = n.getHours() * 60 + n.getMinutes();
+    for (let k = 0; k < 14; k++) {
+      const d = addDays(today(), k);
+      const r = rows.find((x) => x.weekday === isoDow(d) && x.valid_from <= d && (!x.valid_to || x.valid_to >= d));
+      if (!r || (k === 0 && toMin(r.end_time) <= now)) continue;
+      return k === 0 ? `오늘 ${hm(r.start_time)}` : `D-${k}`;
+    }
+    return '-';
+  }
   const lastPct = (id) => { const h = st.progress.get(id) || []; return h.length ? h[h.length - 1].pct : 0; };
   const todayPct = (id) => (st.progress.get(id) || []).find((r) => r.on_date === today())?.pct;
   function drawPlan() {
@@ -183,6 +211,7 @@ export async function renderStudentHome({ student, onLogout }) {
             <div class="sa-steps">${[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((v) => `<button type="button" data-pct="${v}" class="${tp === v ? 'on' : ''}${v < lastPct(i.id) && tp == null ? ' past' : ''}">${v}</button>`).join('')}</div></div>` : ''}
         </li>`;
       }).join('') || '<div class="sa-empty">계획 항목이 없습니다.</div>'}</ul>`;
+    paintSum();
   }
   $('#plan').addEventListener('click', async (e) => {
     const tg = e.target.closest('[data-tg]');
@@ -203,7 +232,8 @@ export async function renderStudentHome({ student, onLogout }) {
   /* ---------- 스톱워치 버튼 ---------- */
   async function loadSess() {
     try { const r = await loadSessions(student.id); st.sess = r.active; st.doneSec = r.doneSec; } catch { st.sess = null; }
-    paintFab();
+    try { const w = await loadWeekDone(student.id); st.weekDone = w.weekDone; st.todayDoneInWeek = w.todayDone; } catch { /* 요약만 비움 */ }
+    paintFab(); paintSum();
   }
   function paintFab() {
     // 폰: 위쪽 "오늘 공부시간" (오늘 누적 = 끝난 세션 + 지금 세션)
@@ -213,6 +243,7 @@ export async function renderStudentHome({ student, onLogout }) {
       tt.textContent = st.sess && !st.sess.paused_at ? clock(sec) : `${Math.floor(sec / 3600)}시간 ${Math.floor(sec / 60) % 60}분`;
       $('#today').classList.toggle('on', !!st.sess && !st.sess.paused_at);
     }
+    paintSum();
     const f = $('#fab'); if (!f) return;
     f.classList.toggle('on', !!st.sess && !st.sess.paused_at);
     $('#fab-t').textContent = st.sess ? clock(elapsedSec(st.sess)) : '';

@@ -1,6 +1,6 @@
 // 학생 앱 데이터: 이번 계획 · 진행률 · 등원 기록 · 스톱워치
 import { sb } from '../sb.js';
-import { today, isoDow } from '../date.js';
+import { mondayOf, today, isoDow } from '../date.js';
 
 function check(res) { if (res.error) throw res.error; return res.data; }
 const nowIso = () => new Date().toISOString();
@@ -118,4 +118,12 @@ export async function teacherAttendance(studentId, { kind, reason, time, back })
 }
 export async function deleteAttendance(id) {
   check(await sb.from('attendance').delete().eq('id', id));
+}
+
+// 이번 주(월~오늘) 끝난 세션 순공 합계 (오늘 끝난 것 따로)
+export async function loadWeekDone(studentId) {
+  const t = today(), mon = mondayOf(t);
+  const rows = check(await sb.from('study_sessions').select('net_seconds,study_date,ended_at').eq('student_id', studentId).gte('study_date', mon).not('ended_at', 'is', null));
+  const sum = (a) => a.reduce((x, r) => x + (r.net_seconds || 0), 0);
+  return { weekDone: sum(rows), todayDone: sum(rows.filter((r) => r.study_date === t)) };
 }

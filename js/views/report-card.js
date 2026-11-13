@@ -44,6 +44,7 @@ export function reportCard(r, student) {
   const period = r.period_start ? `${short(r.period_start)} – ${short(r.period_end)}` : (r.period_end ? short(r.period_end) : '');
 
   return `<article class="wr">
+    <div class="wr-band"><b>U2M</b></div>
     <header class="wr-head">
       <div class="wr-id">
         <div>
@@ -51,7 +52,6 @@ export function reportCard(r, student) {
           <p>${student.grade ? `${esc(student.grade)} · ` : ''}${period}</p>
         </div>
         ${b ? `<div class="wr-badge ${b.cls}"><span class="wr-badge-ic">${b.icon}</span><div><b>${b.title}</b><small>${b.sub}</small></div></div>` : ''}
-        <div class="wr-logo"><b>U2M</b><span>몰입관</span></div>
       </div>
     </header>
 

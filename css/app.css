@@ -701,7 +701,7 @@ body.has-foot .toast{bottom:92px}
 /* ---------- 학부모 주간 보고서 (A4 794 × 최소 1123, .wr-fit 이 축소) ----------
    기준: 좌우 여백 52 · 과목 열 84 (이행도·피드백·다음 계획 공통) · 섹션 간격 32 · 제목↔내용 12 */
 .wr{--g:#12A150;--a:#E8930C;--r:#E5484D;--col:84px;
-  width:794px;min-height:1123px;display:flex;flex-direction:column;gap:32px;padding:44px 52px 48px;
+  width:794px;min-height:1123px;display:flex;flex-direction:column;gap:30px;padding:44px 52px 52px;
   background:#fff;border:1px solid var(--line);border-radius:20px;color:var(--text);font-feature-settings:"tnum";letter-spacing:-0.01em}
 .wr-fit{position:relative;overflow:hidden}
 .wr-scale{position:absolute;left:0;top:0;width:794px;transform-origin:0 0}
@@ -732,8 +732,8 @@ body.has-foot .toast{bottom:92px}
 .wr-legend i.g{background:var(--g)}.wr-legend i.a{background:var(--a)}.wr-legend i.r{background:var(--r)}
 
 /* 계획 이행도: 원형 | 과목별 막대 — 세로 구분선으로 한 대시보드 */
-.wr-rate{display:grid;grid-template-columns:200px minmax(0,1fr);align-items:center;border:1px solid var(--line);border-radius:18px;padding:24px 0}
-.wr-avg{position:relative;width:148px;height:148px;justify-self:center}
+.wr-rate{display:grid;grid-template-columns:208px minmax(0,1fr);align-items:stretch;border:1px solid var(--line);border-radius:18px;padding:26px 0}
+.wr-avg{position:relative;width:148px;height:148px;justify-self:center;align-self:center;margin-top:36px}
 .wr-ring{width:100%;height:100%}
 .wr-ring circle{fill:none;stroke-width:11}
 .wr-ring .trk{stroke:#EEF0F3}
@@ -743,7 +743,7 @@ body.has-foot .toast{bottom:92px}
 .wr-avg-tx small{font-size:12px;font-weight:600;color:var(--sub)}
 .wr-avg-tx b{font-size:38px;font-weight:800;letter-spacing:-0.04em;line-height:1.05}
 .wr-avg-tx b i{font-style:normal;font-size:18px;font-weight:700;margin-left:1px}
-.wr-bars{padding:0 28px 0 28px;border-left:1px solid var(--line);align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.wr-bars{padding:0 30px 0 32px;border-left:1px solid var(--line);align-self:stretch;display:flex;flex-direction:column;justify-content:center}
 .wr-bars ul{list-style:none;display:flex;flex-direction:column;gap:14px}
 .wr-bars li{display:grid;grid-template-columns:var(--col) minmax(0,1fr) 64px;grid-template-areas:"n t p" "d b p";column-gap:16px;row-gap:6px;align-items:center}
 .wr-r-name{grid-area:n;font-size:15px;font-weight:800;line-height:20px}

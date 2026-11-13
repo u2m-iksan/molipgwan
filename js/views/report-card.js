@@ -80,15 +80,15 @@ export function reportCard(r, student) {
       <dl class="wr-fb">${fb.map((x) => `<div><dt>${esc(x.subject)}</dt><dd>${esc(x.text)}</dd></div>`).join('')}</dl>
     </section>` : ''}
 
-    ${plan.length ? `<section class="wr-sec">
-      <div class="wr-sec-h"><h4>다음 계획</h4></div>
-      <ul class="wr-plan">${plan.map((x) => `<li><span class="wr-sub">${sub(x)}</span><p>${esc(x.title)}</p></li>`).join('')}</ul>
-    </section>` : ''}
     ${r.summary ? `<section class="wr-sec">
       <div class="wr-sec-h"><h4>총평</h4></div>
       <p class="wr-sum">${esc(r.summary)}</p>
     </section>` : ''}
 
+    ${plan.length ? `<section class="wr-sec">
+      <div class="wr-sec-h"><h4>다음 계획</h4></div>
+      <ul class="wr-plan">${plan.map((x) => `<li><span class="wr-sub">${sub(x)}</span><p>${esc(x.title)}</p></li>`).join('')}</ul>
+    </section>` : ''}
   </article>`;
 }
 

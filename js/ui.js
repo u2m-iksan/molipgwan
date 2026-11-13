@@ -82,6 +82,23 @@ export function flashDone(btn, label = '복사됨') {
   btn._doneT = setTimeout(() => { btn.classList.remove('is-done'); btn.innerHTML = btn._orig; btn._orig = null; }, 1600);
 }
 
+/* 진행 막대: 처음 등장할 때만 왼쪽에서 한 번에 채움 (다시 그릴 때는 그대로) */
+const BARS = '.sb-track,.wk-bar,.wr-bar,.ep-bar,.bd-bar';
+export function revealBars(root, base = 0) {
+  if (!root?.querySelectorAll || reducedMotion()) return;
+  const list = root.matches?.(BARS) ? [root] : [...root.querySelectorAll(BARS)];
+  list.forEach((b, i) => {
+    // 덮개는 '채워진 끝'까지만 → 짧은 막대도 같은 속도감으로 쭉 차오름
+    const r = b.getBoundingClientRect();
+    const end = Math.max(0, ...[...b.children].map((c) => c.getBoundingClientRect().right - r.left));
+    if (!r.width || !end) return;
+    b.style.setProperty('--bar-w', `${Math.min(100, (end / r.width) * 100 + 0.5)}%`);
+    b.style.setProperty('--bar-d', `${base + Math.min(i, 10) * 35}ms`);
+    b.classList.add('bar-in');
+    b.addEventListener('animationend', () => { b.classList.remove('bar-in'); b.style.removeProperty('--bar-d'); b.style.removeProperty('--bar-w'); }, { once: true });
+  });
+}
+
 /* ---------- 패널(오른쪽) · 모달(가운데) 공통 ---------- */
 export const X = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
@@ -92,6 +109,8 @@ export function sheet(inner, where = 'right') {
   document.body.appendChild(wrap);
   document.body.style.overflow = 'hidden';
   requestAnimationFrame(() => wrap.classList.add('open'));
+  revealBars(wrap, 280);
+  dragToClose(wrap);
   const onKey = (e) => { if (e.key === 'Escape') wrap.close(); };
   wrap.close = () => {
     wrap.classList.remove('open');
@@ -102,6 +121,48 @@ export function sheet(inner, where = 'right') {
   wrap.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) wrap.close(); });
   document.addEventListener('keydown', onKey);
   return wrap;
+}
+
+/* 손가락으로 끌어서 닫기: 폰 바텀시트는 아래로, 오른쪽 패널은 오른쪽으로 (안쪽 스크롤이 맨 위일 때만) */
+function dragToClose(wrap) {
+  if (!matchMedia('(pointer:coarse)').matches) return;
+  const panel = wrap.querySelector('.modal,.drawer'); if (!panel) return;
+  const scrim = wrap.querySelector('.scrim');
+  let sx = 0, sy = 0, axis = null, d = 0, t0 = 0, on = false, mode = null;
+  const scrollParent = (el) => { for (let n = el; n && n !== panel.parentNode; n = n.parentElement) if (n.scrollHeight > n.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(n).overflowY)) return n; return null; };
+  panel.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1 || e.target.closest('input,textarea,select,[contenteditable]')) return;
+    const sheetMode = wrap.classList.contains('overlay-center') && innerWidth <= 640;
+    const drawerMode = panel.classList.contains('drawer') && !panel.classList.contains('drawer-left');
+    mode = sheetMode ? 'down' : drawerMode ? 'right' : null; if (!mode) return;
+    const sp = scrollParent(e.target);
+    if (mode === 'down' && sp && sp.scrollTop > 0) { mode = null; return; }
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; axis = null; d = 0; t0 = performance.now(); on = true;
+  }, { passive: true });
+  panel.addEventListener('touchmove', (e) => {
+    if (!on || !mode) return;
+    const dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+    if (!axis) { if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return; axis = Math.abs(dy) > Math.abs(dx) ? 'y' : 'x'; }
+    if ((mode === 'down' && axis !== 'y') || (mode === 'right' && axis !== 'x')) { on = false; return; }
+    d = Math.max(0, mode === 'down' ? dy : dx);
+    if (d <= 0) return;
+    e.preventDefault();
+    panel.style.transition = 'none';
+    panel.style.transform = mode === 'down' ? `translateY(${d}px)` : `translateX(${d}px)`;
+    if (scrim) { scrim.style.transition = 'none'; scrim.style.opacity = String(Math.max(0, 1 - d / (mode === 'down' ? panel.offsetHeight : panel.offsetWidth))); }
+  }, { passive: false });
+  const end = () => {
+    if (!on) return; on = false;
+    const size = mode === 'down' ? panel.offsetHeight : panel.offsetWidth;
+    const v = d / Math.max(1, performance.now() - t0);
+    panel.style.transition = ''; panel.style.transform = '';
+    if (scrim) { scrim.style.transition = ''; scrim.style.opacity = ''; }
+    if (d > Math.min(140, size * 0.3) || (v > 0.6 && d > 30)) {
+      const close = wrap.querySelector('[data-close]:not(.scrim)') || null;
+      if (close) close.click(); else wrap.close();
+    }
+  };
+  panel.addEventListener('touchend', end); panel.addEventListener('touchcancel', end);
 }
 
 /* =============================================================
@@ -118,11 +179,12 @@ export function sheet(inner, where = 'right') {
   const motion = !reducedMotion();
   const isLoader = (n) => n.nodeType === 1 && /불러오는 중/.test(n.textContent || '') && (n.textContent || '').trim().length < 20;
 
-  // ② 세그먼트
+  // ② 세그먼트 · 선생님 메뉴: 선택 표시가 미끄러지듯 이동
+  const SEG = '.seg,.t-nav';
   const segRO = typeof ResizeObserver !== 'undefined' ? new ResizeObserver((es) => es.forEach((e) => syncSeg(e.target, true))) : null;
   const seen = new WeakSet();
   function syncSeg(seg, instant) {
-    const on = seg.querySelector(':scope > button.on');
+    const on = seg.querySelector(':scope > button.on, :scope > a.on');
     let ind = seg.querySelector(':scope > .seg-ind');
     if (!on || !on.offsetWidth) { if (ind) { ind.remove(); seg.classList.remove('has-ind'); } return; }
     const fresh = !ind;
@@ -170,8 +232,8 @@ export function sheet(inner, where = 'right') {
     const SK = '.empty,.pa-empty,.sa-empty,.ct-empty,.ch-none,li.empty';
     if (root.matches?.(SK) && isLoader(root)) root.classList.add('is-skel');
     root.querySelectorAll?.(SK).forEach((n) => { if (isLoader(n) && !n.querySelector(SK)) n.classList.add('is-skel'); });
-    if (root.matches?.('.seg')) queueSeg(root);
-    root.querySelectorAll?.('.seg').forEach(queueSeg);
+    if (root.matches?.(SEG)) queueSeg(root);
+    root.querySelectorAll?.(SEG).forEach(queueSeg);
     if (root.matches?.('table.tbl')) cardify(root);
     root.querySelectorAll?.('table.tbl').forEach(cardify);
     if (root.closest?.('table.tbl')) cardify(root.closest('table.tbl'));
@@ -179,8 +241,8 @@ export function sheet(inner, where = 'right') {
 
   new MutationObserver((muts) => {
     for (const m of muts) {
-      if (m.type === 'attributes') { const g = m.target.closest?.('.seg'); if (g) queueSeg(g); continue; }
-      const g = m.target.closest?.('.seg'); if (g) queueSeg(g);
+      if (m.type === 'attributes') { const g = m.target.closest?.(SEG); if (g) queueSeg(g); continue; }
+      const g = m.target.closest?.(SEG); if (g) queueSeg(g);
       if (m.target.classList?.contains('is-skel') && !isLoader(m.target)) m.target.classList.remove('is-skel');
       m.addedNodes.forEach(scan);
       // ① 불러오는 중 자리가 내용으로 바뀌면 살짝 떠오르며 등장 + 숫자 카운트업
@@ -193,12 +255,13 @@ export function sheet(inner, where = 'right') {
           n.addEventListener('animationend', () => { n.classList.remove('fx-in'); n.style.animationDelay = ''; }, { once: true });
           n.querySelectorAll?.('.cu').forEach(countUp);
           if (n.matches?.('.cu')) countUp(n);
+          revealBars(n, 260 + Math.min(i, 8) * 40);
         }
       }
     }
   }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-  addEventListener('resize', () => document.querySelectorAll('.seg').forEach((g) => syncSeg(g, true)));
-  document.fonts?.ready.then(() => document.querySelectorAll('.seg').forEach((g) => syncSeg(g, true)));
+  addEventListener('resize', () => document.querySelectorAll(SEG).forEach((g) => syncSeg(g, true)));
+  document.fonts?.ready.then(() => document.querySelectorAll(SEG).forEach((g) => syncSeg(g, true)));
 
   // ③ 저장 중 표시: 버튼을 누른 직후 그 버튼이 잠기면(disabled) 원이 돌고, 풀리면 사라짐
   document.addEventListener('click', (e) => {

@@ -10,6 +10,7 @@
   /* 모션 */
   --ease:cubic-bezier(.2,.8,.2,1);          /* 기본: 빠르게 나오고 부드럽게 멈춤 */
   --ease-spring:cubic-bezier(.3,1.4,.5,1);  /* 누름 · 선택 */
+  --ease-out:cubic-bezier(.22,1,.36,1);     /* 등장: 길게 미끄러지며 멈춤 */
   --t-fast:.15s; --t:.22s; --t-slow:.34s;
   /* 입력창: 기본은 차분하게, 누를 때만 선명하게 */
   --field-bg:#F4F5F7; --field-hover:#EDEFF2; --field-line:transparent;
@@ -121,13 +122,13 @@ li.is-skel::before,.pa-empty.is-skel::before,.sa-empty.is-skel::before,.ct-empty
   background:linear-gradient(#EBEEF1 0 0) 0 0/100% 12px no-repeat,linear-gradient(#EBEEF1 0 0) 0 23px/64% 12px no-repeat}
 @keyframes skel{from{opacity:1}to{opacity:.45}}
 
-/* ---------- 진행 막대: 처음 나타날 때 왼쪽부터 채워짐 ---------- */
-.sb-track{transform-origin:left}
-.sb-track i{animation:barIn .7s var(--ease) both;transform-origin:left}
-@keyframes barIn{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
-.sb-track i:nth-child(2){animation-delay:.06s}.sb-track i:nth-child(3){animation-delay:.12s}
-.sb-track i:nth-child(4){animation-delay:.18s}.sb-track i:nth-child(n+5){animation-delay:.24s}
-.wk-bar i{animation:barIn .6s var(--ease) both}
+/* ---------- 진행 막대: 처음 나타날 때만, 왼쪽 한 곳에서 한 번에 쭉 채워짐 ----------
+   막대 위를 막대 바탕색 덮개가 덮고 있다가 오른쪽으로 걷히는 방식 → 색 조각이 여러 개여도 한 줄기로 보임
+   JS가 '처음 등장'(불러오기 직후 · 창 열 때)에만 .bar-in 을 붙임 → 다시 그릴 때는 그대로 */
+.sb-track,.wk-bar,.wr-bar,.ep-bar,.bd-bar{position:relative}
+.bar-in::after{content:"";position:absolute;top:0;bottom:0;left:0;width:var(--bar-w,100%);z-index:1;background:inherit;transform-origin:100% 50%;
+  animation:barCover .85s cubic-bezier(.33,0,.15,1) both;animation-delay:var(--bar-d,0ms);pointer-events:none}
+@keyframes barCover{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 
 /* ---------- 알림 숫자: 생길 때 톡 ---------- */
 .pa-n:not([hidden]){animation:pop .32s var(--ease-spring)}
@@ -182,7 +183,8 @@ select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible,.chip-t:foc
 }
 
 @media (prefers-reduced-motion:reduce){
-  .seg-ind,.sb-track i,.wk-bar i,.is-skel::before{transition:none !important;animation:none !important}
+  .seg-ind,.is-skel::before{transition:none !important;animation:none !important}
+  .bar-in::after{display:none}
 }
 
 /* ---------- 화면별 다듬기 ---------- */
@@ -231,3 +233,62 @@ select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible,.chip-t:foc
 .btn.is-done svg{width:15px;height:15px;margin-right:4px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;vertical-align:-2px}
 .textarea{resize:none}
 .cu{font-variant-numeric:tabular-nums}
+
+/* =============================================================
+   부드러움 (앱처럼) — 전환 · 누름 · 등장
+   ============================================================= */
+/* 선생님 메뉴: 검정 선택 표시가 탭 사이를 미끄러지듯 이동 */
+.t-nav{position:relative}
+.t-nav>a{position:relative;z-index:1}
+.t-nav.has-ind>a.on{background:none}
+.t-nav>.seg-ind{border-radius:18px;background:var(--text);box-shadow:0 2px 8px rgba(0,12,30,.14);
+  transition:transform .42s var(--ease-out),width .42s var(--ease-out),height .42s var(--ease-out)}
+.t-tab{transition:background-color var(--t),color .3s var(--ease-out),transform var(--t-fast) var(--ease-spring)}
+
+/* 탭 전환: 머리줄은 그대로, 본문만 살짝 겹쳐 바뀜 */
+.vt-tab .top{view-transition-name:t-top}
+.vt-tab #t-body{view-transition-name:t-body}
+::view-transition-old(t-top){display:none}
+::view-transition-new(t-top){animation:none}
+::view-transition-group(t-top),::view-transition-group(t-body){animation:none}
+::view-transition-old(t-body){animation:vtOut .12s ease both}
+::view-transition-new(t-body){animation:vtIn .32s .07s var(--ease-out) both}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}
+@keyframes vtOut{to{opacity:0;transform:translateY(-4px)}}
+@keyframes vtIn{from{opacity:0}}
+
+/* 등장 움직임: 거리는 짧게, 멈춤은 길고 부드럽게 */
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fxIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.fx-in{animation:fxIn .5s var(--ease-out) both}
+.page.swap>*{animation:rise .5s var(--ease-out) both}
+.page.swap>:nth-child(2){animation-delay:.04s}
+.page.swap>:nth-child(3){animation-delay:.08s}
+.page.swap>:nth-child(n+4){animation-delay:.12s}
+.enter{animation-timing-function:var(--ease-out)}
+
+/* 누르는 모든 것: 색은 부드럽게 바뀌고, 누르면 살짝 들어감 */
+button,a,.chip,[role=button]{transition:background-color .2s ease,color .2s ease,border-color .2s ease,box-shadow .25s ease,opacity .2s ease,transform .18s var(--ease-spring)}
+.icon-btn:active,.t-board:active,.chip:active,.stu:active,.ct-send:active,.cp-back:active,.sa-pg button:active{transform:scale(.92)}
+.btn:active{transform:scale(.97)}
+.btn:disabled:active,button:disabled:active{transform:none}
+@media (pointer:coarse){
+  button,a,.chip,[role=button],.ov-card,.pa-kid,.ch-item{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+}
+button:focus:not(:focus-visible),a:focus:not(:focus-visible){outline:none}
+
+/* 모달 · 패널: 열릴 때 탄력 있게, 닫힐 때 빠르게 */
+.drawer{transition:transform .42s var(--ease-out)}
+.overlay:not(.open) .drawer{transition:transform .24s cubic-bezier(.4,0,1,1)}
+.overlay-center .modal{transition:opacity .22s ease,transform .42s var(--ease-out)}
+.overlay-center:not(.open) .modal{transition:opacity .16s ease,transform .22s cubic-bezier(.4,0,1,1)}
+.drawer-body,.modal,.ch-list,.ct-list{overscroll-behavior:contain}
+
+/* 토스트: 아래에서 톡 */
+.toast{transition:opacity .22s ease,transform .42s var(--ease-spring)}
+
+/* 상태 바뀔 때 숫자·글자 색 부드럽게 */
+.pa-st,.ov-state,.now-card,.stu,.att-state{transition:background-color .3s ease,color .3s ease,border-color .3s ease}
+
+/* 스크롤 끝 출렁임 시 흰 바탕 안 보이게 */
+html:has(.t-app){background:var(--page-bg)}

@@ -51,6 +51,7 @@ export function renderTeacher({ me, onLogout }) {
   $('#live').addEventListener('click', () => openLive());
   $('#lo').addEventListener('click', () => { window.removeEventListener('hashchange', show); onLogout(); });
 
+  let lastTab = null;
   function show() {
     const tab = current();
     $$('.t-tab').forEach((a) => a.classList.toggle('on', a.dataset.tab === (PARENT[tab] || tab)));
@@ -58,11 +59,21 @@ export function renderTeacher({ me, onLogout }) {
     document.body.classList.toggle('has-foot', tab === 'consult');
     const body = $('#t-body');
     if (!body) return;
-    body.classList.remove('swap'); void body.offsetWidth; body.classList.add('swap');
     const view = READY[tab];
-    body.classList.remove('ch-open');
-    if (view) view(body, { me, onUnread: paintUnread });
-    else body.innerHTML = `<div class="card empty"><b>${esc(TABS.find((t) => t.id === tab).label)}</b>준비 중입니다.</div>`;
+    const paint = () => {
+      body.classList.remove('swap'); void body.offsetWidth; body.classList.add('swap');
+      body.classList.remove('ch-open');
+      if (lastTab !== null && lastTab !== tab) window.scrollTo({ top: 0, behavior: 'instant' });
+      lastTab = tab;
+      if (view) view(body, { me, onUnread: paintUnread });
+      else body.innerHTML = `<div class="card empty"><b>${esc(TABS.find((t) => t.id === tab).label)}</b>준비 중입니다.</div>`;
+    };
+    // 탭 바꿀 때: 이전 화면이 뚝 사라지지 않고 부드럽게 겹쳐 바뀜 (지원 브라우저만)
+    if (document.startViewTransition && lastTab !== null && lastTab !== tab && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.documentElement.classList.add('vt-tab');
+      const vt = document.startViewTransition(paint);
+      vt.finished.finally(() => document.documentElement.classList.remove('vt-tab'));
+    } else paint();
   }
 
   // 학습 문의 안 읽은 수 (메뉴 옆 빨간 숫자, 30초마다)

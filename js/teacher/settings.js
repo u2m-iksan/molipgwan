@@ -1,0 +1,124 @@
+// 선생님 · 설정: 선생님 관리 / 교시 시간표(전자칠판) / 학년 올리기
+//  (학교별 학사일정 · 방학은 추후 이 탭에 추가)
+import { $, $$, esc, toast, X } from '../ui.js';
+import { loadStudents } from '../data/students.js';
+import { getPeriods, savePeriods, DEFAULT_PERIODS } from '../data/schedules.js';
+import { loadTeachers, addTeacher, removeTeacher, changeMyPassword, teacherId, promoteAll, NEXT_GRADE } from '../data/settings.js';
+import { toMin } from '../date.js';
+
+export async function renderSettings(body, { me } = {}) {
+  body.innerHTML = `
+    <div class="t-head"><h2>설정</h2></div>
+    <div class="set-grid">
+      <section class="card set-sec" id="s-teach"><div class="set-h"><h3>선생님 관리</h3></div><div class="empty">불러오는 중</div></section>
+      <section class="card set-sec" id="s-per"><div class="set-h"><h3>교시 시간표</h3><span>전자칠판</span></div><div class="empty">불러오는 중</div></section>
+      <section class="card set-sec" id="s-grade"><div class="set-h"><h3>학년 올리기</h3><span>새 학년도 시작 때 1회</span></div></section>
+    </div>`;
+  let per = [];
+  drawTeachers(); drawPeriods(); drawGrade();
+
+  /* ---------- 선생님 관리 ---------- */
+  async function drawTeachers() {
+    const el = $('#s-teach'); if (!el) return;
+    let list = [];
+    try { list = await loadTeachers(); } catch (e) { el.innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
+    el.innerHTML = `<div class="set-h"><h3>선생님 관리</h3><span>${list.length}명</span></div>
+      <ul class="set-list">${list.map((t) => `<li><b>${esc(t.name)}</b><span class="code">${esc(teacherId(t.email))}</span>
+        ${t.email === me?.email ? '<span class="pill pill-blue">나</span>' : `<button type="button" class="icon-btn sm" data-rm="${esc(t.email)}" aria-label="삭제">${X}</button>`}</li>`).join('')}</ul>
+      <div class="set-form">
+        <h4>선생님 추가</h4>
+        <div class="row3">
+          <div class="field"><label for="t-name">이름</label><div class="input"><input id="t-name" autocomplete="off"></div></div>
+          <div class="field"><label for="t-id">아이디</label><div class="input"><input id="t-id" autocomplete="off" placeholder="영문·숫자"></div></div>
+          <div class="field"><label for="t-pw">비밀번호</label><div class="input"><input id="t-pw" type="password" autocomplete="new-password" placeholder="6자 이상"></div></div>
+        </div>
+        <p class="err" id="t-err"></p>
+        <button type="button" class="btn btn-primary btn-sm" id="t-add">추가</button>
+      </div>
+      <div class="set-form">
+        <h4>내 비밀번호 변경</h4>
+        <div class="row3">
+          <div class="field"><label for="p-new">새 비밀번호</label><div class="input"><input id="p-new" type="password" autocomplete="new-password" placeholder="6자 이상"></div></div>
+          <div class="field"><label for="p-new2">새 비밀번호 확인</label><div class="input"><input id="p-new2" type="password" autocomplete="new-password"></div></div>
+          <div class="field set-btn-f"><button type="button" class="btn btn-gray btn-sm" id="p-go">변경</button></div>
+        </div>
+        <p class="err" id="p-err"></p>
+        <p class="hint">다른 선생님 비밀번호를 잊은 경우: 그 선생님을 삭제하고 새 아이디로 다시 추가하세요.</p>
+      </div>`;
+    $$('[data-rm]', el).forEach((b) => {
+      let armed = false;
+      b.addEventListener('click', async () => {
+        if (!armed) { armed = true; b.classList.add('armed'); toast('한 번 더 누르면 삭제됩니다'); setTimeout(() => { armed = false; b.classList.remove('armed'); }, 3000); return; }
+        try { await removeTeacher(b.dataset.rm); toast('삭제되었습니다'); drawTeachers(); } catch (e) { toast('삭제 실패: ' + e.message); }
+      });
+    });
+    $('#t-add', el).addEventListener('click', async (e) => {
+      const name = $('#t-name', el).value.trim(), id = $('#t-id', el).value.trim().toLowerCase(), password = $('#t-pw', el).value;
+      const err = $('#t-err', el); err.textContent = '';
+      if (!name) return (err.textContent = '이름을 입력하세요.');
+      if (!/^[a-z0-9._-]{2,20}$/.test(id)) return (err.textContent = '아이디는 영문 소문자·숫자 2~20자로 입력하세요.');
+      if (password.length < 6) return (err.textContent = '비밀번호는 6자 이상이어야 합니다.');
+      const btn = e.currentTarget; btn.disabled = true;
+      try { await addTeacher({ id, name, password }); toast(`${name} 선생님이 추가되었습니다`); drawTeachers(); }
+      catch (x) { err.textContent = x.message; btn.disabled = false; }
+    });
+    $('#p-go', el).addEventListener('click', async () => {
+      const a = $('#p-new', el).value, b = $('#p-new2', el).value, err = $('#p-err', el);
+      err.textContent = '';
+      if (a.length < 6) return (err.textContent = '비밀번호는 6자 이상이어야 합니다.');
+      if (a !== b) return (err.textContent = '두 비밀번호가 다릅니다.');
+      try { await changeMyPassword(a); toast('비밀번호가 변경되었습니다'); $('#p-new', el).value = ''; $('#p-new2', el).value = ''; }
+      catch (x) { err.textContent = '변경 실패: ' + x.message; }
+    });
+  }
+
+  /* ---------- 교시 시간표 ---------- */
+  async function drawPeriods(reset = false) {
+    const el = $('#s-per'); if (!el) return;
+    if (!per.length || reset) { try { per = reset ? DEFAULT_PERIODS.map((p) => ({ ...p })) : (await getPeriods()).map((p) => ({ ...p })); } catch { per = DEFAULT_PERIODS.map((p) => ({ ...p })); } }
+    el.innerHTML = `<div class="set-h"><h3>교시 시간표</h3><span>전자칠판에 지금 교시 · 남은 시간 표시</span></div>
+      <div class="per-h"><span>이름</span><span>시작</span><span>끝</span><span></span></div>
+      <div class="per-list">${per.map((p, i) => `<div class="per-row">
+        <div class="input sm"><input data-i="${i}" data-f="label" value="${esc(p.label)}"></div>
+        <div class="input sm"><input type="time" data-i="${i}" data-f="start" value="${esc(p.start)}"></div>
+        <div class="input sm"><input type="time" data-i="${i}" data-f="end" value="${esc(p.end)}"></div>
+        <button type="button" class="icon-btn sm" data-del="${i}" aria-label="삭제">${X}</button></div>`).join('')}</div>
+      <div class="set-acts"><button type="button" class="link-s" id="per-add">+ 교시 추가</button>
+        <button type="button" class="link-s sub" id="per-reset">기본값으로</button><div class="spacer"></div>
+        <p class="err" id="per-err"></p><button type="button" class="btn btn-primary btn-sm" id="per-save">저장</button></div>`;
+    el.oninput = (e) => { const t = e.target; if (t.dataset.i != null) per[Number(t.dataset.i)][t.dataset.f] = t.value; };
+    el.onclick = async (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.del != null) { per.splice(Number(b.dataset.del), 1); return drawPeriods(); }
+      if (b.id === 'per-add') { const last = per[per.length - 1]; per.push({ label: `${per.length + 1}교시`, start: last?.end || '08:00', end: last?.end || '09:00' }); return drawPeriods(); }
+      if (b.id === 'per-reset') return drawPeriods(true);
+      if (b.id === 'per-save') {
+        const err = $('#per-err', el); err.textContent = '';
+        const list = per.map((p) => ({ label: p.label.trim(), start: p.start, end: p.end })).sort((a, c) => toMin(a.start) - toMin(c.start));
+        const bad = list.find((p, i) => !p.label || !p.start || !p.end || toMin(p.end) <= toMin(p.start) || (i && toMin(p.start) < toMin(list[i - 1].end)));
+        if (bad) return (err.textContent = `${bad.label || '이름 없음'}: 시간을 확인하세요 (끝 > 시작, 앞 교시와 겹침 없음).`);
+        try { await savePeriods(list); per = list; toast('교시 시간표가 저장되었습니다'); drawPeriods(); } catch (x) { err.textContent = '저장 실패: ' + x.message; }
+      }
+    };
+  }
+
+  /* ---------- 학년 올리기 ---------- */
+  async function drawGrade() {
+    const el = $('#s-grade'); if (!el) return;
+    let list = [];
+    try { list = (await loadStudents()).filter((s) => s.status !== '퇴원'); } catch (e) { el.insertAdjacentHTML('beforeend', `<div class="empty">불러오기 실패</div>`); return; }
+    const n = (g) => list.filter((s) => s.grade === g).length;
+    el.innerHTML = `<div class="set-h"><h3>학년 올리기</h3><span>새 학년도 시작 때 1회 · 재원·휴원 학생</span></div>
+      <div class="grade-flow">${Object.entries(NEXT_GRADE).map(([a, b]) => `<div><span>${a}</span><i>→</i><span>${b}</span><b>${n(a)}명</b></div>`).join('')}
+        <div class="dim"><span>고3</span><i></i><span>그대로</span><b>${n('고3')}명</b></div></div>
+      <p class="hint">고3은 바뀌지 않습니다. 졸업생은 학생 관리에서 퇴원 처리하세요.</p>
+      <button type="button" class="btn btn-gray btn-sm" id="g-go">전체 학년 올리기</button>`;
+    let armed = false;
+    $('#g-go', el).addEventListener('click', async (e) => {
+      const b = e.currentTarget;
+      if (!armed) { armed = true; b.textContent = '한 번 더 누르면 실행'; b.classList.add('btn-danger'); setTimeout(() => { armed = false; b.textContent = '전체 학년 올리기'; b.classList.remove('btn-danger'); }, 4000); return; }
+      b.disabled = true;
+      try { await promoteAll(list); toast('학년을 올렸습니다'); drawGrade(); } catch (x) { toast('실패: ' + x.message); b.disabled = false; }
+    });
+  }
+}

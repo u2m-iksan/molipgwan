@@ -26,12 +26,12 @@ const bySeat = (a, b) => {
 async function loadLive() {
   const t = today(), mon = mondayOf(t);
   const [students, sessions, att, sched] = await Promise.all([
-    sb.from('students').select('id,name,grade,seat_no,status,sat_arrive').eq('status', '재원').then(check),
+    sb.from('students').select('id,name,grade,seat_no,status,sat_arrive,return_on').in('status', ['재원', '휴원']).then(check),
     sb.from('study_sessions').select('id,student_id,subject,started_at,ended_at,paused_at,pause_seconds,net_seconds,checked_net,study_date').gte('study_date', mon).then(check),
     sb.from('attendance').select('*').eq('on_date', t).order('at').then(check).catch(() => []),
     sb.from('schedules').select('student_id,category,title,weekday,start_time,end_time,valid_from,valid_to').eq('weekday', isoDow(t)).then(check),
   ]);
-  return { t, students, sessions: await settleStale(sessions), att, sched: sched.filter((r) => r.valid_from <= t && (!r.valid_to || r.valid_to >= t)) };
+  return { t, students: students.filter((x) => x.status === '재원' || (x.return_on && x.return_on >= t)), sessions: await settleStale(sessions), att, sched: sched.filter((r) => r.valid_from <= t && (!r.valid_to || r.valid_to >= t)) };
 }
 
 export async function openLive() {
@@ -70,6 +70,7 @@ export async function openLive() {
     const blk = data.sched.find((r) => r.student_id === s.id && ['학원', '학교'].includes(r.category) && toMin(r.start_time) <= nowMin && nowMin < toMin(r.end_time));
     const al = sat ? satAlert(s, rows, data.sched, nowMin) : null;
     let k, label, sub = '';
+    if (s.status === '휴원') return { k: 'ret', label: `복귀 예정 ${Number(s.return_on.slice(5, 7))}/${Number(s.return_on.slice(8))}`, sub: '', todaySec: 0 };
     if (active && !active.paused_at) { k = 'on'; label = `${active.subject} 몰입 중`; sub = clockSec(elapsed(active, at)); }
     else if (active) { k = 'rest'; label = '휴식 중'; sub = `${active.subject} ${clockSec(elapsed(active, at))}`; }
     else if (sat && att?.kind === '외출') { k = al?.kind === 'late' ? 'none' : 'out'; label = `외출${att.reason ? ' · ' + att.reason : ''}`; sub = al?.text || ''; }
@@ -80,14 +81,14 @@ export async function openLive() {
     return { k, label, sub, todaySec };
   }
 
-  const ORDER = { on: 0, rest: 1, out: 2, acad: 3, school: 4, idle: 5, none: 6, off: 7 };
+  const ORDER = { on: 0, rest: 1, out: 2, acad: 3, school: 4, idle: 5, none: 6, off: 7, ret: 8 };
   function paint() {
     if (!data) return;
     const n = kst(), nowMin = n.getHours() * 60 + n.getMinutes(), at = Date.now();
     const list = data.students.map((s) => ({ s, st: stateOf(s, nowMin, at) }))
       .sort((a, b) => (ORDER[a.st.k] - ORDER[b.st.k]) || bySeat(a.s, b.s));
     const on = list.filter((x) => x.st.k === 'on').length;
-    $('#lv-count', el).innerHTML = `<i></i>몰입 중 <b>${on}</b><span>/ ${list.length}</span>`;
+    $('#lv-count', el).innerHTML = `<i></i>몰입 중 <b>${on}</b><span>/ ${list.filter((x) => x.st.k !== 'ret').length}</span>`;
     $('#lv-grid', el).innerHTML = list.length ? list.map(({ s, st }) => `
       <div class="lv-s ${st.k}">
         <div class="lv-s-h"><b>${esc(s.name)}</b><span>${esc(s.grade)}</span>${s.seat_no ? `<em>${esc(s.seat_no)}</em>` : ''}</div>

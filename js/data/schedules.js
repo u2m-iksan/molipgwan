@@ -114,3 +114,18 @@ export async function loadOpenRequests() {
 export async function checkRequests(ids, by) {
   check(await sb.from('schedule_requests').update({ checked_at: new Date().toISOString(), checked_by: by }).in('id', ids));
 }
+
+/* ---------- 교시 시간표 (전자칠판) — 기존 앱과 같은 표, 설정 탭에서 수정 ---------- */
+export const DEFAULT_PERIODS = [
+  ['1교시', '08:00', '08:50'], ['2교시', '09:00', '09:50'], ['3교시', '10:00', '11:00'], ['4교시', '11:10', '12:00'],
+  ['점심시간', '12:00', '13:00'], ['5교시', '13:00', '14:00'], ['6교시', '14:10', '15:20'], ['7교시', '15:30', '16:40'],
+  ['8교시', '16:50', '18:00'], ['저녁시간', '18:00', '19:00'], ['9교시', '19:00', '19:50'], ['10교시', '20:00', '21:00'],
+  ['11교시', '21:10', '22:00'], ['12교시', '22:10', '23:00'],
+].map(([label, start, end]) => ({ label, start, end }));
+export async function getPeriods() {
+  const r = check(await sb.from('app_settings').select('value').eq('key', 'periods').maybeSingle());
+  return Array.isArray(r?.value) && r.value.length ? r.value : DEFAULT_PERIODS;
+}
+export async function savePeriods(list) {
+  check(await sb.from('app_settings').upsert({ key: 'periods', value: list }));
+}

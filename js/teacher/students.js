@@ -115,6 +115,8 @@ export async function renderStudents(body) {
             <p class="hint" id="f-pp-hint"></p></div>
           <div class="field"><label for="f-sp">학생 휴대폰 <span class="opt">선택</span></label><div class="input"><input id="f-sp" inputmode="numeric" value="${esc(f.student_phone || '')}" autocomplete="off"></div></div>
           <div class="field"><span class="lbl">상태</span><div class="seg seg-wide" id="f-status">${STATUSES.map((s) => `<button type="button" data-v="${s}">${s}</button>`).join('')}</div></div>
+          <div class="field" id="f-ret-wrap"><label for="f-ret">복귀 예정일 <span class="opt">휴원</span></label><div class="input"><input id="f-ret" type="date" value="${esc(f.return_on || '')}"></div></div>
+          <div class="field"><label for="f-sat">토요일 등원 기준 시각 <span class="opt">비우면 08:00 · 오전 학원은 끝 + 20분 자동</span></label><div class="input"><input id="f-sat" type="time" value="${esc((f.sat_arrive || '').slice(0, 5))}"></div></div>
           <div class="field"><span class="lbl">학생 특성 <span class="opt">복수 선택</span></span>
             <div class="chips" id="f-traits">${TRAITS.map((t) => `<button type="button" class="chip-t" data-v="${t}">${t}</button>`).join('')}</div></div>
           <div class="field" id="f-avoid-wrap"><label for="f-avoid">회피 과목</label>
@@ -157,6 +159,10 @@ export async function renderStudents(body) {
     };
     pick('#f-grade', 'grade');
     pick('#f-status', 'status');
+    const retWrap = $('#f-ret-wrap', panel);
+    const paintRet = () => { retWrap.hidden = f.status !== '휴원'; };
+    $('#f-status', panel).addEventListener('click', () => setTimeout(paintRet));
+    paintRet();
 
     const one = (id, key) => {
       const el = $(id, panel);
@@ -224,6 +230,8 @@ export async function renderStudents(body) {
       f.parent_phone = pp.value; f.student_phone = $('#f-sp', panel).value;
       f.avoid_subject = $('#f-avoid', panel).value; f.trait_note = $('#f-note', panel).value;
       f.goal = $('#f-goal', panel).value;
+      f.return_on = f.status === '휴원' ? $('#f-ret', panel).value : '';
+      f.sat_arrive = $('#f-sat', panel).value;
       f.habits = $$('[data-habit]', panel).map((i) => i.value.trim()).filter(Boolean);
       const err = $('#f-err', panel);
       if (!f.name.trim()) return (err.textContent = '이름을 입력하세요.');

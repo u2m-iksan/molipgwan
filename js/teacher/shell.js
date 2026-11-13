@@ -7,6 +7,7 @@ import { openBoard } from './board.js';
 import { openLive } from './live.js';
 import { renderExams } from './exams.js';
 import { renderOverview } from './overview.js';
+import { renderSettings } from './settings.js';
 
 const TABS = [
   { id: 'overview', label: '전체 현황' },
@@ -15,8 +16,9 @@ const TABS = [
   { id: 'coaching', label: '코칭' },
   { id: 'exams', label: '성적' },
   { id: 'reports', label: '학부모 보고' },
+  { id: 'settings', label: '설정' },
 ];
-const READY = { students: renderStudents, coaching: renderCoaching, consult: renderConsultPage, exams: renderExams, overview: renderOverview };
+const READY = { students: renderStudents, coaching: renderCoaching, consult: renderConsultPage, exams: renderExams, overview: renderOverview, settings: renderSettings };
 const PARENT = { consult: 'coaching' };   // 하위 화면 → 메뉴 강조
 const DEFAULT_TAB = 'students';
 

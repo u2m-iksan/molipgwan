@@ -8,6 +8,11 @@ export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storageKey: 'molip-auth' },
 });
 
+// 다른 계정 만들기용 (내 로그인 상태는 그대로 두고 새 계정만 가입)
+export const sbSide = () => createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false, storageKey: 'molip-side' },
+});
+
 // 선생님: 아이디 kkb → t-kkb@molipgwan.app
 export const teacherEmail = (id) => `t-${String(id).trim().toLowerCase()}@molipgwan.app`;
 

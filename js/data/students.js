@@ -69,6 +69,7 @@ function studentRow(f) {
     avoid_subject: (f.traits || []).includes('과목 회피') ? (f.avoid_subject || null) : null,
     goal: (f.goal || '').trim() || null, strong_subjects: f.strong_subjects || [], weak_subjects: f.weak_subjects || [],
     habits: (f.habits || []).filter(Boolean),
+    return_on: f.return_on || null, sat_arrive: f.sat_arrive || null,
   };
 }
 

@@ -3,7 +3,7 @@ import { $, esc } from '../ui.js';
 import { sb } from '../sb.js';
 import { DOW, today, isoDow, hm, toMin } from '../date.js';
 import { loadStudents } from '../data/students.js';
-import { loadCoachingSlots } from '../data/schedules.js';
+import { loadCoachingSlots, getPeriods, DEFAULT_PERIODS } from '../data/schedules.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const kst = () => { const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' })); return d; };
@@ -26,6 +26,8 @@ export async function openBoard() {
   try { await el.requestFullscreen?.(); } catch {}
 
   let code = null, codeHour = -1, alive = true;
+  let periods = DEFAULT_PERIODS;
+  getPeriods().then((p) => { periods = p; }).catch(() => {});
   const close = () => {
     alive = false; clearInterval(t);
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
@@ -46,12 +48,22 @@ export async function openBoard() {
     const n = kst(), h = n.getHours(), m = n.getMinutes(), s = n.getSeconds();
     $('#bd-time', el).textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
     $('#bd-date', el).textContent = `${n.getFullYear()}년 ${n.getMonth() + 1}월 ${n.getDate()}일 (${DOW[isoDow(today())]})`;
-    // 지금 시간대 (정시 단위)
-    $('#bd-slot', el).textContent = `${h}시`;
-    $('#bd-range', el).textContent = `${pad(h)}:00 – ${pad((h + 1) % 24)}:00`;
-    const used = m * 60 + s, left = 3600 - used;
-    $('#bd-fill', el).style.width = `${(used / 3600) * 100}%`;
-    $('#bd-left', el).textContent = `남은 시간 ${pad(Math.floor(left / 60))}:${pad(left % 60)}`;
+    // 지금 교시 (설정 '교시 시간표', 기존 앱과 같은 표) — 쉬는 시간이면 다음 교시까지
+    const nowS = h * 3600 + m * 60 + s;
+    const P = periods.map((p) => ({ ...p, a: toMin(p.start) * 60, b: toMin(p.end) * 60 }));
+    const cur = P.find((p) => nowS >= p.a && nowS < p.b);
+    const next = P.find((p) => p.a > nowS);
+    let label, range, pct, left, leftLabel = '남은 시간';
+    if (cur) { label = cur.label; range = `${cur.start} – ${cur.end}`; pct = (nowS - cur.a) / (cur.b - cur.a); left = cur.b - nowS; }
+    else if (next) {
+      const prev = [...P].reverse().find((p) => p.b <= nowS);
+      label = prev ? '쉬는 시간' : '시작 전'; range = `다음 ${next.label} ${next.start}`;
+      const from = prev ? prev.b : next.a - 3600; pct = Math.max(0, (nowS - from) / (next.a - from)); left = next.a - nowS; leftLabel = `${next.label}까지`;
+    } else { label = '오늘 일정 종료'; range = ''; pct = 1; left = 0; }
+    $('#bd-slot', el).textContent = label;
+    $('#bd-range', el).textContent = range;
+    $('#bd-fill', el).style.width = `${Math.min(100, pct * 100)}%`;
+    $('#bd-left', el).textContent = left > 0 ? `${leftLabel} ${left >= 3600 ? `${Math.floor(left / 3600)}:` : ''}${pad(Math.floor(left / 60) % 60)}:${pad(left % 60)}` : '';
     // 등원 코드 (정시마다 갱신)
     if (h !== codeHour) refreshCode(h).then(paintCode);
   }

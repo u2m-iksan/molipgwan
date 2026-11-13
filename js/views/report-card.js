@@ -66,9 +66,11 @@ export function reportCard(r, student) {
         <div class="wr-sec-h"><h4>계획 이행도</h4>
           <span class="wr-legend">${cnt.g ? `<i class="g"></i>달성 ${cnt.g}` : ''}${cnt.a ? `<i class="a"></i>부분 ${cnt.a}` : ''}${cnt.r ? `<i class="r"></i>미달 ${cnt.r}` : ''}</span></div>
         <ul>${rates.map((x) => `<li class="${tone(x.rate)}">
-          <span class="wr-sub">${sub(x)}</span>
-          <div class="wr-bar-wrap"><p>${esc(x.title)}</p><span class="wr-bar"><i style="width:${Math.max(3, x.rate)}%"></i></span></div>
-          <b>${x.rate}<i>%</i></b>
+          <b class="wr-r-name">${esc(x.subject)}</b>
+          <p class="wr-r-title">${esc(x.title)}</p>
+          <strong class="wr-r-pct">${x.rate}<i>%</i></strong>
+          <small class="wr-r-det">${esc(x.detail || '')}</small>
+          <span class="wr-bar"><i style="width:${Math.max(3, x.rate)}%"></i></span>
         </li>`).join('')}</ul>
       </div>
     </section>` : ''}

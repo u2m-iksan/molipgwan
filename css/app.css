@@ -1291,3 +1291,4 @@ body.has-foot .toast{bottom:92px}
 .wk-v{display:flex;flex-direction:column;align-items:flex-end;line-height:1.25}
 .wk-v b{font-size:14px;font-weight:800;font-feature-settings:"tnum"}
 .wk-v small{font-size:11.5px;color:var(--sub);font-weight:600}
+.ov-stu{margin-top:40px;padding-top:32px;border-top:1px solid var(--line)}

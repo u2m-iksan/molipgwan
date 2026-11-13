@@ -1,6 +1,5 @@
 // 선생님 화면 틀: 상단바(메뉴) + 본문. 메뉴는 주소 #/xxx 로 이동.
 import { mount, $, $$, esc, BRAND } from '../ui.js';
-import { renderStudents } from './students.js';
 import { renderCoaching } from './coaching.js';
 import { renderConsultPage } from './consult-page.js';
 import { openBoard } from './board.js';
@@ -11,16 +10,15 @@ import { renderSettings } from './settings.js';
 
 const TABS = [
   { id: 'overview', label: '전체 현황' },
-  { id: 'students', label: '학생 관리' },
   { id: 'plans', label: '주간 계획' },
   { id: 'coaching', label: '코칭' },
   { id: 'exams', label: '성적' },
   { id: 'reports', label: '학부모 보고' },
   { id: 'settings', label: '설정' },
 ];
-const READY = { students: renderStudents, coaching: renderCoaching, consult: renderConsultPage, exams: renderExams, overview: renderOverview, settings: renderSettings };
-const PARENT = { consult: 'coaching' };   // 하위 화면 → 메뉴 강조
-const DEFAULT_TAB = 'students';
+const READY = { students: renderOverview, coaching: renderCoaching, consult: renderConsultPage, exams: renderExams, overview: renderOverview, settings: renderSettings };
+const PARENT = { consult: 'coaching', students: 'overview' };   // 하위 화면 → 메뉴 강조
+const DEFAULT_TAB = 'overview';
 
 export function renderTeacher({ me, onLogout }) {
   const current = () => {

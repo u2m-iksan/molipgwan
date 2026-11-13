@@ -13,7 +13,7 @@ export async function renderStudents(body) {
 
   body.innerHTML = `
     <div class="t-head">
-      <h2>학생 관리 <span class="count" id="cnt"></span></h2>
+      <h2>전체 학생 <span class="count" id="cnt"></span></h2>
       <div class="spacer"></div>
       <button type="button" class="btn btn-gray btn-sm" id="imp">가져오기</button>
       <button type="button" class="btn btn-primary btn-sm" id="add">학생 등록</button>
@@ -313,10 +313,8 @@ export async function renderStudents(body) {
   }
 
   await reload();
+  const open = (id) => { const s = state.list.find((x) => x.id === id); if (s) openEditor(s); };
   const openId = new URLSearchParams(location.hash.split('?')[1] || '').get('open');
-  if (openId) {
-    history.replaceState(null, '', '#/students');
-    const s = state.list.find((x) => x.id === openId);
-    if (s) openEditor(s);
-  }
+  if (openId) { history.replaceState(null, '', '#/overview'); open(openId); }
+  return { open };
 }

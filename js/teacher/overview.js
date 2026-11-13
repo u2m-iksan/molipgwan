@@ -1,4 +1,5 @@
 // 선생님 · 전체 현황(상황판): 자리순 학생 카드, 빨강·주황·초록 + 몰입 중 · 오늘 순공 · (토) 등원 상태
+import { renderStudents } from './students.js';
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import { teacherAttendance, deleteAttendance } from '../data/student.js';
 import { isoDow, today } from '../date.js';
@@ -26,7 +27,10 @@ export async function renderOverview(body, { me } = {}) {
       <span class="ov-rule">빨강: 계획 없음 · 스톱워치/진행률 2일 공백 &nbsp;·&nbsp; 주황: 최근 2일 순공 2시간 미만</span>
     </div>
     <div id="ov-req"></div>
-    <div id="ov-grid" class="ov-grid"><div class="card empty">불러오는 중</div></div>`;
+    <div id="ov-grid" class="ov-grid"><div class="card empty">불러오는 중</div></div>
+    <div id="ov-stu" class="ov-stu"></div>`;
+  // 학생 관리: 현황 카드 아래 전체 학생 목록 (카드 누르면 학생 정보 열기)
+  const stuApi = renderStudents($('#ov-stu'));
 
   $('#ov-f').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; st.filter = b.dataset.v; paint(); });
   const lv = $('#ov-l');
@@ -117,7 +121,7 @@ export async function renderOverview(body, { me } = {}) {
     $$('.ov-card', grid).forEach((c) => c.addEventListener('click', (e) => {
       const a = e.target.closest('[data-att]');
       if (a) return attEditor(st.list.find((x) => x.id === a.dataset.att));
-      location.hash = `#/students?open=${c.dataset.id}`;
+      stuApi.then((api) => api?.open(c.dataset.id));
     }));
   }
 

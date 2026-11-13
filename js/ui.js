@@ -311,4 +311,56 @@ function dragToClose(wrap) {
       if (list.length) requestAnimationFrame(() => list.forEach(grow));
     }
   }).observe(document.documentElement, { childList: true, subtree: true });
+
+  // ⑦ 누름 효과: 누를 수 있는 모든 것이 '살짝 들어갔다 톡 돌아옴' (빠른 탭에도 보이게 최소 시간 유지)
+  //    크기에 따라 들어가는 정도 다르게 (작은 아이콘은 확실히, 넓은 줄은 아주 살짝)
+  if (motion && Element.prototype.animate) {
+    const TAP = 'button,a[href],[role=button],[role=tab],[data-close],summary,label.chip,label.check,.chip-t,.stu,.ov-card,.pa-kid,.ch-item,.ct-rep,.sum-wk,.role,.profile,[data-sid],[data-wk]';
+    const NO = 'input,textarea,select,[contenteditable],.no-press';
+    const pick = (t) => {
+      if (!t?.closest || t.closest(NO)) return null;
+      let el = t.closest(TAP);
+      if (!el) { // 그 밖에 손가락 모양 커서인 칸 (표 줄 등)
+        for (let n = t; n && n !== document.body; n = n.parentElement) { if (getComputedStyle(n).cursor === 'pointer') { el = n; break; } }
+      }
+      if (!el || el.disabled || el.getAttribute('aria-disabled') === 'true') return null;
+      const r = el.getBoundingClientRect();
+      if (r.width * r.height > innerWidth * innerHeight * 0.45) return null;   // 화면 대부분을 차지하는 상자는 제외
+      return el;
+    };
+    const depth = (el) => {
+      const r = el.getBoundingClientRect(), m = Math.max(r.width, r.height);
+      return m < 48 ? 0.9 : m < 120 ? 0.94 : m < 300 ? 0.965 : m < 600 ? 0.98 : 0.99;
+    };
+    let cur = null, t0 = 0, sx = 0, sy = 0;
+    const release = () => {
+      if (!cur) return;
+      const el = cur; cur = null;
+      const wait = Math.max(0, 90 - (performance.now() - t0));
+      setTimeout(() => {
+        el._pa?.cancel();
+        el._pa = el.animate([{ scale: String(el._ps) }, { scale: '1' }], { duration: 340, easing: 'cubic-bezier(.3,1.5,.5,1)' });
+      }, wait);
+    };
+    document.addEventListener('pointerdown', (e) => {
+      if (e.button > 0) return;
+      release();
+      const el = pick(e.target); if (!el) return;
+      cur = el; t0 = performance.now(); sx = e.clientX; sy = e.clientY;
+      el._ps = depth(el);
+      el._pa?.cancel();
+      el._pa = el.animate([{ scale: '1' }, { scale: String(el._ps) }], { duration: 110, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' });
+    }, { passive: true, capture: true });
+    document.addEventListener('pointermove', (e) => { if (cur && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) release(); }, { passive: true });
+    ['pointerup', 'pointercancel', 'dragstart', 'blur'].forEach((ev) => addEventListener(ev, release, { passive: true, capture: true }));
+    document.addEventListener('scroll', release, { passive: true, capture: true });
+    // 키보드(Enter · Space)로 눌러도 같은 느낌
+    document.addEventListener('keydown', (e) => {
+      if (e.repeat || (e.key !== 'Enter' && e.key !== ' ')) return;
+      const el = pick(e.target); if (!el || el !== e.target) return;
+      el._pa?.cancel();
+      const d = depth(el);
+      el._pa = el.animate([{ scale: '1' }, { scale: String(d), offset: 0.3 }, { scale: '1' }], { duration: 380, easing: 'cubic-bezier(.3,1.3,.5,1)' });
+    });
+  }
 })();

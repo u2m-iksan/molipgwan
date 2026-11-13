@@ -17,13 +17,6 @@ export function renderStudentHome({ student, onLogout }) {
   $('#lo').addEventListener('click', onLogout);
 }
 
-export function renderParentHome({ students, onLogout }) {
-  const names = students.map((s) => esc(s.name)).join(', ');
-  mount(`<div>${topbar('학부모')}
-    <main class="page"><div class="card empty"><b>학부모</b>${names || '자녀 정보 없음'} · 준비 중입니다.</div></main></div>`);
-  $('#lo').addEventListener('click', onLogout);
-}
-
 export function renderUnknown({ onLogout }) {
   mount(`<main class="auth"><div class="auth-card" style="text-align:center">${BRAND}
     <h1 style="margin-top:4px">등록되지 않은 계정입니다</h1>

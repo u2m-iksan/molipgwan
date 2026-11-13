@@ -69,3 +69,20 @@ export function reportCard(r, student) {
     <footer class="rc-foot"><span>유투엠 몰입관 학원</span><span>이번 주 학습 코칭 안내</span></footer>
   </article>`;
 }
+
+/* ---------- A4 비율 고정 레이아웃 → 들어갈 자리 폭에 맞춰 축소 ---------- */
+export const A4_W = 794;   // A4 (96dpi) 폭. 높이는 최소 1123, 내용이 많으면 늘어남
+export function mountReport(el, r, student, { scale } = {}) {
+  el._ro?.disconnect();
+  el.classList.add('rc-fit');
+  el.innerHTML = `<div class="rc-scale">${reportCard(r, student)}</div>`;
+  const inner = el.firstElementChild;
+  const fit = () => {
+    const s = scale || el.clientWidth / A4_W;
+    inner.style.transform = `scale(${s})`;
+    el.style.height = `${Math.ceil(inner.offsetHeight * s)}px`;
+    if (scale) el.style.width = `${Math.ceil(A4_W * s)}px`;
+  };
+  fit();
+  if (!scale) { el._ro = new ResizeObserver(fit); el._ro.observe(el); }
+}

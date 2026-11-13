@@ -8,7 +8,8 @@ import {
   loadConsult, loadCarryCandidates, saveConsult, saveReport,
   buildPrompt, parseGpt, reportSubjects, noticeText,
 } from '../data/coaching.js';
-import { reportCard, autoBadge } from '../views/report-card.js';
+import { mountReport, autoBadge } from '../views/report-card.js';
+import { openReportViewer } from '../views/report-viewer.js';
 
 const BADGES = ['자동', '없음', '우수', '최우수', '주말등원'];
 
@@ -370,7 +371,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
                 <p class="hint" id="rp-badge-hint"></p></div>
             </div>
           </div>
-          <div class="rp-preview"><p class="lbl">학부모 화면</p><div id="rp-card"></div></div>
+          <div class="rp-preview"><div class="rp-pv-h"><p class="lbl">학부모 화면</p><button type="button" class="link-s" id="rp-big">크게 보기</button></div><div id="rp-card"></div></div>
         </div>
       </div>
       <div class="cp-foot">
@@ -383,7 +384,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       const fb = $$('[data-fb]', pane).map((t) => ({ subject: t.dataset.fb, text: t.value.trim() })).filter((x) => x.text);
       return { subject_feedback: fb, summary: $('#rp-sum', pane).value.trim() || null, badge: r.badge || '없음' };
     };
-    const preview = () => { $('#rp-card', pane).innerHTML = reportCard({ ...r, ...collect() }, stu); };
+    const preview = () => mountReport($('#rp-card', pane), { ...r, ...collect() }, stu);
+    $('#rp-big', pane).addEventListener('click', () => openReportViewer({ ...r, ...collect() }, stu));
     const paintState = () => {
       const s = $('#rp-state', pane), p = $('#rp-pub', pane);
       s.innerHTML = r.sent_at ? '<span class="pill pill-green">전송 완료</span>'

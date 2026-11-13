@@ -8,8 +8,7 @@ import { renderExams } from './exams.js';
 import { renderOverview } from './overview.js';
 import { renderSettings } from './settings.js';
 import { renderPlans } from './plans.js';
-import { renderReports } from './reports.js';
-import { renderChat } from './chat.js';
+import { renderParents } from './parents.js';
 import { countTeacherUnread } from '../data/chat.js';
 
 const TABS = [
@@ -17,12 +16,11 @@ const TABS = [
   { id: 'plans', label: '주간 계획' },
   { id: 'coaching', label: '코칭' },
   { id: 'exams', label: '성적' },
-  { id: 'reports', label: '학부모 보고' },
-  { id: 'chat', label: '학습 문의' },
+  { id: 'parents', label: '학부모 안내' },
   { id: 'settings', label: '설정' },
 ];
-const READY = { students: renderOverview, coaching: renderCoaching, consult: renderConsultPage, exams: renderExams, overview: renderOverview, settings: renderSettings, plans: renderPlans, reports: renderReports, chat: renderChat };
-const PARENT = { consult: 'coaching', students: 'overview' };   // 하위 화면 → 메뉴 강조
+const READY = { students: renderOverview, coaching: renderCoaching, consult: renderConsultPage, exams: renderExams, overview: renderOverview, settings: renderSettings, plans: renderPlans, parents: renderParents, reports: renderParents, chat: renderParents };
+const PARENT = { consult: 'coaching', students: 'overview', reports: 'parents', chat: 'parents' };   // 하위 화면 → 메뉴 강조
 const DEFAULT_TAB = 'overview';
 
 export function renderTeacher({ me, onLogout }) {
@@ -78,9 +76,9 @@ export function renderTeacher({ me, onLogout }) {
 
   // 학습 문의 안 읽은 수 (메뉴 옆 빨간 숫자, 30초마다)
   async function paintUnread() {
-    const a = document.querySelector('.t-tab[data-tab="chat"]'); if (!a) return;
+    const a = document.querySelector('.t-tab[data-tab="parents"]'); if (!a) return;
     let n = 0; try { n = await countTeacherUnread(); } catch { return; }
-    a.innerHTML = `학습 문의${n ? `<i class="pa-n">${n > 99 ? '99+' : n}</i>` : ''}`;
+    a.innerHTML = `학부모 안내${n ? `<i class="pa-n">${n > 99 ? '99+' : n}</i>` : ''}`;
   }
   const ut = setInterval(() => { if (!document.querySelector('.t-app')) return clearInterval(ut); paintUnread(); }, 30000);
   paintUnread();

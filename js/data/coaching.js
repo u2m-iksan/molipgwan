@@ -314,7 +314,7 @@ export async function loadAllPlans() {
 export async function loadWeekReports(mon) {
   const sun = addDays(mon, 6);
   const [students, slots, coachings] = await Promise.all([
-    sb.from('students').select('id,name,grade,seat_no,status').eq('status', '재원').then(check),
+    sb.from('students').select('id,name,grade,seat_no,status,school').eq('status', '재원').then(check),
     sb.from('schedules').select('student_id,weekday,start_time,valid_from,valid_to').eq('category', '코칭').then(check),
     sb.from('coachings').select('id,student_id,scheduled_on,held_on,kind').gte('scheduled_on', mon).lte('scheduled_on', sun).then(check),
   ]);

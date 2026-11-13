@@ -50,8 +50,8 @@ export async function renderCoaching(body) {
     const dn = st.done.get(s.id);
     const state = dn ? (dn.kind === '결석' ? ' absent' : ' done') : '';
     return `<button type="button" class="stu${big ? ' big' : ''}${c ? ' warn' : ''}${state}" data-sid="${esc(s.id)}"
-      title="${c ? esc(`${c.title} ${hm(c.start_time)}~${hm(c.end_time)}와 겹침`) : ''}">
-      ${dn ? `<span class="ok-ic">${dn.kind === '결석' ? '결' : '✓'}</span>` : ''}${s.seat_no ? `<i>${esc(s.seat_no)}</i>` : ''}${esc(s.name)}<small>${esc(s.grade)}</small></button>`;
+      title="${esc(`${s.name} ${s.grade}`)}${c ? esc(` · ${c.title} ${hm(c.start_time)}~${hm(c.end_time)}와 겹침`) : ''}">
+      ${dn ? `<span class="ok-ic">${dn.kind === '결석' ? '결' : '✓'}</span>` : ''}${s.seat_no ? `<i>${esc(s.seat_no)}</i>` : ''}<span class="nm">${esc(s.name)}</span><small>${esc(s.grade)}</small></button>`;
   };
 
   /* ---------- 이전 · 현재 · 다음 타임 ---------- */

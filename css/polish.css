@@ -579,3 +579,99 @@ button:disabled{cursor:default}
 .xp-add .err:empty{display:none}
 @media (max-width:480px){ .xp-add-row{grid-template-columns:minmax(0,1fr)} }
 .ex-types{flex-wrap:wrap;max-width:100%}
+
+/* ---------- 코칭 배정표: 이름 칩이 칸 안에서 줄바꿈·잘림 없이 ---------- */
+.stu{white-space:nowrap;max-width:100%;min-width:0}
+.stu .nm{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.stu>*{flex:none}.stu>.nm{flex:0 1 auto}
+.tt td{container-type:inline-size}
+.tt td .stu{display:flex;width:100%;margin:0 0 4px;height:34px;padding:0 8px;gap:5px}
+.tt td .stu:last-child{margin-bottom:0}
+.tt td .stu small{margin-left:auto}
+@container (max-width:150px){
+  .tt td .stu{padding:0 6px;gap:4px;font-size:13px}
+  .tt td .stu small{display:none}
+  .tt td .stu i{padding:1px 4px}
+}
+@container (max-width:110px){ .tt td .stu i{display:none} }
+
+/* =============================================================
+   학부모 안내: 3단 (학생 · 이번 주 보고서 · 학부모 대화)
+   ============================================================= */
+.pg3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;height:calc(100dvh - 190px);min-height:560px}
+.pg-col{margin:0;min-height:0;display:flex;flex-direction:column;border-radius:18px;overflow:hidden}
+/* ① 학생 */
+.pg-list{padding:14px 12px 0;gap:12px}
+.pg-wk{justify-content:space-between;padding:0 2px}
+.pg-wk span{font-size:14px;font-weight:700}
+.pg-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;flex:none}
+.pg-tile{aspect-ratio:1/1;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;text-align:left;
+  padding:12px 12px 10px;border-radius:14px;background:#F6F7F9;border:1.5px solid transparent;min-width:0}
+.pg-tile span{font-size:12.5px;font-weight:600;color:var(--sub);line-height:1.3;word-break:keep-all}
+.pg-tile b{font-size:30px;font-weight:800;line-height:1;font-feature-settings:"tnum";color:var(--text)}
+.pg-tile:hover{background:#F0F2F5}
+.pg-tile.hot b{color:var(--blue,#3182F6)}
+.pg-tile.on{background:var(--blue-soft,#EAF2FE);border-color:var(--blue,#3182F6)}
+.pg-tile.on span{color:var(--blue-dark,#1B64DA)}
+.pg-list .search{flex:none}
+.pg-list .search input{width:100%}
+.pg-stu{list-style:none;flex:1;min-height:0;overflow-y:auto;margin:0 -12px;padding:0 12px 12px;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px}
+.pg-stu .empty{padding:24px 8px;text-align:center;color:var(--faint);font-size:14px}
+.pg-item{width:100%;text-align:left;padding:10px 10px;border-radius:12px;display:flex;flex-direction:column;gap:5px}
+.pg-item:hover{background:#F6F7F9}
+.pg-item.on{background:var(--blue-soft,#EAF2FE)}
+.pg-top{display:flex;align-items:center;gap:7px;min-width:0}
+.pg-top b{font-size:15px;font-weight:800;white-space:nowrap}
+.pg-top small{font-size:12px;color:var(--sub)}
+.pg-top .pill{margin-left:auto;flex:none;font-size:11.5px;height:22px;padding:0 8px}
+.pg-top .seat{flex:none}
+.pg-last{display:flex;align-items:center;gap:8px;padding-left:2px}
+.pg-last span{flex:1;min-width:0;font-size:13px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg-last time{font-size:11.5px;color:var(--faint);font-feature-settings:"tnum"}
+/* 공통 머리 */
+.pg-h{display:flex;align-items:center;gap:10px;padding:16px 18px 12px;border-bottom:1px solid var(--line);flex:none}
+.pg-h>div{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px}
+.pg-h b{font-size:16px;font-weight:800;white-space:nowrap}
+.pg-h small{font-size:12.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg-back{display:none}
+.pg-back svg,.pg-prev-h svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pg-prev-h .btn svg{width:14px;height:14px;margin-right:4px}
+.pg-none{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;color:var(--faint);font-size:14px;line-height:1.5;word-break:keep-all}
+.pg-ic{width:44px;height:44px;border-radius:14px;background:#EEF1F4 center/22px no-repeat}
+.pg-ic.chat{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A5ADB6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z'/%3E%3C/svg%3E")}
+.pg-ic.rep{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A5ADB6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 3h7l5 5v13H7z'/%3E%3Cpath d='M14 3v5h5M10 13h6M10 17h6'/%3E%3C/svg%3E")}
+/* ② 보고서 */
+.pg-body{flex:1;min-height:0;overflow-y:auto;padding:14px 18px 18px;overscroll-behavior:contain}
+.pg-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin-bottom:16px}
+.pg-meta div{min-width:0}
+.pg-meta dt{font-size:12px;color:var(--faint);margin-bottom:3px}
+.pg-meta dd{font-size:14px;font-weight:600;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.pg-meta dd b.g{color:#0E9F55}.pg-meta dd b.r{color:#E5323F}
+.pg-prev-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.pg-prev-h span{font-size:13px;font-weight:700;color:var(--sub)}
+.pg-paper{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+.pg-empty{display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 12px;text-align:center;font-size:14px;color:var(--sub);line-height:1.5;word-break:keep-all}
+.pg-foot{flex:none;display:flex;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line)}
+/* ③ 대화 */
+.pg-chat{background:var(--surface2,#F7F8FA)}
+.pg-chat .pg-h{background:#fff}
+.pg-thread{flex:1;min-height:0;display:flex;flex-direction:column;padding:8px 14px 0}
+/* 좁은 화면: 한 단씩 (목록 → 고르면 보고서 + 대화) */
+@media (max-width:1100px){
+  .pg3{grid-template-columns:minmax(0,1fr) minmax(0,1fr);height:auto}
+  .pg-list{grid-column:1/-1;max-height:none}
+  .pg-stu{max-height:420px}
+  .pg-rep,.pg-chat{height:calc(100dvh - 190px);min-height:520px}
+  .pg-tiles{max-width:420px}
+}
+@media (max-width:720px){
+  .pg3{grid-template-columns:minmax(0,1fr)}
+  #t-body.pg-open .pg-list{display:none}
+  #t-body:not(.pg-open) .pg-rep,#t-body:not(.pg-open) .pg-chat{display:none}
+  .pg-back{display:inline-flex}
+  .pg-rep{height:auto;min-height:0}
+  .pg-stu{max-height:none}
+}
+.card.pg-col{padding:0}
+.card.pg-list{padding:14px 12px 0}
+.pg-list .search{max-width:none;width:100%}

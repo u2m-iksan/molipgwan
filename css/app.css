@@ -707,11 +707,11 @@ body.has-foot .toast{bottom:92px}
 .wr-scale{position:absolute;left:0;top:0;width:794px;transform-origin:0 0}
 
 /* 머리: 로고 → 학생 정보 | 배지 (한 묶음) */
-.wr-head{padding-bottom:24px;border-bottom:1px solid var(--line)}
-.wr-logo{display:flex;align-items:center;gap:14px}
-.wr-logo b{font-size:30px;font-weight:900;letter-spacing:-0.045em;line-height:1}
-.wr-logo span{font-size:21px;font-weight:700;padding-left:14px;border-left:2.5px solid var(--text);line-height:1.05}
-.wr-id{display:flex;align-items:center;gap:28px;margin-top:28px}
+.wr-head{padding:4px 0 26px;border-bottom:1px solid var(--line)}
+.wr-logo{display:flex;align-items:center;gap:14px;margin-left:auto}
+.wr-logo b{font-size:34px;font-weight:900;letter-spacing:-0.045em;line-height:1}
+.wr-logo span{font-size:23px;font-weight:700;padding-left:14px;border-left:2.5px solid var(--text);line-height:1.05}
+.wr-id{display:flex;align-items:center;gap:28px}
 .wr-id h3{font-size:32px;font-weight:800;letter-spacing:-0.035em;line-height:1.2}
 .wr-id h3 span{font-size:21px;font-weight:700;color:var(--sub)}
 .wr-id p{font-size:15px;font-weight:600;color:var(--sub);margin-top:6px}

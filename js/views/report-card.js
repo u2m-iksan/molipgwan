@@ -45,13 +45,13 @@ export function reportCard(r, student) {
 
   return `<article class="wr">
     <header class="wr-head">
-      <div class="wr-logo"><b>U2M</b><span>몰입관</span></div>
       <div class="wr-id">
         <div>
           <h3>${esc(student.name)} <span>학생</span></h3>
           <p>${student.grade ? `${esc(student.grade)} · ` : ''}${period}</p>
         </div>
         ${b ? `<div class="wr-badge ${b.cls}"><span class="wr-badge-ic">${b.icon}</span><div><b>${b.title}</b><small>${b.sub}</small></div></div>` : ''}
+        <div class="wr-logo"><b>U2M</b><span>몰입관</span></div>
       </div>
     </header>
 
@@ -80,15 +80,15 @@ export function reportCard(r, student) {
       <dl class="wr-fb">${fb.map((x) => `<div><dt>${esc(x.subject)}</dt><dd>${esc(x.text)}</dd></div>`).join('')}</dl>
     </section>` : ''}
 
+    ${plan.length ? `<section class="wr-sec">
+      <div class="wr-sec-h"><h4>다음 계획</h4></div>
+      <ul class="wr-plan">${plan.map((x) => `<li><span class="wr-sub">${sub(x)}</span><p>${esc(x.title)}</p></li>`).join('')}</ul>
+    </section>` : ''}
     ${r.summary ? `<section class="wr-sec">
       <div class="wr-sec-h"><h4>총평</h4></div>
       <p class="wr-sum">${esc(r.summary)}</p>
     </section>` : ''}
 
-    ${plan.length ? `<section class="wr-sec">
-      <div class="wr-sec-h"><h4>다음 계획</h4></div>
-      <ul class="wr-plan">${plan.map((x) => `<li><span class="wr-sub">${sub(x)}</span><p>${esc(x.title)}</p></li>`).join('')}</ul>
-    </section>` : ''}
   </article>`;
 }
 

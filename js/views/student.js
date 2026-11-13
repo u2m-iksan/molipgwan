@@ -271,7 +271,13 @@ ${SUM}
       return;
     }
     const tg = e.target.closest('[data-tg]');
-    if (tg) { st.open = st.open === tg.dataset.tg ? null : tg.dataset.tg; return drawPlan(); }
+    if (tg) {
+      st.open = st.open === tg.dataset.tg ? null : tg.dataset.tg; drawPlan();
+      // 펼친 칸만 부드럽게 열림
+      const pick = st.open && document.querySelector(`.sa-item[data-id="${CSS.escape(st.open)}"] .sa-pick`);
+      if (pick) { pick.classList.add('sa-open-in'); pick.addEventListener('animationend', () => pick.classList.remove('sa-open-in'), { once: true }); }
+      return;
+    }
     const b = e.target.closest('[data-pct]'); if (!b) return;
     const item = st.items.find((i) => i.id === b.closest('.sa-item').dataset.id);
     const v = Number(b.dataset.pct);

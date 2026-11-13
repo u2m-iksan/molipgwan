@@ -31,6 +31,7 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
   const alive = () => el._thread === token && document.body.contains(el);
   const atBottom = () => list.scrollHeight - list.scrollTop - list.clientHeight < 60;
 
+  let seen = null;   // 이미 그린 말풍선 id (새로 생긴 것만 톡 등장)
   function draw(stick) {
     if (!items.length) { list.innerHTML = `<div class="ct-empty">${me === 'parent' ? '아직 대화가 없습니다.<br>학습 관련 궁금한 점을 남겨 주시면 선생님이 답변드립니다.' : '아직 대화가 없습니다.'}</div>`; return; }
     let lastDay = '';
@@ -40,7 +41,7 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
       if (it.type === 'report') {
         const r = it.r, got = BADGE_ORDER.filter((k) => BADGES[k] && badgesOf(r).includes(k));
         const mine = me === 'teacher';
-        return `${sep}<div class="ct-row ${mine ? 'mine' : ''}">
+        return `${sep}<div class="ct-row ${mine ? 'mine' : ''}" data-id="r${esc(r.id)}">
           ${mine ? '' : '<div class="ct-av">U2M</div>'}
           <div class="ct-col">${mine ? '' : '<span class="ct-from">몰입관</span>'}
             <div class="ct-b-wrap">${mine ? `<span class="ct-meta">${r.read_at ? '<em class="rd">읽음</em>' : '<em class="ur">1</em>'}<time>${timeOf(it.at)}</time></span>` : ''}
@@ -53,7 +54,7 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
       }
       const m = it.m, mine = m.sender === me;
       const who = m.sender === 'teacher' ? (m.author ? `${esc(m.author)} 선생님` : '선생님') : '학부모';
-      return `${sep}<div class="ct-row ${mine ? 'mine' : ''}">
+      return `${sep}<div class="ct-row ${mine ? 'mine' : ''}${m.pending ? ' pending' : ''}" data-id="${m.pending ? 'tmp' : `m${esc(m.id)}`}">
         ${mine ? '' : `<div class="ct-av ${m.sender === 'parent' ? 'par' : ''}">${m.sender === 'parent' ? '부모' : 'U2M'}</div>`}
         <div class="ct-col">${mine ? '' : `<span class="ct-from">${who}</span>`}
           <div class="ct-b-wrap">${mine ? `<span class="ct-meta">${m.read_at ? '<em class="rd">읽음</em>' : '<em class="ur">1</em>'}<time>${timeOf(m.created_at)}</time></span>` : ''}
@@ -68,7 +69,14 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
         if (me === 'parent' && !r.read_at) { r.read_at = new Date().toISOString(); markReportRead(r.id).then(() => onActivity?.()).catch(() => {}); draw(); }
       });
     });
-    if (stick) list.scrollTop = list.scrollHeight;
+    // 새 말풍선만 등장 애니메이션 (처음 그릴 때 · 다시 그릴 때 기존 것은 그대로)
+    const rows = $$('.ct-row', list);
+    if (seen) rows.forEach((row) => { if (!seen.has(row.dataset.id) && !(row.dataset.id !== 'tmp' && seen.has('tmp') && row.classList.contains('mine'))) row.classList.add('ct-new'); });
+    seen = new Set(rows.map((r) => r.dataset.id));
+    if (stick) {
+      if (rows.some((r) => r.classList.contains('ct-new'))) list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+      else list.scrollTop = list.scrollHeight;
+    }
   }
 
   async function refresh(first = false) {
@@ -99,11 +107,18 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
     e.preventDefault();
     const body = ta.value.trim(); if (!body || busy) return;
     busy = true; btn.disabled = true;
+    // 바로 말풍선을 띄우고(전송 중 흐리게), 저장되면 실제 것으로 바뀜
+    const tmp = { type: 'msg', at: new Date().toISOString(), m: { id: 'tmp', sender: me, author: meName, body, created_at: new Date().toISOString(), read_at: null, pending: true } };
+    items = [...items, tmp]; draw(true);
+    ta.value = ''; fit(); $('#ct-ops', el).hidden = true;
     try {
       await sendMessage(student.id, me, body, me === 'teacher' ? meName : null);
-      ta.value = ''; fit(); $('#ct-ops', el).hidden = true;
-      await refresh(); list.scrollTop = list.scrollHeight; onActivity?.();
-    } catch (x) { toast('보내기 실패: ' + x.message); }
+      sig = ''; await refresh(); list.scrollTop = list.scrollHeight; onActivity?.();
+    } catch (x) {
+      items = items.filter((x2) => x2 !== tmp); draw(true);
+      ta.value = body; fit();
+      toast('보내기 실패: ' + x.message);
+    }
     busy = false; btn.disabled = !ta.value.trim();
   });
 

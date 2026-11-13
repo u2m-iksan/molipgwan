@@ -1,5 +1,5 @@
 // 상담 화면 (전체 페이지 #/consult?sid=…&on=…): ① 상담 (지난 계획 이행도 → 다음 계획 → 총평) ② 보고 (GPT 정돈 → 학부모 카드 공개)
-import { $, $$, esc, toast, sheet, X, flashDone, saveState } from '../ui.js';
+import { $, $$, esc, toast, sheet, X, flashDone, saveState, fadeOut, popIn } from '../ui.js';
 import { today, short, addDays } from '../date.js';
 import { refPanel } from './ref-panel.js';
 import { segBar } from '../views/progress-bar.js';
@@ -340,22 +340,29 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       if (t.dataset.habitDel != null) { st.profile.habits.splice(Number(t.dataset.habitDel), 1); return keepScroll(drawConsult); }
       if (t.id === 'prev-add') {
         st.prevItems.push({ subject: '수학', subject_detail: null, title: '', final_rate: null, final_note: '', source: '추가' });
-        return keepScroll(drawConsult);
+        keepScroll(drawConsult);
+        popIn($$('#prev-list .cs-item', panel).pop());
+        return;
       }
-      if (t.dataset.delPrev != null) { st.prevItems.splice(Number(t.dataset.delPrev), 1); return keepScroll(drawConsult); }
+      if (t.dataset.delPrev != null) { const k = Number(t.dataset.delPrev); fadeOut(t.closest('.cs-item')).then(() => { st.prevItems.splice(k, 1); keepScroll(drawConsult); queueDraft(); }); return; }
       if (t.dataset.quick != null) {
         const s = Number(t.dataset.quick) >= 0 ? st.d.subjects[Number(t.dataset.quick)] : { subject: '국어', subject_detail: null };
         st.newItems.push({ subject: s.subject, subject_detail: s.subject_detail, title: '', detail: '', source: '계획', academy: !!st.acHas?.(s) });
         keepScroll(drawConsult);
         const last = $$('#next-list .cs-item', panel).pop();
-        last?.querySelector('[data-f=title]')?.focus();
+        popIn(last);
+        last?.querySelector('[data-f=title]')?.focus({ preventScroll: true });
         return;
       }
       if (t.dataset.ac != null) { const it = st.newItems[Number(t.dataset.ac)]; it.academy = !it.academy; it.acManual = true; t.classList.toggle('on', it.academy); return; }
       if (t.dataset.delNext != null) {
-        const [it] = st.newItems.splice(Number(t.dataset.delNext), 1);
-        if (it?.id) st.removedIds.push(it.id);
-        return keepScroll(drawConsult);
+        const k = Number(t.dataset.delNext);
+        fadeOut(t.closest('.cs-item')).then(() => {
+          const [it] = st.newItems.splice(k, 1);
+          if (it?.id) st.removedIds.push(it.id);
+          keepScroll(drawConsult); queueDraft();
+        });
+        return;
       }
       if (t.id === 'carry-btn') return toggleCarry();
       if (t.id === 'cs-save') return save(t);

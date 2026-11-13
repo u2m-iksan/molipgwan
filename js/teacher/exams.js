@@ -1,6 +1,6 @@
 // 선생님 · 성적: [시험별] 한 시험의 전체 학생 입력 현황 / [학생별] 한 학생의 시험 추이
 //  입력은 선생님만. 시험 총평(exams.feedback) + 과목 메모(exam_scores.note, 선택) → 상담 참고사항에 표시
-import { $, $$, esc, toast, sheet, X } from '../ui.js';
+import { $, $$, esc, toast, sheet, X, fadeOut, popIn } from '../ui.js';
 import { SUBJECTS, loadStudents } from '../data/students.js';
 import {
   EXAM_TYPES, NAESIN, MOCK, isMock, examOrder, schoolYear, recentExam, scaleOf,
@@ -211,7 +211,8 @@ async function openEditor(stu, year, type, exam, onSaved) {
       const i = Number(b.dataset.q);
       rows.push(i >= 0 ? { subject: quick[i].subject, subject_detail: quick[i].subject_detail, memoOpen: false } : { subject: '국어', subject_detail: '', memoOpen: false });
       draw();
-      $$('.ex-row', bodyEl).pop()?.querySelector('[data-f=raw_score]')?.focus();
+      const nr = $$('.ex-row', bodyEl).pop(); popIn(nr);
+      nr?.querySelector('[data-f=raw_score]')?.focus({ preventScroll: true });
     }));
   }
   draw();
@@ -228,7 +229,7 @@ async function openEditor(stu, year, type, exam, onSaved) {
   });
   bodyEl.addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.del != null) { rows.splice(Number(b.dataset.del), 1); draw(); }
+    if (b.dataset.del != null) { const k = Number(b.dataset.del); fadeOut(b.closest('.ex-row')).then(() => { rows.splice(k, 1); draw(); }); }
     if (b.dataset.memo != null) {
       const r = rows[Number(b.dataset.memo)]; r.memoOpen = !r.memoOpen; draw();
       if (r.memoOpen) $(`[data-f=note][data-k="${b.dataset.memo}"]`, bodyEl)?.focus();

@@ -79,9 +79,18 @@ export function saveState(el) {
 export function fadeOut(el) {
   if (!el || !el.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
   const h = el.offsetHeight;
-  el.style.overflow = 'hidden';
+  el.style.overflow = 'hidden'; el.style.pointerEvents = 'none';
   return el.animate([{ opacity: 1, height: h + 'px' }, { opacity: 0, height: '0px', paddingTop: 0, paddingBottom: 0, marginTop: 0, marginBottom: 0 }],
     { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }).finished.catch(() => {});
+}
+
+/* 새로 추가한 줄이 살짝 떠오르며 등장 */
+export function popIn(el) {
+  if (!el) return;
+  if (reducedMotion()) { el.scrollIntoView({ block: 'nearest' }); return; }
+  el.classList.remove('fx-in'); void el.offsetWidth; el.classList.add('fx-in');
+  el.addEventListener('animationend', () => el.classList.remove('fx-in'), { once: true });
+  requestAnimationFrame(() => el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
 }
 
 /* 버튼이 잠깐 '완료' 상태로 바뀜 (복사 등) */

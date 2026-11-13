@@ -1,6 +1,6 @@
 // 학생 자율 계획: 상담을 못 한 주(보강 대상) · 계획이 없을 때 학생이 다음 상담일까지 직접 작성
 //  다니는 학원 과목은 학원 숙제 칸 자동 · 지난 계획 항목 가져오기 · 저장하면 지난 계획은 마감
-import { $, $$, esc, toast, sheet, X } from '../ui.js';
+import { $, $$, esc, toast, sheet, X, fadeOut, popIn } from '../ui.js';
 import { short } from '../date.js';
 import { SUBJECTS } from '../data/students.js';
 import { hasAcademy, matches } from '../data/academy.js';
@@ -59,13 +59,14 @@ export async function openSelfPlan(student, { plan, items = [], sched = [], need
   $('#sp-list', m).addEventListener('click', (e) => {
     const ac = e.target.closest('[data-ac]'), del = e.target.closest('[data-del]');
     if (ac) { const r = rows[Number(ac.dataset.ac)]; r.academy = !r.academy; r.acManual = true; draw(); }
-    if (del) { rows.splice(Number(del.dataset.del), 1); draw(); }
+    if (del) { const k = Number(del.dataset.del); fadeOut(del.closest('li,.sp-row,[data-k]') || del.parentElement).then(() => { rows.splice(k, 1); draw(); }); }
   });
   $('#sp-add', m).addEventListener('click', (e) => {
     const b = e.target.closest('[data-a]'); if (!b) return;
     const r = { subject: b.dataset.s, subject_detail: b.dataset.d, title: '', detail: '' };
     r.academy = acHas(r); rows.push(r); draw();
-    $$('#sp-list [data-f=title]', m).pop()?.focus();
+    const nt = $$('#sp-list [data-f=title]', m).pop();
+    popIn(nt?.closest('li,[data-k]') || nt?.parentElement); nt?.focus({ preventScroll: true });
   });
   $('#sp-carry', m)?.addEventListener('click', (e) => {
     const b = e.target.closest('[data-c]'); if (!b) return;

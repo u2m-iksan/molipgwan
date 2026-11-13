@@ -1,6 +1,6 @@
 // 선생님 · 전체 현황(상황판): 자리순 학생 카드, 빨강·주황·초록 + 몰입 중 · 오늘 순공 · (토) 등원 상태
 import { renderStudents } from './students.js';
-import { $, $$, esc, toast, sheet, X } from '../ui.js';
+import { $, $$, esc, toast, sheet, X, fadeOut } from '../ui.js';
 import { teacherAttendance, deleteAttendance } from '../data/student.js';
 import { isoDow, today } from '../date.js';
 import { loadOverview, judge } from '../data/overview.js';
@@ -83,7 +83,7 @@ export async function renderOverview(body, { me } = {}) {
       const b = e.target.closest('button'); if (!b) return;
       if (b.closest('#ae-k')) { f.kind = b.dataset.v; f.reason = ''; return draw(); }
       if (b.closest('#ae-r')) { f.reason = b.dataset.v; return draw(); }
-      if (b.dataset.del) { try { await deleteAttendance(b.dataset.del); toast('삭제되었습니다'); reload(); } catch (x) { toast('삭제 실패: ' + x.message); } return; }
+      if (b.dataset.del) { try { await deleteAttendance(b.dataset.del); await fadeOut(b.closest('li') || b.parentElement); toast('삭제되었습니다'); reload(); } catch (x) { toast('삭제 실패: ' + x.message); } return; }
       if (b.id === 'ae-go') {
         if (!f.time) return ($('#ae-err', m).textContent = '시각을 입력하세요.');
         try { await teacherAttendance(stu.id, f); toast(`${f.kind} 기록되었습니다`); f.time = nowT(); f.back = ''; reload(); }

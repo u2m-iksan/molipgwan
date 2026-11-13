@@ -1,7 +1,7 @@
 // 학생 일정 편집 (선생님 학생 관리에서 사용, 학생 화면에서도 재사용 예정)
 //   맨 위: 월~일 주간 시간표(08~23시)  →  아래: 코칭 타임 · 일정 목록 | 일정 추가
 //   반복 일정: 학교 / 학원 / 기타 × 요일 × 시간 × 기간(계속 · 이번 주만 · 기간 지정)
-import { $, $$, esc, toast } from '../ui.js';
+import { $, $$, esc, toast, fadeOut } from '../ui.js';
 import { DOW, today, addMonths, addDays, mondayOf, isoDow, short, hm, toMin } from '../date.js';
 import {
   loadStudentSchedules, groupSchedules, addSchedule, endSchedule, periodLabel,
@@ -232,7 +232,7 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
     b.addEventListener('click', async () => {
       if (!armed) { armed = true; b.classList.add('armed'); setTimeout(() => { armed = false; b.classList.remove('armed'); }, 3000); return; }
       const g = groups[Number(b.dataset.del)];
-      try { await endSchedule(g); await log('삭제', summary(g.title, g.weekdays, g.start_time, g.end_time)); toast('일정이 삭제되었습니다'); again({ editIdx: null }); }
+      try { await endSchedule(g); await log('삭제', summary(g.title, g.weekdays, g.start_time, g.end_time)); await fadeOut(b.closest('.sched-row') || b.closest('li')); toast('일정이 삭제되었습니다'); again({ editIdx: null }); }
       catch (e) { toast('삭제 실패: ' + e.message); }
     });
   });

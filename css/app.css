@@ -1387,3 +1387,38 @@ body.has-foot .toast{bottom:92px}
 .lv-vac b{color:#6EA8FE;margin-left:6px;font-feature-settings:"tnum"}
 .lv-vac:not(:empty)+.lv-count{margin-left:min(3vw,4vh)}
 .term-pill{margin-right:6px}
+/* ---------- 학부모 메인 ---------- */
+.pa-kids2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.pa-kid{display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:18px;background:#fff;border:1.5px solid var(--line);text-align:left;transition:border-color .15s}
+.pa-kid.cur{border-color:var(--text)}
+.pa-kids2:has(.pa-kid:only-child) .pa-kid{border-color:var(--line)}
+.pa-kid-h{display:flex;align-items:baseline;gap:6px}
+.pa-kid-h b{font-size:18px;font-weight:800}
+.pa-kid-h span{font-size:13px;color:var(--sub)}
+.pa-st{display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:700;color:var(--sub)}
+.pa-st i{width:9px;height:9px;border-radius:50%;background:#C4CAD2;flex:none}
+.pa-kid.on{background:#F0FBF4;border-color:#BFE9CF}
+.pa-kid.on.cur{border-color:var(--green)}
+.pa-kid.on .pa-st{color:var(--green)}
+.pa-kid.on .pa-st i{background:var(--green);animation:lvPulse 1.6s ease-in-out infinite}
+.pa-tt{margin:0 0 12px;padding:16px 14px 14px;border-radius:18px}
+.pa-tt-h{display:flex;align-items:baseline;justify-content:space-between;padding:0 4px 10px}
+.pa-tt-h h3{font-size:16px;font-weight:800}
+.pa-tt-h span{font-size:13px;color:var(--sub)}
+.pa-tt .wk-grid{min-width:0;grid-template-columns:24px repeat(7,minmax(0,1fr));border-radius:10px}
+.pa-tt .wk-day{font-size:11.5px;height:40px;flex-direction:column;gap:0;line-height:1.2}
+.pa-tt .wk-day span{font-size:10.5px}
+.pa-tt .wk-axis .wk-body span{font-size:9.5px;right:3px}
+.pa-tt .blk{padding:3px;border-radius:5px}
+.pa-tt .blk b{font-size:10px;line-height:1.25;white-space:normal!important;word-break:break-all;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pa-tt .blk span{display:none}
+.pa-tt .blk.thin b{-webkit-line-clamp:1;font-size:9px}
+.pa-tt .wk-axis .wk-body span:last-child{display:none}
+.pa-rep{display:flex;align-items:center;gap:12px;width:100%;padding:18px 20px;border-radius:18px;background:var(--text);color:#fff;text-align:left}
+.pa-rep>div{flex:1;display:flex;flex-direction:column;gap:3px}
+.pa-rep b{font-size:17px;font-weight:800}
+.pa-rep span{font-size:13px;color:#B0B8C1}
+.pa-rep em{font-style:normal;font-size:22px;color:#8B95A1}
+.pa-back{display:flex;align-items:center;gap:4px;margin:0 0 12px -8px}
+.pa-back .pa-h{margin:0}
+.pa-back svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}

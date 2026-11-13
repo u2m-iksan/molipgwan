@@ -174,12 +174,23 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
   });
 }
 
-/* ---------- 주간 시간표 (월~일 × 08~23시) ---------- */
-export function weekGrid(rows, mon, t, hourPx = HOUR_PX) {
-  const H = ((DAY_END - DAY_START) / 60) * hourPx;
-  const y = (m) => ((Math.min(Math.max(m, DAY_START), DAY_END) - DAY_START) / 60) * hourPx;
+/* ---------- 주간 시간표 (월~일 × 08~23시) ----------
+   squeeze: { from, to, ratio } — 그 시간대(분)를 ratio 배로 줄여 그림 (학기 중 학교 시간 축소) */
+export function weekGrid(rows, mon, t, hourPx = HOUR_PX, squeeze = null) {
+  const scale = (m) => {   // DAY_START부터 m까지의 높이(px)
+    m = Math.min(Math.max(m, DAY_START), DAY_END);
+    if (!squeeze) return ((m - DAY_START) / 60) * hourPx;
+    const a = Math.max(DAY_START, squeeze.from), b = Math.min(DAY_END, squeeze.to);
+    const inSq = Math.max(0, Math.min(m, b) - a), out = (m - DAY_START) - inSq;
+    return ((out + inSq * squeeze.ratio) / 60) * hourPx;
+  };
+  const H = scale(DAY_END);
+  const y = scale;
   const hours = [];
   for (let h = DAY_START / 60; h <= DAY_END / 60; h++) hours.push(h);
+  // 줄어든 구간은 짝수 시만 표시 (글자 겹침 방지)
+  const inSqH = (h) => squeeze && h * 60 > squeeze.from && h * 60 < squeeze.to;
+  const label = (h) => !inSqH(h) || h % 2 === 0;
 
   const cols = [1, 2, 3, 4, 5, 6, 7].map((d) => {
     const date = addDays(mon, d - 1);
@@ -206,9 +217,9 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX) {
     const blocks = items.map((it) => {
       const n = it._n || 1;
       const top = y(toMin(it.start_time)), h = Math.max(16, y(toMin(it.end_time)) - top);
-      return `<div class="blk blk-${it.category}${it.valid_to ? ' temp' : ''}${h < 30 ? ' thin' : ''}" style="top:${top}px;height:${h - 2}px;left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)"
+      return `<div class="blk blk-${it.category}${it.valid_to ? ' temp' : ''}${h < 40 ? ' thin' : ''}" style="top:${top}px;height:${h - 2}px;left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)"
         title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">
-        <b>${esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title)}</b>${h >= 30 ? `<span>${hm(it.start_time)}~${hm(it.end_time)}</span>` : ''}</div>`;
+        <b>${esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title)}</b>${h >= 40 ? `<span>${hm(it.start_time)}~${hm(it.end_time)}</span>` : ''}</div>`;
     }).join('');
     const isToday = date === t;
     return `<div class="wk-col${isToday ? ' today-col' : ''}">
@@ -218,9 +229,9 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX) {
 
   return `<div class="wk-grid">
     <div class="wk-axis"><div class="wk-day"></div><div class="wk-body" style="height:${H}px">
-      ${hours.map((h) => `<span style="top:${(h * 60 - DAY_START) / 60 * hourPx}px">${h}</span>`).join('')}</div></div>
+      ${hours.filter(label).map((h) => `<span style="top:${y(h * 60)}px">${h}</span>`).join('')}</div></div>
     ${cols}
-    <div class="wk-lines" style="height:${H}px">${hours.map((h) => `<i style="top:${(h * 60 - DAY_START) / 60 * hourPx}px"></i>`).join('')}</div>
+    <div class="wk-lines" style="height:${H}px">${hours.map((h) => `<i${inSqH(h) ? ' class="sq"' : ''} style="top:${y(h * 60)}px"></i>`).join('')}</div>
   </div>`;
 }
 

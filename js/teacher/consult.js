@@ -1,7 +1,7 @@
 // 상담 화면 (전체 페이지 #/consult?sid=…&on=…): ① 상담 (지난 계획 이행도 → 다음 계획 → 총평) ② 보고 (GPT 정돈 → 학부모 카드 공개)
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import { today, short } from '../date.js';
-import { examPanel } from './exam-panel.js';
+import { refPanel } from './ref-panel.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
 import {
@@ -36,8 +36,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         <div class="seg" id="cs-tabs"><button type="button" data-v="c" class="on">상담</button><button type="button" data-v="r">보고</button></div>
       </div>
       <div class="cp-wrap${sideOpen ? ' side-open' : ''}" id="cp-wrap">
-        <aside class="cp-side" id="cp-side" aria-label="성적"></aside>
-        <button type="button" class="cp-toggle" id="cp-toggle" aria-label="성적 펼치기"><span class="cp-chev"></span><b>성적</b></button>
+        <aside class="cp-side" id="cp-side" aria-label="상담 참고사항"></aside>
+        <button type="button" class="cp-toggle" id="cp-toggle" aria-label="상담 참고사항 펼치기"><span class="cp-chev"></span><b>참고사항</b></button>
         <div class="cp-main">
           <div class="pane" id="p-c"><div class="cp-body"><div class="empty">불러오는 중</div></div></div>
           <div class="pane" id="p-r" hidden></div>
@@ -45,19 +45,19 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       </div>
     </div>`;
 
-  // 왼쪽 성적 패널
+  // 왼쪽 상담 참고사항 패널 (이행도 · 순공시간 · 성적)
   const wrap = $('#cp-wrap', root);
-  examPanel($('#cp-side', root), stu, { onClose: () => setSide(false) });
+  refPanel($('#cp-side', root), stu, { onClose: () => setSide(false) });
   function setSide(on) {
     wrap.classList.toggle('side-open', on);
-    $('#cp-toggle', root).setAttribute('aria-label', on ? '성적 접기' : '성적 펼치기');
+    $('#cp-toggle', root).setAttribute('aria-label', on ? '상담 참고사항 접기' : '상담 참고사항 펼치기');
     if (wide()) localStorage.setItem(SIDE_KEY, on ? '1' : '0');
   }
   $('#cp-toggle', root).addEventListener('click', () => {
     if (wide()) return setSide(!wrap.classList.contains('side-open'));
     // 폰: 왼쪽에서 밀려 나오는 패널
-    const d = sheet('<aside class="drawer drawer-left cp-side-m" aria-label="성적"></aside>', 'left');
-    examPanel($('.cp-side-m', d), stu, { onClose: () => d.close() });
+    const d = sheet('<aside class="drawer drawer-left cp-side-m" aria-label="상담 참고사항"></aside>', 'left');
+    refPanel($('.cp-side-m', d), stu, { onClose: () => d.close() });
   });
 
   const st = {

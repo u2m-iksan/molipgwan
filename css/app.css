@@ -1053,3 +1053,33 @@ body.has-foot .toast{bottom:92px}
 .xs-compact .xs-subs li span{font-size:12px}
 .ep-label small{font-weight:500;color:var(--sub);font-size:12px}
 @media (max-width:760px){.xs-grid{grid-template-columns:1fr}}
+
+/* ---------- 전체 현황 (상황판) ---------- */
+.ov-live{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--green)}
+.ov-live i,.ov-on i{width:8px;height:8px;border-radius:4px;background:var(--green);animation:ovPulse 1.6s ease-in-out infinite}
+@keyframes ovPulse{0%,100%{box-shadow:0 0 0 0 rgba(14,159,85,.45)}50%{box-shadow:0 0 0 5px rgba(14,159,85,0)}}
+.ov-rule{font-size:12px;color:var(--faint)}
+#ov-f button{display:inline-flex;align-items:center;gap:6px}
+#ov-f button b{font-weight:800;font-feature-settings:"tnum"}
+.ov-dot{display:inline-block;width:10px;height:10px;border-radius:5px;flex:none}
+.ov-dot.red{background:var(--red)}.ov-dot.orange{background:var(--orange)}.ov-dot.green{background:var(--green)}
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.ov-grid>.card{grid-column:1/-1}
+.ov-card{display:flex;flex-direction:column;gap:10px;text-align:left;padding:14px 16px;border-radius:16px;border:1px solid var(--line);background:#fff;transition:transform .15s,box-shadow .15s;min-height:124px}
+.ov-card:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.06)}
+.ov-card.red{background:#FFF7F7;border-color:#F8D7DA}
+.ov-card.orange{background:#FFFAF2;border-color:#F6E2BF}
+.ov-top{display:flex;align-items:center;gap:8px;min-width:0}
+.ov-name{font-size:16px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov-grade{font-size:13px;color:var(--sub)}
+.ov-top .ov-dot{margin-left:auto}
+.ov-why{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px;font-weight:600;flex:1;align-content:flex-start}
+.ov-card.red .ov-why{color:var(--red)}
+.ov-card.orange .ov-why{color:var(--orange)}
+.ov-why .ok{color:var(--faint);font-weight:500}
+.ov-foot{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);flex-wrap:wrap}
+.ov-foot .pill{margin-left:auto}
+.ov-today{font-feature-settings:"tnum"}
+.ov-on{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--green)}
+.ov-pause{font-weight:700;color:var(--faint)}
+@media (max-width:640px){.ov-rule{display:none}.ov-grid{grid-template-columns:1fr 1fr}.ov-card{padding:12px}}

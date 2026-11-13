@@ -758,3 +758,73 @@ button:disabled{cursor:default}
 .pg-send{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line)}
 .pg-send .sd-hint{display:none}
 .sd.compact .sd-read{display:none}
+/* 코칭: 주 넘기기 */
+.co-wk{gap:2px;margin-left:-8px}
+.co-wk h2{font-size:24px;font-weight:800;margin:0 4px;white-space:nowrap}
+.co-wk .icon-btn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.co-wk .icon-btn:disabled{opacity:.25}
+.tt-date{font-size:12px;font-weight:500;color:var(--faint);margin-left:2px}
+#now[hidden]{display:none}
+.t-head .co-wk h2{flex:none}
+
+/* =============================================================
+   보고서 자세히 보기 (PDF 보듯이)
+   ============================================================= */
+.rvw-lock,.rvw-lock body{overflow:hidden}
+.rvw{position:fixed;inset:0;z-index:300;display:flex;flex-direction:column;background:#2B3038;
+  opacity:0;transform:translateY(16px);transition:opacity .22s ease,transform .36s var(--ease-out)}
+.rvw.open{opacity:1;transform:none}
+.rvw-bar{flex:none;display:flex;align-items:center;gap:10px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:#1F2329;color:#fff}
+.rvw-bar b{flex:1;min-width:0;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rvw-x{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:#fff}
+.rvw-x:hover{background:rgba(255,255,255,.1)}
+.rvw-x svg{width:22px;height:22px}
+.rvw-tools{display:flex;align-items:center;gap:4px;flex:none}
+.rvw-tools button{min-width:36px;height:36px;padding:0 10px;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;font-size:18px;font-weight:600;line-height:1}
+.rvw-tools button:hover{background:rgba(255,255,255,.18)}
+.rvw-tools .rvw-fit{font-size:13px;font-weight:700;margin-left:4px}
+.rvw-pct{min-width:52px;text-align:center;font-size:13px;font-weight:700;color:rgba(255,255,255,.85);font-feature-settings:"tnum"}
+.rvw-scroll{flex:1;min-height:0;overflow:auto;touch-action:pan-x pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.rvw-sizer{position:relative;box-sizing:border-box}
+.rvw-page{position:absolute!important;left:16px;top:16px;width:794px;transform-origin:0 0;background:#fff;border-radius:4px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+@media (max-width:480px){ .rvw-tools .rvw-pct{min-width:44px} .rvw-tools button{min-width:34px;padding:0 8px} }
+/* 현황 카드: 왼쪽 굵은 줄 → 얇은 색 테두리(빨·주·초 모두) · 30명+ 한눈에 보이게 크기 축소(비율 유지) */
+.ov-card.oc::before{display:none}
+.ov-card.oc{border:1.5px solid #E5E8EB;padding:12px 14px 11px;border-radius:14px}
+.ov-card.oc.red{border-color:#F2B8BE}
+.ov-card.oc.orange{border-color:#F4CF96}
+.ov-card.oc.green{border-color:#B5E2C7}
+.ov-card.oc.red:hover{border-color:#EA8F98}.ov-card.oc.orange:hover{border-color:#ECB560}.ov-card.oc.green:hover{border-color:#86CFA3}
+.ov-cards{grid-template-columns:repeat(auto-fill,minmax(208px,1fr));gap:10px}
+.oc-h{gap:6px}
+.oc-h .seat{min-width:24px;height:22px;font-size:12px;padding:0 6px}
+.oc-name{font-size:14.5px}
+.oc-grade{font-size:12px}
+.oc-st{height:21px;padding:0 7px;font-size:11px;gap:5px}
+.oc-time{margin:10px 0 9px}
+.oc-time span{font-size:11.5px}
+.oc-time b{font-size:17px}
+.oc-iss{gap:4px;padding-top:9px}
+.oc-iss li{font-size:12px;gap:6px}
+.oc-iss li::before{width:5px;height:5px}
+.oc-ok{padding-top:9px;font-size:12px}
+.oc-att{margin-top:9px;font-size:11.5px}
+.oc-att .pill{height:21px;font-size:11px;padding:0 7px}
+@media (max-width:640px){ .ov-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px} .ov-card.oc{padding:11px 12px 10px} .oc-st i{display:none} }
+
+/* ---------- 상담 화면 여백 정리: 아래 버튼 줄을 떠 있는 둥근 막대로 (가장자리 잘림·내용 가림 해소) ---------- */
+.cp-foot{bottom:12px;margin:24px 0 12px;padding:10px 10px 10px 12px;border-radius:16px;border:1px solid var(--line);
+  background:rgba(255,255,255,.94);-webkit-backdrop-filter:saturate(180%) blur(12px);backdrop-filter:saturate(180%) blur(12px);
+  box-shadow:0 8px 28px rgba(0,12,30,.08)}
+.cp-foot .btn{height:40px}
+.cp-head{margin:4px 0 16px}
+.cp-body{gap:16px}
+.cs-card{padding:22px 24px}
+.cs-card-h{margin-bottom:16px}
+.cs-item+.cs-item{padding-top:16px;margin-top:12px}
+
+@media (max-width:720px){
+  .cp-foot{margin:20px 0 8px;bottom:8px;padding:8px 8px 8px 10px}
+  .cs-card{padding:16px}
+}
+@media (max-width:480px){ .cs-steps-slot{margin-bottom:4px} }

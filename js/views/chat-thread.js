@@ -91,6 +91,15 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
         next.forEach((x) => { if (x.type === 'msg' && x.m.sender === other && !x.m.read_at) x.m.read_at = new Date().toISOString(); });
         onActivity?.();
       }
+      // 학부모: 대화방에 보고서가 보이면 읽은 것으로 (자세히 안 눌러도)
+      if (me === 'parent') {
+        const unreadReps = next.filter((x) => x.type === 'report' && x.r && !x.r.read_at);
+        if (unreadReps.length) {
+          await Promise.all(unreadReps.map((x) => markReportRead(x.r.id).catch(() => {})));
+          unreadReps.forEach((x) => { x.r.read_at = new Date().toISOString(); });
+          onActivity?.();
+        }
+      }
       const s = JSON.stringify(next.map((x) => [x.type, x.m?.id || x.r?.id, x.m?.read_at || x.r?.read_at]));
       if (s === sig && !first) return;
       sig = s; items = next; draw(first || keep);

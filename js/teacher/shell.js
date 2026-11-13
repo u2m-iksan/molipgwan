@@ -13,10 +13,10 @@ import { countTeacherUnread } from '../data/chat.js';
 
 const TABS = [
   { id: 'overview', label: '전체 현황' },
-  { id: 'plans', label: '주간 계획' },
+  { id: 'plans', label: '이행도 관리' },
   { id: 'coaching', label: '코칭' },
-  { id: 'exams', label: '성적' },
   { id: 'parents', label: '학부모 안내' },
+  { id: 'exams', label: '성적 관리' },
   { id: 'settings', label: '설정' },
 ];
 const READY = { students: renderOverview, coaching: renderCoaching, consult: renderConsultPage, exams: renderExams, overview: renderOverview, settings: renderSettings, plans: renderPlans, parents: renderParents, reports: renderParents, chat: renderParents };

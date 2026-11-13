@@ -10,6 +10,7 @@ import { loadInbox, purgeOld, KEEP_DAYS } from '../data/chat.js';
 import { mountReport, badgesOf } from '../views/report-card.js';
 import { mountThread } from '../views/chat-thread.js';
 import { mountSend } from './send-report.js';
+import { openReportViewer } from '../views/report-viewer.js';
 
 const md = (d) => short(d).replace(/\(.\)/, '');
 const dow = (d) => DOW[(new Date(d + 'T00:00:00Z').getUTCDay() || 7)];
@@ -156,12 +157,7 @@ export async function renderParents(body, { me, onUnread } = {}) {
     if (x.r) {
       mountReport($('#pg-paper', el), x.r, x.s);
       mountSend($('#pg-send', el), { report: x.r, student: x.s, compact: true, onChange: () => { build(); drawTiles(); drawList(); drawReport(); } });
-      $('#pg-big', el).addEventListener('click', () => {
-        const m = sheet(`<div class="modal modal-lg" role="dialog" aria-label="보고서">
-          <div class="drawer-head"><h3>${esc(x.s.name)} <span class="h-sub">${md(x.on)} 보고서</span></h3><button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
-          <div class="drawer-body"><div id="pg-view"></div></div></div>`, 'center');
-        mountReport($('#pg-view', m), x.r, x.s);
-      });
+      $('#pg-big', el).addEventListener('click', () => openReportViewer(x.r, x.s, `${x.s.name} ${md(x.on)} 보고서`));
     }
   }
 

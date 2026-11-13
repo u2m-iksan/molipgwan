@@ -30,7 +30,7 @@ export async function renderExams(body) {
   };
 
   body.innerHTML = `
-    <div class="t-head"><h2>성적 <span class="count" id="cnt"></span></h2><div class="spacer"></div>
+    <div class="t-head"><h2>성적 관리 <span class="count" id="cnt"></span></h2><div class="spacer"></div>
       <div class="seg" id="ex-view"><button type="button" data-v="student">학생별</button><button type="button" data-v="round">시험별 입력 현황</button></div></div>
     <div id="ex-body"></div>`;
 

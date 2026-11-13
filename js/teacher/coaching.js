@@ -1,19 +1,29 @@
 // 선생님 · 코칭: 맨 위 이전/현재/다음 타임 → 아래 코칭 요일별 시간표(보기용)
 // 코칭 타임 배정·변경은 학생 관리 탭(학생 클릭 → 일정)에서 함. 여기서 이름을 누르면 상담이 열림.
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
-import { DOW, today, isoDow, toMin, toTime, hm } from '../date.js';
+import { DOW, today, isoDow, toMin, toTime, hm, mondayOf, addDays, short } from '../date.js';
 import { loadStudents } from '../data/students.js';
 import { loadWeekCoachings, loadOpenPlans, scheduledOn } from '../data/coaching.js';
 import { getCoachConfig, saveCoachConfig, slotTimes, loadCoachingSlots, loadAllFixedSchedules } from '../data/schedules.js';
 
 export async function renderCoaching(body) {
-  const st = { cfg: null, students: [], slots: new Map(), fixed: [], done: new Map(), open: new Map() };
+  const thisMon = mondayOf(today());
+  const WEEKS = 4;   // 이번 주 포함 4주까지 넘겨 보기
+  const st = { cfg: null, students: [], slots: new Map(), fixed: [], done: new Map(), open: new Map(), mon: thisMon };
+  const isNow = () => st.mon === thisMon;
+  const md = (d) => short(d).replace(/\(.\)/, '');
+  const weekName = (mon) => `${Number(mon.slice(5, 7))}월 ${Math.ceil(Number(mon.slice(8, 10)) / 7)}주`;
+  const onDay = (weekday) => scheduledOn(weekday, st.mon);
   const token = {}; body._view = token;   // 다른 탭으로 바뀌면 타이머 중지용
 
   body.innerHTML = `
     <div class="t-head">
-      <h2>코칭 <span class="count" id="cfgLabel"></span></h2>
+      <div class="wk-nav co-wk"><button type="button" class="icon-btn sm" id="co-prev" aria-label="이전 주"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <h2 id="co-title"></h2>
+        <button type="button" class="icon-btn sm" id="co-next" aria-label="다음 주"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>
+      <span class="count" id="cfgLabel"></span>
       <div class="spacer"></div>
+      <button type="button" class="btn btn-gray btn-sm" id="co-today" hidden>이번 주로</button>
       <button type="button" class="btn btn-gray btn-sm" id="cfgBtn">설정</button>
     </div>
     <section class="now-row" id="now"></section>
@@ -23,11 +33,22 @@ export async function renderCoaching(body) {
     </div>`;
 
   $('#cfgBtn').addEventListener('click', openSettings);
+  const go = (mon) => { st.mon = mon; reload(); };
+  $('#co-prev').addEventListener('click', () => { if (st.mon > addDays(thisMon, -7 * (WEEKS - 1))) go(addDays(st.mon, -7)); });
+  $('#co-next').addEventListener('click', () => { if (st.mon < thisMon) go(addDays(st.mon, 7)); });
+  $('#co-today').addEventListener('click', () => go(thisMon));
+  function paintWeek() {
+    $('#co-title').textContent = `${weekName(st.mon)} 코칭`;
+    $('#co-prev').disabled = st.mon <= addDays(thisMon, -7 * (WEEKS - 1));
+    $('#co-next').disabled = st.mon >= thisMon;
+    $('#co-today').hidden = isNow();
+    $('#now').hidden = !isNow();
+  }
 
   async function reload() {
     try {
       const [cfg, students, slots, fixed, done, open] = await Promise.all([
-        getCoachConfig(), loadStudents(), loadCoachingSlots(), loadAllFixedSchedules(), loadWeekCoachings(), loadOpenPlans()]);
+        getCoachConfig(), loadStudents(), loadCoachingSlots(), loadAllFixedSchedules(), loadWeekCoachings(st.mon), loadOpenPlans()]);
       Object.assign(st, { cfg, students: students.filter((s) => s.status === '재원'), slots, fixed, done, open });
       draw();
     } catch (e) {
@@ -92,7 +113,7 @@ export async function renderCoaching(body) {
       const s = st.students.find((x) => x.id === b.dataset.sid);
       const sl = st.slots.get(s.id);
       if (!sl) { location.hash = `#/students?open=${s.id}`; return; }   // 미배정 → 일정에서 배정
-      location.hash = `#/consult?sid=${s.id}&on=${scheduledOn(sl.weekday)}`;
+      location.hash = `#/consult?sid=${s.id}&on=${onDay(sl.weekday)}`;
     });
   }
 
@@ -101,19 +122,20 @@ export async function renderCoaching(body) {
     const { cfg } = st;
     const days = [...cfg.days].sort();
     const times = slotTimes(cfg);
-    $('#cfgLabel').textContent = `${days.map((d) => DOW[d]).join('·')} ${cfg.start}~${cfg.end} · ${cfg.minutes}분`;
-    drawNow();
+    $('#cfgLabel').textContent = `${md(st.mon)} – ${md(addDays(st.mon, 6))} · ${days.map((d) => DOW[d]).join('·')} ${cfg.start}~${cfg.end}`;
+    paintWeek();
+    if (isNow()) drawNow();
 
     const { cur } = nowSlots();
     const td = isoDow(today());
     $('#grid').innerHTML = `
       <table class="tt">
-        <thead><tr><th class="tt-time"></th>${days.map((d) => `<th>${DOW[d]}요일${d === td ? ' <span class="today">오늘</span>' : ''}</th>`).join('')}</tr></thead>
+        <thead><tr><th class="tt-time"></th>${days.map((d) => `<th>${DOW[d]}요일 <small class="tt-date">${md(onDay(d)).replace(/^\d+\//, '')}일</small>${isNow() && d === td ? ' <span class="today">오늘</span>' : ''}</th>`).join('')}</tr></thead>
         <tbody>${times.map((t) => `
           <tr><th class="tt-time">${t}<small>~${toTime(toMin(t) + cfg.minutes)}</small></th>
             ${days.map((d) => {
               const list = who(d, t);
-              const isCur = cur && cur.d === d && cur.t === t;
+              const isCur = isNow() && cur && cur.d === d && cur.t === t;
               return `<td class="cell${list.length > 1 ? ' multi' : ''}${isCur ? ' cur' : ''}">${list.map((s) => chip(s, st.slots.get(s.id))).join('')}</td>`;
             }).join('')}</tr>`).join('')}
         </tbody>
@@ -125,15 +147,15 @@ export async function renderCoaching(body) {
     const td0 = today();
     const makeup = st.students.filter((s) => {
       const sl = st.slots.get(s.id);
-      return sl && scheduledOn(sl.weekday) < td0 && !st.done.has(s.id);
+      return sl && onDay(sl.weekday) < td0 && !st.done.has(s.id);
     });
     const doneN = st.students.filter((s) => st.done.has(s.id)).length;
     $('#side').innerHTML = `
-      <div class="side-sec"><h4>이번 주 상담</h4><p class="big">${doneN}<span> / ${st.students.length - none.length}명</span></p></div>
-      ${makeup.length ? `<div class="side-sec"><h4 class="red">보강 대상 ${makeup.length}</h4>
-        <p class="sub-s">토요일까지 상담하지 않으면 결석 처리합니다.</p>
+      <div class="side-sec"><h4>${isNow() ? '이번 주' : weekName(st.mon)} 상담</h4><p class="big">${doneN}<span> / ${st.students.length - none.length}명</span></p></div>
+      ${makeup.length ? `<div class="side-sec"><h4 class="red">${isNow() ? '보강 대상' : '상담 안 함'} ${makeup.length}</h4>
+        <p class="sub-s">${isNow() ? '토요일까지 상담하지 않으면 결석 처리합니다.' : '이름을 누르면 그 주 상담을 열 수 있습니다.'}</p>
         <div class="stu-list">${makeup.map((s) => { const sl = st.slots.get(s.id); const p = st.open.get(s.id);
-          const self = p && p.author_role === '학생' && p.start_date >= scheduledOn(sl.weekday);
+          const self = p && p.author_role === '학생' && p.start_date >= onDay(sl.weekday);
           return chip(s) + `<span class="was ${self ? 'ok' : ''}">${self ? '계획 작성함' : '계획 미작성'}</span>`; }).join('')}</div></div>` : ''}
       <div class="side-sec"><h4>배정 현황</h4><p class="big">${st.students.length - none.length}<span> / ${st.students.length}명</span></p></div>
       ${out.length ? `<div class="side-sec"><h4 class="red">재배정 필요 ${out.length}</h4>
@@ -149,7 +171,7 @@ export async function renderCoaching(body) {
   // 1분마다 이전/현재/다음 갱신 (탭을 떠나면 자동 중지)
   const timer = setInterval(() => {
     if (body._view !== token) return clearInterval(timer);
-    if (st.cfg) draw();
+    if (st.cfg && isNow()) draw();
   }, 60000);
 
   /* ---------- 설정 ---------- */

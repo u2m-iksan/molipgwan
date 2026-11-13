@@ -13,7 +13,7 @@ const level = (g) => (String(g || '').startsWith('중') ? '중등' : '고등');
 export async function renderPlans(body) {
   const st = { f: '전체', lv: '전체', q: '', data: null, open: new Set() };
   body.innerHTML = `
-    <div class="t-head"><h2>주간 계획 <span class="count" id="pl-cnt"></span></h2></div>
+    <div class="t-head"><h2>이행도 관리 <span class="count" id="pl-cnt"></span></h2></div>
     <div class="t-tools">
       <div class="seg" id="pl-f"></div>
       <div class="seg" id="pl-l">${['전체', '중등', '고등'].map((l) => `<button type="button" data-v="${l}">${l}</button>`).join('')}</div>

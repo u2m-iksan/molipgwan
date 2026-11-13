@@ -36,11 +36,11 @@ export function mountSend(el, { report, student, getReport, beforePublish, onCha
         ${r.published_at ? `<p class="sd-read">${r.read_at ? `<b class="ok">학부모 읽음</b> · ${stamp(r.read_at)}` : '<b>학부모 아직 안 읽음</b>'}</p>` : ''}
         <p class="err" id="sd-err" role="alert"></p>
         <div class="sd-acts">
-          ${s === 'draft' ? '<button type="button" class="btn btn-primary btn-sm" id="sd-pub">공개 · 안내 문자 복사</button>'
-            : s === 'pub' ? '<button type="button" class="btn btn-gray btn-sm" id="sd-copy2">안내 문자 복사</button><button type="button" class="btn btn-primary btn-sm" id="sd-sent">전송 완료로 표시</button>'
+          ${s === 'draft' ? '<button type="button" class="btn btn-primary btn-sm" id="sd-pub">공개하기</button>'
+            : s === 'pub' ? '<button type="button" class="btn btn-primary btn-sm" id="sd-copy2">안내 문자 복사</button><button type="button" class="btn btn-gray btn-sm" id="sd-sent">전송 완료로 표시</button>'
               : '<button type="button" class="btn btn-gray btn-sm" id="sd-copy2">안내 문자 다시 복사</button>'}
         </div>
-        ${s !== 'sent' ? '<p class="sd-hint">공개하면 학부모 앱에 보고서가 열립니다. 문자를 카톡·문자로 보낸 뒤 전송 완료로 표시하세요.</p>' : ''}
+        ${s !== 'sent' ? '<p class="sd-hint">① 공개하면 학부모 앱에 보고서가 열립니다. ② 안내 문자를 복사해 카톡·문자로 보내고 ③ 전송 완료로 표시하세요.</p>' : ''}
       </div>`;
     const doCopy = async (b) => { if (await copyText(noticeText(student, r))) { flashDone(b); toast('안내 문자를 복사했습니다'); } else toast('복사 실패'); };
     $('#sd-copy', el).addEventListener('click', (e) => doCopy(e.currentTarget));
@@ -53,8 +53,7 @@ export function mountSend(el, { report, student, getReport, beforePublish, onCha
       try {
         const patch = { ...(beforePublish ? beforePublish() : {}), published_at: new Date().toISOString() };
         Object.assign(r, await saveReport(r.coaching_id, patch));
-        const ok = await copyText(noticeText(student, r));
-        toast(ok ? '공개했습니다 · 안내 문자를 복사했습니다' : '공개했습니다');
+        toast('공개했습니다 · 이제 안내 문자를 복사해 보내세요');
         draw(); onChange?.(r);
       } catch (x) { err.textContent = '공개 실패: ' + x.message; btn.disabled = false; }
     });

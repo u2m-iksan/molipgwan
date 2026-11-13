@@ -1,32 +1,46 @@
-// 학부모 주간 보고서 (선생님 미리보기 · 학부모 앱 공용)
-// A4 폭 794 고정, 높이는 내용만큼 → mountReport 가 들어갈 자리 폭에 맞춰 축소
+// 학부모 주간 보고서 (선생님 미리보기 · 학부모 앱 공용) — 사이드바형
+// 왼쪽: 로고 · 학생 · 평균 이행도 · 이번 주 배지 / 오른쪽: 계획 이행도 · 과목별 피드백 · 총평
+// 폭 794 고정, 높이는 내용만큼 → mountReport 가 들어갈 자리 폭에 맞춰 축소
 import { esc } from '../ui.js';
 import { short } from '../date.js';
 
-/* ---------- 배지 (기존 코칭 어플: 스캘럽 체크 / 사이렌) ---------- */
-function seal(bg, fg) {
-  return `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 4 L61 12 L74 9 L79 22 L92 28 L89 41 L96 52 L87 62 L88 76 L74 78 L66 90 L54 84 L41 92 L33 80 L19 80 L17 66 L6 57 L13 45 L8 32 L21 28 L26 15 L39 17 Z" fill="${bg}"/><path d="M34 51 L45 62 L67 39" fill="none" stroke="${fg}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-export const BADGE_INFO = {
-  우수: { cls: 'green', icon: seal('#C3EE9E', '#3B8B3A'), title: '이번 주 우수 학생입니다.', sub: '주간 계획 90% 이상 달성' },
-  최우수: { cls: 'gold', icon: seal('#F3DC97', '#C99A2E'), title: '이번 주 최우수 학생입니다.', sub: '주간 계획 90% 이상 달성 및 우수 선정' },
-  주말등원: { cls: 'siren', icon: '<span class="wr-siren">🚨</span>', title: '주말 등원 필수', sub: '주중에 못한 학습을 보충합니다.' },
-};
+/* ---------- 배지 (기존 스캘럽 모양 통일, 색·아이콘만 다름) ---------- */
+const SEAL = 'M50 4 L61 12 L74 9 L79 22 L92 28 L89 41 L96 52 L87 62 L88 76 L74 78 L66 90 L54 84 L41 92 L33 80 L19 80 L17 66 L6 57 L13 45 L8 32 L21 28 L26 15 L39 17 Z';
+const seal = (bg, fg, inner, sw = 7) => `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="${SEAL}" fill="${bg}"/><g fill="none" stroke="${fg}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${inner}</g></svg>`;
 
-// 이행도로 배지 자동 판정 (기존 어플 규칙): 하나라도 90 미만 → 주말등원, 전부 90 이상 → 우수
-export function autoBadge(rates) {
+export const BADGES = {
+  최우수: { color: '#B8861C', icon: seal('#F3DC97', '#B8861C', '<path d="M50 30 L56 44 L71 45 L59 55 L63 70 L50 62 L37 70 L41 55 L29 45 L44 44 Z"/>', 5), title: '이번 주 최우수 학생', sub: () => '선생님 선정' },
+  우수: { color: '#3B8B3A', icon: seal('#C3EE9E', '#3B8B3A', '<path d="M34 51 L45 62 L67 39"/>'), title: '이번 주 우수 학생', sub: () => '계획 이행도 90% 이상' },
+  성장: { color: '#1D5FC4', icon: seal('#BFDBFE', '#1D5FC4', '<path d="M32 64 L46 50 L55 58 L69 40"/><path d="M58 40 L69 40 L69 51"/>'), title: '성장', sub: (s) => (s?.prev_avg != null && s?.avg != null ? `평균 이행도 +${s.avg - s.prev_avg}%p` : '지난번보다 이행도 상승') },
+  기록왕: { color: '#6B3FC1', icon: seal('#E4D4FB', '#6B3FC1', '<circle cx="50" cy="55" r="16"/><path d="M50 55 L50 46"/><path d="M45 33 L55 33"/><path d="M50 33 L50 39"/>'), title: '기록왕', sub: () => '순공시간 10시간 이상' },
+  꾸준함: { color: '#C2510E', icon: seal('#FFD9C2', '#C2510E', '<path d="M50 30 C58 40 66 46 66 57 A16 16 0 0 1 34 57 C34 49 40 45 42 38 C46 44 48 46 50 47 C51 41 50 36 50 30 Z"/>', 5), title: '꾸준함', sub: (s) => (s?.days_needed ? `${s.days_needed}일 매일 스톱워치 기록` : '매일 스톱워치 기록') },
+};
+export const BADGE_ORDER = ['최우수', '우수', '성장', '기록왕', '꾸준함', '주말등원'];
+export const WEEKEND = { title: '주말 등원 필수', sub: '주중에 못한 학습을 보충합니다.' };
+
+// 자동 판정 (기간 = 지난 상담 ~ 이번 상담)
+export const RULE = { goodRate: 90, growth: 10, studyHours: 10 };
+export function autoBadges(rates, stats) {
   const rs = (rates || []).filter((x) => x.rate != null);
-  if (!rs.length) return '없음';
-  return rs.some((x) => x.rate < 90) ? '주말등원' : '우수';
+  const out = [];
+  if (rs.length && rs.every((x) => x.rate >= RULE.goodRate)) out.push('우수');
+  if (stats?.avg != null && stats?.prev_avg != null && stats.avg - stats.prev_avg >= RULE.growth) out.push('성장');
+  if ((stats?.study_seconds || 0) >= RULE.studyHours * 3600) out.push('기록왕');
+  if (stats?.days_needed && stats.days_studied >= stats.days_needed) out.push('꾸준함');
+  if (rs.some((x) => x.rate < RULE.goodRate)) out.push('주말등원');
+  return out;
 }
+// 예전 보고(배지 1개 칸)와 호환
+export const badgesOf = (r) => (r.badges?.length ? r.badges : (r.badge && r.badge !== '없음' ? [r.badge] : []));
 
 /* ---------- 도우미 ---------- */
 const tone = (v) => (v == null ? 'none' : v >= 90 ? 'g' : v >= 50 ? 'a' : 'r');
-const sub = (x) => `${esc(x.subject)}${x.detail ? `<small>${esc(x.detail)}</small>` : ''}`;
+const dot = (d) => { if (!d) return ''; const [y, m, dd] = d.split('-').map(Number); return `${y}. ${m}. ${dd}`; };
+const md = (d) => short(d).replace(/\(.\)/, '');
 
 function ring(avg) {
-  const R = 52, C = 2 * Math.PI * R, v = avg ?? 0;
-  return `<svg class="wr-ring ${tone(avg)}" viewBox="0 0 128 128" aria-hidden="true">
+  const R = 54, C = 2 * Math.PI * R, v = avg ?? 0;
+  return `<svg class="wr-ring" viewBox="0 0 128 128" aria-hidden="true">
     <circle cx="64" cy="64" r="${R}" class="trk"/>
     <circle cx="64" cy="64" r="${R}" class="val" stroke-dasharray="${(C * v) / 100} ${C}" transform="rotate(-90 64 64)"/>
   </svg>`;
@@ -34,60 +48,52 @@ function ring(avg) {
 
 /* ---------- 보고서 ---------- */
 export function reportCard(r, student) {
-  const b = BADGE_INFO[r.badge];
   const rates = (r.rates || []).filter((x) => x.rate != null);
   const avg = rates.length ? Math.round(rates.reduce((a, x) => a + x.rate, 0) / rates.length) : null;
-  const cnt = { g: 0, a: 0, r: 0 };
-  rates.forEach((x) => cnt[tone(x.rate)]++);
+  const done = rates.filter((x) => x.rate >= 90).length, low = rates.filter((x) => x.rate < 50).length;
   const fb = (r.subject_feedback || []).filter((x) => x.text);
-  const period = r.period_start ? `${short(r.period_start)} – ${short(r.period_end)}` : (r.period_end ? short(r.period_end) : '');
+  const list = badgesOf(r);
+  const earned = BADGE_ORDER.filter((k) => k !== '주말등원' && list.includes(k) && BADGES[k]);
+  const stats = { ...(r.stats || {}), avg };
+  const period = r.period_start ? `${md(r.period_start)} – ${md(r.period_end)}` : (r.period_end ? md(r.period_end) : '');
 
   return `<article class="wr">
-    <div class="wr-band"><b>U2M</b></div>
-    <header class="wr-head">
-      <div class="wr-id">
-        <div>
-          <h3>${esc(student.name)} <span>학생</span></h3>
-          <p>${student.grade ? `${esc(student.grade)} · ` : ''}${period}</p>
-        </div>
-        ${b ? `<div class="wr-badge ${b.cls}"><span class="wr-badge-ic">${b.icon}</span><div><b>${b.title}</b><small>${b.sub}</small></div></div>` : ''}
-      </div>
-    </header>
+    <aside class="wr-side">
+      <span class="wr-logo">U2M</span>
+      <h3 class="wr-name">${esc(student.name)}<span>${student.grade ? `${esc(student.grade)} · ` : ''}${period}</span></h3>
+      ${avg != null ? `<div class="wr-avg">${ring(avg)}<div class="wr-avg-tx"><small>평균 이행도</small><b>${avg}<i>%</i></b></div></div>` : ''}
+      ${earned.length ? `<p class="wr-side-h">이번 주 배지</p>
+        <ul class="wr-badges">${earned.map((k) => { const b = BADGES[k]; return `<li><span class="wr-b-ic">${b.icon}</span>
+          <div><b style="color:${b.color}">${b.title}</b><small>${b.sub(stats)}</small></div></li>`; }).join('')}</ul>` : ''}
+      ${list.includes('주말등원') ? `<div class="wr-weekend"><b>${WEEKEND.title}</b><small>${WEEKEND.sub}</small></div>` : ''}
+    </aside>
 
-    ${r.is_absent ? '<p class="wr-absent">이번 상담에 결석하였습니다. 학생이 입력한 진행률을 기준으로 안내드립니다.</p>' : ''}
+    <main class="wr-main">
+      <div class="wr-mh"><h2>주간 학습 보고서</h2><span>상담일 ${dot(r.period_end)}</span></div>
+      ${r.is_absent ? '<p class="wr-absent">이번 상담에 결석하였습니다. 학생이 입력한 진행률을 기준으로 안내드립니다.</p>' : ''}
 
-    ${rates.length ? `<section class="wr-rate">
-      <div class="wr-avg">
-        ${ring(avg)}
-        <div class="wr-avg-tx"><small>평균 이행도</small><b>${avg}<i>%</i></b></div>
-      </div>
-      <div class="wr-bars">
-        <div class="wr-sec-h"><h4>계획 이행도</h4>
-          <span class="wr-legend">${cnt.g ? `<i class="g"></i>달성 ${cnt.g}` : ''}${cnt.a ? `<i class="a"></i>부분 ${cnt.a}` : ''}${cnt.r ? `<i class="r"></i>미달 ${cnt.r}` : ''}</span></div>
-        <ul>${rates.map((x) => `<li class="${tone(x.rate)}">
-          <b class="wr-r-name">${esc(x.subject)}</b>
-          <p class="wr-r-title">${esc(x.title)}</p>
-          <strong class="wr-r-pct">${x.rate}<i>%</i></strong>
-          <small class="wr-r-det">${esc(x.detail || '')}</small>
-          <span class="wr-bar"><i style="width:${Math.max(3, x.rate)}%"></i></span>
-        </li>`).join('')}</ul>
-      </div>
-    </section>` : ''}
+      ${rates.length ? `<section class="wr-sec">
+        <h4>계획 이행도<small>${done ? `달성 ${done}` : ''}${done && low ? ' · ' : ''}${low ? `보완 ${low}` : ''}</small></h4>
+        <ul class="wr-bars">${rates.map((x) => `<li class="${tone(x.rate)}">
+          <span class="wr-s">${esc(x.subject)}${x.detail ? `<small>${esc(x.detail)}</small>` : ''}</span>
+          <div><p>${esc(x.title)}</p><span class="wr-bar"><i style="width:${Math.max(2, x.rate)}%"></i></span></div>
+          <b>${x.rate}%</b></li>`).join('')}</ul>
+      </section>` : ''}
 
-    ${fb.length ? `<section class="wr-sec">
-      <div class="wr-sec-h"><h4>과목별 피드백</h4></div>
-      <dl class="wr-fb">${fb.map((x) => `<div><dt>${esc(x.subject)}</dt><dd>${esc(x.text)}</dd></div>`).join('')}</dl>
-    </section>` : ''}
+      ${fb.length ? `<section class="wr-sec">
+        <h4>과목별 피드백</h4>
+        <ul class="wr-fb">${fb.map((x) => `<li><b>${esc(x.subject)}</b><span>${esc(x.text)}</span></li>`).join('')}</ul>
+      </section>` : ''}
 
-    ${r.summary ? `<section class="wr-sec">
-      <div class="wr-sec-h"><h4>총평</h4></div>
-      <p class="wr-sum">${esc(r.summary)}</p>
-    </section>` : ''}
-
+      ${r.summary ? `<section class="wr-sec">
+        <h4>총평</h4>
+        <p class="wr-sum">${esc(r.summary)}</p>
+      </section>` : ''}
+    </main>
   </article>`;
 }
 
-/* ---------- A4 비율 고정 → 들어갈 자리 폭에 맞춰 축소 ---------- */
+/* ---------- 폭 794 고정 → 들어갈 자리 폭에 맞춰 축소 ---------- */
 export const A4_W = 794;
 export function mountReport(el, r, student, { scale } = {}) {
   el._ro?.disconnect();

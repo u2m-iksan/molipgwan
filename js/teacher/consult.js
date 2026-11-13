@@ -5,13 +5,12 @@ import { refPanel } from './ref-panel.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
 import {
-  loadConsult, loadCarryCandidates, saveConsult, saveReport,
+  loadConsult, loadCarryCandidates, saveConsult, saveReport, computeReportStats,
   buildPrompt, parseGpt, reportSubjects, noticeText,
 } from '../data/coaching.js';
-import { mountReport, autoBadge } from '../views/report-card.js';
+import { mountReport, autoBadges, badgesOf, BADGE_ORDER } from '../views/report-card.js';
 import { openReportViewer } from '../views/report-viewer.js';
 
-const BADGES = ['자동', '없음', '우수', '최우수', '주말등원'];
 
 async function copy(text) {
   try { await navigator.clipboard.writeText(text); return true; }
@@ -334,9 +333,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     const fbOf = (s) => (r.subject_feedback || []).find((x) => x.subject === s)?.text || '';
     const extra = (r.subject_feedback || []).filter((x) => !subs.includes(x.subject));
     const pane = $('#p-r', panel);
-    // 배지: 아직 공개 전이고 따로 고르지 않았으면 '자동' (이행도 전부 90 이상 → 우수, 하나라도 미만 → 주말등원)
-    let badgeMode = !r.published_at && (r.badge || '없음') === '없음' ? '자동' : r.badge;
-    if (badgeMode === '자동') r.badge = autoBadge(r.rates);
+    // 배지: 처음 열 때 자동 판정(이행도·순공시간·기록 일수) → 선생님이 끄고 켤 수 있음
+    let badges = r.stats ? [...badgesOf(r)] : [];
     pane.innerHTML = `
       <div class="cp-body">
         <div class="rp-cols">
@@ -352,8 +350,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
                   <textarea class="textarea" rows="2" data-fb="${esc(s)}">${esc(fbOf(s))}</textarea></div>`).join('')}
               <div class="field"><label for="rp-sum">총평<span class="opt">3문장 이내</span></label>
                 <textarea class="textarea" id="rp-sum" rows="3">${esc(r.summary || '')}</textarea></div>
-              <div class="field"><span class="lbl">배지</span>
-                <div class="seg" id="rp-badge">${BADGES.map((b) => `<button type="button" data-v="${b}" class="${badgeMode === b ? 'on' : ''}">${b}</button>`).join('')}</div>
+              <div class="field"><span class="lbl">배지<span class="opt">자동 판정 · 눌러서 끄고 켜기</span></span>
+                <div class="chips" id="rp-badge">${BADGE_ORDER.map((k) => `<button type="button" class="chip-t" data-v="${k}">${k}</button>`).join('')}</div>
                 <p class="hint" id="rp-badge-hint"></p></div>
             </div>
           </div>
@@ -368,7 +366,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
 
     const collect = () => {
       const fb = $$('[data-fb]', pane).map((t) => ({ subject: t.dataset.fb, text: t.value.trim() })).filter((x) => x.text);
-      return { subject_feedback: fb, summary: $('#rp-sum', pane).value.trim() || null, badge: r.badge || '없음' };
+      const main = ['최우수', '우수', '주말등원'].find((k) => badges.includes(k)) || '없음';   // 예전 칸(1개)도 채움
+      return { subject_feedback: fb, summary: $('#rp-sum', pane).value.trim() || null, badges: [...badges], badge: main, stats: r.stats || null };
     };
     const preview = () => mountReport($('#rp-card', pane), { ...r, ...collect() }, stu);
     $('#rp-big', pane).addEventListener('click', () => openReportViewer({ ...r, ...collect() }, stu));
@@ -378,8 +377,21 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         : r.published_at ? '<span class="pill pill-blue">공개됨 · 미전송</span>' : '<span class="pill pill-gray">작성 중</span>';
       p.textContent = r.sent_at ? '안내 문자 다시 복사' : r.published_at ? '전송 완료' : '공개 · 안내 문자 복사';
     };
-    const paintBadgeHint = () => { $('#rp-badge-hint', pane).textContent = badgeMode === '자동' ? `이행도 기준: ${r.badge}` : ''; };
-    preview(); paintState(); paintBadgeHint();
+    const paintBadges = () => {
+      $$('#rp-badge button', pane).forEach((x) => x.classList.toggle('on', badges.includes(x.dataset.v)));
+      const auto = r.stats ? autoBadges(r.rates, r.stats) : [];
+      const h = r.stats;
+      $('#rp-badge-hint', pane).textContent = h
+        ? `자동: ${auto.join(' · ') || '없음'}  (순공 ${Math.floor((h.study_seconds || 0) / 3600)}시간 ${Math.round(((h.study_seconds || 0) % 3600) / 60)}분 · 기록 ${h.days_studied}/${h.days_needed}일${h.prev_avg != null ? ` · 지난번 평균 ${h.prev_avg}%` : ''})`
+        : '판정 중';
+    };
+    preview(); paintState(); paintBadges();
+    if (!r.stats) {
+      computeReportStats(r).then((stats) => {
+        r.stats = stats; badges = autoBadges(r.rates, stats);
+        paintBadges(); preview();
+      }).catch((e) => { $('#rp-badge-hint', pane).textContent = '자동 판정 실패: ' + e.message; });
+    }
 
     $('.cp-body', pane).addEventListener('input', (e) => {
       if (e.target.id === 'rp-paste') {
@@ -398,11 +410,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     });
     $('#rp-badge', pane).addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      badgeMode = b.dataset.v;
-      r.badge = badgeMode === '자동' ? autoBadge(r.rates) : badgeMode;
-      paintBadgeHint();
-      $$('#rp-badge button', pane).forEach((x) => x.classList.toggle('on', x === b));
-      preview();
+      const k = b.dataset.v;
+      badges = badges.includes(k) ? badges.filter((x) => x !== k) : [...badges, k];
+      paintBadges(); preview();
     });
     $('#rp-copy', pane).addEventListener('click', async () => {
       const text = buildPrompt({ student: stu, scheduled, report: r, prevItems: st.d.prevItems, summary: st.summary.trim(), checkItems: st.checkItems });

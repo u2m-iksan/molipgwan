@@ -2,7 +2,7 @@
 import { mount, $, $$, esc, BRAND } from '../ui.js';
 import { sb } from '../sb.js';
 import { short } from '../date.js';
-import { mountReport, BADGE_INFO } from './report-card.js';
+import { mountReport, BADGES, BADGE_ORDER, badgesOf } from './report-card.js';
 import { openReportViewer } from './report-viewer.js';
 
 export async function renderParentHome({ students, onLogout }) {
@@ -33,14 +33,14 @@ export async function renderParentHome({ students, onLogout }) {
     const box = $('#msgs');
     if (!list.length) { box.innerHTML = '<div class="pa-empty">도착한 보고가 없습니다.</div>'; return; }
     box.innerHTML = list.map((r, i) => {
-      const b = BADGE_INFO[r.badge];
+      const got = BADGE_ORDER.filter((k) => BADGES[k] && badgesOf(r).includes(k));
       const when = r.period_end ? short(r.period_end) : '';
       return `<div class="msg">
         <div class="msg-av">U2M</div>
         <div class="msg-main">
           <div class="msg-from">몰입관<span>${when}</span></div>
           <button type="button" class="msg-bubble" data-i="${i}">
-            <p class="msg-text">${esc(cur.name)} 학생 주간 보고서${b ? `<br><em class="${b.cls}">${esc(b.title)}</em>` : ''}</p>
+            <p class="msg-text">${esc(cur.name)} 학생 주간 보고서${got.length ? `<span class="msg-badges">${got.map((k) => `<i title="${esc(BADGES[k].title)}">${BADGES[k].icon}</i>`).join('')}<em>배지 ${got.length}개 획득</em></span>` : ''}</p>
             <div class="msg-thumb"><div class="msg-thumb-in"></div>
               <span class="msg-zoom" aria-label="크게 보기"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20M8 10.5h5M10.5 8v5"/></svg></span></div>
           </button>

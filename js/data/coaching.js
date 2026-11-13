@@ -145,6 +145,31 @@ export async function saveConsult(s, me) {
   return coaching.id;
 }
 
+/* ---------- 배지 판정용 숫자 (기간 = 지난 상담 ~ 이번 상담) ---------- */
+// { avg, prev_avg, study_seconds, days_needed, days_studied }
+const avgOf = (rates) => { const rs = (rates || []).filter((x) => x.rate != null); return rs.length ? Math.round(rs.reduce((a, x) => a + x.rate, 0) / rs.length) : null; };
+export async function computeReportStats(report) {
+  const end = report.period_end || today();
+  const start = report.period_start || addDays(end, -7);
+  const [sessions, reports] = await Promise.all([
+    sb.from('study_sessions').select('study_date,net_seconds').eq('student_id', report.student_id).gte('study_date', start).then(check),
+    sb.from('reports').select('id,period_end,rates').eq('student_id', report.student_id).then(check),
+  ]);
+  const inRange = sessions.filter((x) => x.study_date < end && (x.net_seconds || 0) > 0);
+  const studied = new Set(inRange.map((x) => x.study_date));
+  let needed = 0, hit = 0;
+  for (let d = start; d < end; d = addDays(d, 1)) {
+    if (new Date(d + 'T00:00:00Z').getUTCDay() === 0) continue;   // 일요일 제외
+    needed++; if (studied.has(d)) hit++;
+  }
+  const prev = reports.filter((x) => x.id !== report.id && x.period_end && x.period_end < end)
+    .sort((a, b) => (a.period_end < b.period_end ? 1 : -1))[0];
+  return {
+    avg: avgOf(report.rates), prev_avg: prev ? avgOf(prev.rates) : null,
+    study_seconds: inRange.reduce((a, x) => a + x.net_seconds, 0), days_needed: needed, days_studied: hit,
+  };
+}
+
 export async function saveReport(coachingId, patch) {
   return check(await sb.from('reports').update(patch).eq('coaching_id', coachingId).select('*').single());
 }

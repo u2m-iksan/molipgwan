@@ -13,6 +13,9 @@ import {
 } from '../data/student.js';
 
 const REASONS = ['학원', '식사', '기타'];
+const SUM = `<div><span>평균 이행도</span><b class="sum-pct">-</b></div>
+        <div><span>이번 주 순공</span><b class="sum-week">-</b></div>
+        <div><span>다음 코칭</span><b class="sum-coach">-</b></div>`;
 const md = (d) => short(d).replace(/\(.\)/, '');
 
 export async function renderStudentHome({ student, onLogout }) {
@@ -25,9 +28,7 @@ export async function renderStudentHome({ student, onLogout }) {
     <div class="sa-mtop">
       <button type="button" class="sa-today" id="today"><span class="sa-today-l"><i></i>오늘 공부시간</span><b id="today-t">0분</b><em>›</em></button>
       <div class="sa-sum" id="sum">
-        <div><span>평균 이행도</span><b id="sum-pct">-</b></div>
-        <div><span>이번 주 순공</span><b id="sum-week">-</b></div>
-        <div><span>다음 코칭</span><b id="sum-coach">-</b></div>
+${SUM}
       </div>
       <div class="sa-pg" id="pg"><button type="button" data-p="0" class="on">시간표</button><button type="button" data-p="1">이번주 계획</button></div>
     </div>
@@ -35,6 +36,7 @@ export async function renderStudentHome({ student, onLogout }) {
       <section class="card sa-tt" id="tt"><div class="empty">불러오는 중</div></section>
       <div class="sa-col">
         <button type="button" class="sa-today sa-today-w" id="today2"><span class="sa-today-l"><i></i>오늘 공부시간</span><b id="today2-t">0분</b><em>›</em></button>
+        <div class="sa-sum sa-sum-w">${SUM}</div>
         <section class="card sa-plan" id="plan"><div class="empty">불러오는 중</div></section>
       </div>
     </main>
@@ -170,12 +172,12 @@ export async function renderStudentHome({ student, onLogout }) {
   }
   /* ---------- 폰: 이번주 한눈 요약 (평균 이행도 · 이번 주 순공 · 다음 코칭) ---------- */
   function paintSum() {
-    const pe = $('#sum-pct'); if (!pe) return;
-    pe.textContent = st.items.length ? `${Math.round(st.items.reduce((a, i) => a + lastPct(i.id), 0) / st.items.length)}%` : '-';
+    const set = (k, v) => $$('.sum-' + k).forEach((e) => { e.textContent = v; });
+    set('pct', st.items.length ? `${Math.round(st.items.reduce((a, i) => a + lastPct(i.id), 0) / st.items.length)}%` : '-');
     const wk = (st.weekDone || 0) + (st.sess ? elapsedSec(st.sess) : 0) + (st.doneSec || 0) - (st.todayDoneInWeek || 0);
     const m = Math.floor(wk / 60);
-    $('#sum-week').textContent = `${Math.floor(m / 60)}시간 ${m % 60}분`;
-    $('#sum-coach').textContent = nextCoach();
+    set('week', `${Math.floor(m / 60)}시간 ${m % 60}분`);
+    set('coach', nextCoach());
   }
   function nextCoach() {
     const rows = (st.sched || []).filter((r) => r.category === '코칭');

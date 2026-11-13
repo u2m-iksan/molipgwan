@@ -812,3 +812,10 @@ body.has-foot .toast{bottom:92px}
 .msg-zoom svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
 
 .msg-thumb .wr-band{border-radius:0}
+/* 다음 계획: 피드백보다 한 단계 약하게 (작은 글씨, 촘촘한 행, 행 구분선 없음) */
+.wr-plan{border-top:1px solid var(--line);padding-top:6px}
+.wr-plan li{padding:7px 0;border-bottom:0;align-items:baseline}
+.wr-plan .wr-sub{flex-direction:row;align-items:baseline;gap:6px;font-size:14px;font-weight:700;line-height:1.5;color:#4E5968;white-space:nowrap}
+.wr-plan .wr-sub small{font-size:12px;line-height:1.5}
+.wr-plan li p{font-size:14px;line-height:1.5;color:#4E5968}
+.wr-plan li{grid-template-columns:calc(var(--col) + 56px) minmax(0,1fr)}

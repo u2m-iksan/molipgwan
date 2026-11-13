@@ -67,6 +67,8 @@ function studentRow(f) {
     seat_no: String(f.seat_no || '').trim() || null,
     traits: f.traits || [], trait_note: (f.trait_note || '').trim() || null,
     avoid_subject: (f.traits || []).includes('과목 회피') ? (f.avoid_subject || null) : null,
+    goal: (f.goal || '').trim() || null, strong_subjects: f.strong_subjects || [], weak_subjects: f.weak_subjects || [],
+    habits: (f.habits || []).filter(Boolean),
   };
 }
 

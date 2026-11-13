@@ -94,6 +94,8 @@ export async function renderStudents(body) {
   function openEditor(stu) {
     const f = stu ? { ...stu, traits: [...(stu.traits || [])] }
       : { name: '', seat_no: '', grade: '', school: '', parent_phone: '', student_phone: '', status: '재원', traits: [], avoid_subject: '', trait_note: '' };
+    f.strong_subjects = [...(f.strong_subjects || [])]; f.weak_subjects = [...(f.weak_subjects || [])];
+    const habits = [0, 1, 2].map((i) => (f.habits || [])[i] || '');
 
     const panel = sheet(`
       <div class="modal ${stu ? 'modal-lg' : 'modal-m'}" role="dialog" aria-label="${stu ? esc(stu.name) : '학생 등록'}">
@@ -118,6 +120,11 @@ export async function renderStudents(body) {
           <div class="field" id="f-avoid-wrap"><label for="f-avoid">회피 과목</label>
             <div class="input"><select id="f-avoid"><option value="">선택</option>${SUBJECTS.map((s) => `<option${s === f.avoid_subject ? ' selected' : ''}>${s}</option>`).join('')}</select></div></div>
           <div class="field"><label for="f-note">지도 방향 메모</label><textarea id="f-note" class="textarea" rows="3">${esc(f.trait_note || '')}</textarea></div>
+          <div class="field"><label for="f-goal">학생 목표</label><textarea id="f-goal" class="textarea" rows="2" placeholder="예: 2학기 기말 수학 1등급, 수능 국어 2등급">${esc(f.goal || '')}</textarea></div>
+          <div class="field"><span class="lbl">자신 있는 과목</span><div class="chips" id="f-strong">${SUBJECTS.map((x) => `<button type="button" class="chip-t" data-v="${x}">${x}</button>`).join('')}</div></div>
+          <div class="field"><span class="lbl">약점 과목</span><div class="chips" id="f-weak">${SUBJECTS.map((x) => `<button type="button" class="chip-t" data-v="${x}">${x}</button>`).join('')}</div></div>
+          <div class="field"><span class="lbl">몰입관에서 만들 공부 습관 <span class="opt">최대 3개</span></span>
+            <div class="np-habits">${habits.map((h, k) => `<div class="np-habit"><span class="np-n">${k + 1}</span><div class="input grow"><input data-habit="${k}" value="${esc(h)}" placeholder="${k ? '' : '예: 매일 스톱워치 3시간 이상'}"></div></div>`).join('')}</div></div>
           <p class="err" id="f-err" role="alert"></p>
         </div>
         <div class="drawer-foot">
@@ -150,6 +157,15 @@ export async function renderStudents(body) {
     };
     pick('#f-grade', 'grade');
     pick('#f-status', 'status');
+
+    const one = (id, key) => {
+      const el = $(id, panel);
+      const paint = () => $$('button', el).forEach((b) => b.classList.toggle('on', f[key][0] === b.dataset.v));
+      el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; f[key] = f[key][0] === b.dataset.v ? [] : [b.dataset.v]; paint(); });
+      paint();
+    };
+    one('#f-strong', 'strong_subjects');
+    one('#f-weak', 'weak_subjects');
 
     const traitsEl = $('#f-traits', panel), avoidWrap = $('#f-avoid-wrap', panel);
     const paintTraits = () => {
@@ -207,6 +223,8 @@ export async function renderStudents(body) {
       f.name = $('#f-name', panel).value; f.school = $('#f-school', panel).value; f.seat_no = $('#f-seat', panel).value;
       f.parent_phone = pp.value; f.student_phone = $('#f-sp', panel).value;
       f.avoid_subject = $('#f-avoid', panel).value; f.trait_note = $('#f-note', panel).value;
+      f.goal = $('#f-goal', panel).value;
+      f.habits = $$('[data-habit]', panel).map((i) => i.value.trim()).filter(Boolean);
       const err = $('#f-err', panel);
       if (!f.name.trim()) return (err.textContent = '이름을 입력하세요.');
       if (!GRADES.includes(f.grade)) return (err.textContent = '학년을 선택하세요.');

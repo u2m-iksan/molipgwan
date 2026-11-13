@@ -17,7 +17,7 @@ export async function renderChat(body, { me, onUnread } = {}) {
   body.innerHTML = `
     <div class="t-head"><h2>학습 문의</h2><span class="count">학부모와 대화 · ${KEEP_DAYS}일 보관</span></div>
     <div class="ch">
-      <aside class="card ch-side"><div class="search"><input id="ch-q" type="search" placeholder="학생 검색 · 새 대화" aria-label="학생 검색"></div><ul id="ch-list" class="ch-list"><li class="empty">불러오는 중</li></ul></aside>
+      <aside class="card ch-side"><div class="search"><input id="ch-q" type="search" placeholder="이름 · 자리 검색" aria-label="학생 검색"></div><ul id="ch-list" class="ch-list"><li class="empty">불러오는 중</li></ul></aside>
       <section class="card ch-main" id="ch-main"><div class="ch-none">왼쪽에서 학생을 고르세요.</div></section>
     </div>`;
   purgeOld();
@@ -26,18 +26,24 @@ export async function renderChat(body, { me, onUnread } = {}) {
   async function loadBox() { try { st.inbox = await loadInbox(); } catch { /* 그대로 */ } }
   function drawList() {
     const q = st.q.toLowerCase();
-    const rows = st.list.filter((s) => (q ? s.name.toLowerCase().includes(q) || String(s.seat_no || '') === q : st.inbox.has(s.id)));
-    rows.sort((a, b) => {
+    // 검색 없으면: 최근 대화 → 전체 학생(대화 시작)
+    const rows = st.list.filter((s) => !q || s.name.toLowerCase().includes(q) || String(s.seat_no || '') === q);
+    const seat = (a, b) => (Number(a.seat_no) || 999) - (Number(b.seat_no) || 999) || a.name.localeCompare(b.name, 'ko');
+    const recent = rows.filter((s) => st.inbox.has(s.id)).sort((a, b) => {
       const A = st.inbox.get(a.id), B = st.inbox.get(b.id);
-      return (B?.unread || 0) - (A?.unread || 0) || (B?.last.created_at || '').localeCompare(A?.last.created_at || '') || a.name.localeCompare(b.name, 'ko');
+      return (B.unread || 0) - (A.unread || 0) || B.last.created_at.localeCompare(A.last.created_at);
     });
-    $('#ch-list').innerHTML = rows.length ? rows.map((s) => {
+    const rest = rows.filter((s) => !st.inbox.has(s.id)).sort(seat);
+    const item = (s) => {
       const box = st.inbox.get(s.id);
       return `<li><button type="button" class="ch-item${st.cur?.id === s.id ? ' on' : ''}" data-id="${esc(s.id)}">
         <div class="ch-top"><b>${esc(s.name)}</b><small>${esc(s.grade || '')}</small>${box ? `<time>${when(box.last.created_at)}</time>` : ''}</div>
         <div class="ch-last"><span>${box ? `${box.last.sender === 'teacher' ? '나: ' : ''}${esc(box.last.body)}` : '대화 시작'}</span>${box?.unread ? `<i class="pa-n">${box.unread}</i>` : ''}</div>
       </button></li>`;
-    }).join('') : `<li class="empty">${q ? '검색 결과가 없습니다.' : '최근 대화가 없습니다.<br>학생을 검색해 대화를 시작하세요.'}</li>`;
+    };
+    $('#ch-list').innerHTML = (recent.length ? `<li class="ch-sep">최근 대화</li>${recent.map(item).join('')}` : '')
+      + (rest.length ? `<li class="ch-sep">${recent.length ? '대화 시작' : '학생을 골라 대화를 시작하세요'}</li>${rest.map(item).join('')}` : '')
+      || '<li class="empty">검색 결과가 없습니다.</li>';
     $$('.ch-item').forEach((b) => b.addEventListener('click', () => open(st.list.find((s) => s.id === b.dataset.id))));
   }
   function open(s) {

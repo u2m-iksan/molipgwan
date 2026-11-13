@@ -79,3 +79,22 @@ export function sheet(inner, where = 'right') {
   document.addEventListener('keydown', onKey);
   return wrap;
 }
+
+/* ---------- 불러온 내용이 부드럽게 등장 ----------
+   "불러오는 중" 자리표시가 실제 내용으로 바뀔 때만 살짝 떠오르며 나타남 (주기 새로고침 때는 그대로) */
+(() => {
+  if (typeof MutationObserver === 'undefined' || reducedMotion()) return;
+  const isLoader = (n) => n.nodeType === 1 && /불러오는 중/.test(n.textContent || '') && (n.textContent || '').trim().length < 20;
+  new MutationObserver((muts) => {
+    for (const m of muts) {
+      if (![...m.removedNodes].some(isLoader)) continue;
+      let i = 0;
+      for (const n of m.addedNodes) {
+        if (n.nodeType !== 1 || isLoader(n)) continue;
+        n.classList.add('fx-in');
+        n.style.animationDelay = `${Math.min(i++, 8) * 40}ms`;
+        n.addEventListener('animationend', () => { n.classList.remove('fx-in'); n.style.animationDelay = ''; }, { once: true });
+      }
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();

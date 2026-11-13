@@ -16,8 +16,17 @@ export async function addTeacher({ id, name, password }) {
   await side.auth.signOut().catch(() => {});
   check(await sb.from('teachers').insert({ email, name: name.trim() }));
 }
+// 선생님 삭제: 명단 + 로그인 계정 (SQL 16 함수)
 export async function removeTeacher(email) {
-  check(await sb.from('teachers').delete().eq('email', email));
+  const { error } = await sb.rpc('admin_delete_teacher', { target: email });
+  if (error) throw error;
+}
+// 이름 · 아이디 · 비밀번호 변경 (바꾸지 않을 값은 null)
+export async function updateTeacher(oldEmail, { id, name, password }) {
+  const { error } = await sb.rpc('admin_update_teacher', {
+    old_email: oldEmail, new_email: id ? teacherEmail(id) : null, new_name: name || null, new_password: password || null,
+  });
+  if (error) throw new Error(error.message);
 }
 export async function changeMyPassword(password) {
   const { error } = await sb.auth.updateUser({ password });

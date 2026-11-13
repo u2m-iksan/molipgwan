@@ -1194,7 +1194,7 @@ body.has-foot .toast{bottom:92px}
 .set-list li{display:flex;align-items:center;gap:10px;padding:10px 12px 10px 16px;border-top:1px solid var(--line);font-size:14px;min-height:52px}
 .set-list li:first-child{border-top:0}
 .set-list li .code{color:var(--sub)}
-.set-list li .pill,.set-list li .icon-btn{margin-left:auto}
+.set-list li>.icon-btn{margin-left:auto}
 .set-form{margin-top:22px;padding-top:20px;border-top:1px solid var(--line)}
 .set-form h4{font-size:14px;font-weight:700;margin-bottom:10px}
 .set-form .field{margin-top:0}
@@ -1445,7 +1445,8 @@ body.has-foot .toast{bottom:92px}
 .pa-its b{text-align:right;font-size:14.5px;font-weight:800;font-feature-settings:"tnum"}
 .pa-none{font-size:13.5px;color:var(--sub);padding:6px 0 2px}
 /* 채팅 화면: 화면 높이에 맞춤 */
-body.pa-chat-on .pa{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+body.pa-chat-on{overflow:hidden;overscroll-behavior:none}
+body.pa-chat-on .pa{position:fixed;inset:0;min-height:0;height:auto;display:flex;flex-direction:column;overflow:hidden}
 body.pa-chat-on .pa-page{flex:1;min-height:0;display:flex;flex-direction:column;width:100%;padding-bottom:0}
 .pa-thread{flex:1;min-height:0;display:flex;flex-direction:column}
 .pa-kids .pa-n{vertical-align:1px}
@@ -1521,3 +1522,12 @@ body.pa-chat-on .pa-page{flex:1;min-height:0;display:flex;flex-direction:column;
 .ch-side .search{flex:none}
 .ch-list{flex:1}
 .ct-empty{word-break:keep-all}
+.ct-list{overscroll-behavior:contain}
+.ch-sep{padding:12px 12px 4px;font-size:12px;font-weight:700;color:var(--faint)}
+.t-acts{margin-left:auto;display:flex;gap:2px}.t-ph{width:32px}.set-list li .code{flex:none}
+.set-list li.t-edit{display:block;padding:14px 16px;background:var(--surface2,#F7F8FA)}
+.set-list li.t-edit .field{margin:0}
+.t-edit-b{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.set-list .t-acts .icon-btn{margin-left:0}
+.fx-in{animation:fxIn .38s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fxIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}

@@ -3,7 +3,7 @@
 import { $, $$, esc, toast, X } from '../ui.js';
 import { loadStudents } from '../data/students.js';
 import { getPeriods, savePeriods, DEFAULT_PERIODS } from '../data/schedules.js';
-import { loadTeachers, addTeacher, removeTeacher, changeMyPassword, teacherId, promoteAll, NEXT_GRADE, EVENT_KINDS, loadSchoolEvents, addSchoolEvents, deleteSchoolEvent } from '../data/settings.js';
+import { loadTeachers, addTeacher, removeTeacher, updateTeacher, changeMyPassword, teacherId, promoteAll, NEXT_GRADE, EVENT_KINDS, loadSchoolEvents, addSchoolEvents, deleteSchoolEvent } from '../data/settings.js';
 import { toMin, today, short } from '../date.js';
 import { getKakao, saveKakao } from '../data/chat.js';
 
@@ -20,7 +20,8 @@ export async function renderSettings(body, { me } = {}) {
         <button type="button" class="btn btn-primary btn-sm" id="k-save">저장</button></section>
       <section class="card set-sec" id="s-grade"><div class="set-h"><h3>학년 올리기</h3><span>새 학년도 시작 때 1회</span></div></section>
     </div>`;
-  let per = [];
+  let per = [], editing = null;
+  const PEN = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
   drawTeachers(); drawPeriods(); drawGrade(); drawCal();
   getKakao().then((u) => { const i = $('#k-url'); if (i) i.value = u; }).catch(() => {});
   $('#k-save').addEventListener('click', async () => {
@@ -35,8 +36,18 @@ export async function renderSettings(body, { me } = {}) {
     let list = [];
     try { list = await loadTeachers(); } catch (e) { el.innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
     el.innerHTML = `<div class="set-h"><h3>선생님 관리</h3><span>${list.length}명</span></div>
-      <ul class="set-list">${list.map((t) => `<li><b>${esc(t.name)}</b><span class="code">${esc(teacherId(t.email))}</span>
-        ${t.email === me?.email ? '<span class="pill pill-blue">나</span>' : `<button type="button" class="icon-btn sm" data-rm="${esc(t.email)}" aria-label="삭제">${X}</button>`}</li>`).join('')}</ul>
+      <ul class="set-list">${list.map((t, i) => editing === t.email ? `<li class="t-edit">
+          <div class="row3">
+            <div class="field"><label>이름</label><div class="input sm"><input id="e-name" value="${esc(t.name)}" autocomplete="off"></div></div>
+            <div class="field"><label>아이디</label><div class="input sm"><input id="e-id" value="${esc(teacherId(t.email))}" autocomplete="off"></div></div>
+            <div class="field"><label>새 비밀번호 <span class="opt">바꿀 때만</span></label><div class="input sm"><input id="e-pw" type="password" autocomplete="new-password" placeholder="6자 이상"></div></div>
+          </div>
+          <p class="err" id="e-err"></p>
+          <div class="t-edit-b"><button type="button" class="btn btn-gray btn-sm" id="e-cancel">취소</button><button type="button" class="btn btn-primary btn-sm" id="e-save" data-email="${esc(t.email)}">저장</button></div>
+        </li>` : `<li><b>${esc(t.name)}</b><span class="code">${esc(teacherId(t.email))}</span>
+        ${t.email === me?.email ? '<span class="pill pill-blue">나</span>' : ''}
+        <span class="t-acts"><button type="button" class="icon-btn sm" data-ed="${esc(t.email)}" aria-label="수정">${PEN}</button>
+        ${t.email === me?.email ? '<span class="t-ph"></span>' : `<button type="button" class="icon-btn sm" data-rm="${esc(t.email)}" aria-label="삭제">${X}</button>`}</span></li>`).join('')}</ul>
       <div class="set-form">
         <h4>선생님 추가</h4>
         <div class="row3">
@@ -55,8 +66,23 @@ export async function renderSettings(body, { me } = {}) {
           <div class="field set-btn-f"><button type="button" class="btn btn-gray btn-sm" id="p-go">변경</button></div>
         </div>
         <p class="err" id="p-err"></p>
-        <p class="hint">다른 선생님 비밀번호를 잊은 경우: 그 선생님을 삭제하고 새 아이디로 다시 추가하세요.</p>
       </div>`;
+    $$('[data-ed]', el).forEach((b) => b.addEventListener('click', () => { editing = b.dataset.ed; drawTeachers(); }));
+    $('#e-cancel', el)?.addEventListener('click', () => { editing = null; drawTeachers(); });
+    $('#e-save', el)?.addEventListener('click', async (e) => {
+      const old = e.currentTarget.dataset.email, err = $('#e-err', el); err.textContent = '';
+      const name = $('#e-name', el).value.trim(), id = $('#e-id', el).value.trim().toLowerCase(), pw = $('#e-pw', el).value;
+      if (!name) return (err.textContent = '이름을 입력하세요.');
+      if (!/^[a-z0-9._-]{2,20}$/.test(id)) return (err.textContent = '아이디는 영문 소문자·숫자 2~20자로 입력하세요.');
+      if (pw && pw.length < 6) return (err.textContent = '비밀번호는 6자 이상이어야 합니다.');
+      const idChanged = id !== teacherId(old);
+      try {
+        await updateTeacher(old, { id: idChanged ? id : null, name, password: pw || null });
+        editing = null;
+        if (old === me?.email && (idChanged || pw)) { toast('변경되었습니다. 다시 로그인하세요'); setTimeout(() => location.reload(), 900); return; }
+        toast('변경되었습니다'); drawTeachers();
+      } catch (x) { err.textContent = '변경 실패: ' + x.message; }
+    });
     $$('[data-rm]', el).forEach((b) => {
       let armed = false;
       b.addEventListener('click', async () => {

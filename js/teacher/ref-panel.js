@@ -79,7 +79,9 @@ export async function refPanel(el, stu, { onClose } = {}) {
     fill('exam', `<p class="ep-label">${esc(ex.school_year)} ${esc(ex.exam_type)} · ${esc(ex.grade)}</p>
       ${scores.length ? `<table class="ep-tbl"><thead><tr><th>과목</th><th>점수</th><th>등급</th></tr></thead><tbody>
         ${scores.map((s) => `<tr><td>${esc(s.subject)}${s.subject_detail ? `<small>${esc(s.subject_detail)}</small>` : ''}</td>
-          <td>${s.raw_score ?? '-'}</td><td>${s.grade_level ?? s.achievement ?? '-'}</td></tr>`).join('')}
-      </tbody></table>` : empty('입력된 과목이 없습니다.')}`);
+          <td>${s.raw_score ?? '-'}</td><td>${s.grade_level ?? s.achievement ?? '-'}</td></tr>
+          ${s.note ? `<tr class="ep-note"><td colspan="3">${esc(s.note)}</td></tr>` : ''}`).join('')}
+      </tbody></table>` : empty('입력된 과목이 없습니다.')}
+      ${ex.feedback ? `<p class="ep-fb">${esc(ex.feedback)}</p>` : ''}`);
   });
 }

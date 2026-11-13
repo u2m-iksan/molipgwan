@@ -4,6 +4,7 @@ import { renderStudents } from './students.js';
 import { renderCoaching } from './coaching.js';
 import { renderConsultPage } from './consult-page.js';
 import { openBoard } from './board.js';
+import { renderExams } from './exams.js';
 
 const TABS = [
   { id: 'overview', label: '전체 현황' },
@@ -13,7 +14,7 @@ const TABS = [
   { id: 'exams', label: '성적' },
   { id: 'reports', label: '학부모 보고' },
 ];
-const READY = { students: renderStudents, coaching: renderCoaching, consult: renderConsultPage };
+const READY = { students: renderStudents, coaching: renderCoaching, consult: renderConsultPage, exams: renderExams };
 const PARENT = { consult: 'coaching' };   // 하위 화면 → 메뉴 강조
 const DEFAULT_TAB = 'students';
 

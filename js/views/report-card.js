@@ -40,7 +40,6 @@ export function reportCard(r, student) {
   const cnt = { g: 0, a: 0, r: 0 };
   rates.forEach((x) => cnt[tone(x.rate)]++);
   const fb = (r.subject_feedback || []).filter((x) => x.text);
-  const plan = r.next_plan || [];
   const period = r.period_start ? `${short(r.period_start)} – ${short(r.period_end)}` : (r.period_end ? short(r.period_end) : '');
 
   return `<article class="wr">
@@ -85,10 +84,6 @@ export function reportCard(r, student) {
       <p class="wr-sum">${esc(r.summary)}</p>
     </section>` : ''}
 
-    ${plan.length ? `<section class="wr-sec">
-      <div class="wr-sec-h"><h4>다음 계획</h4></div>
-      <ul class="wr-plan">${plan.map((x) => `<li><span class="wr-sub">${sub(x)}</span><p>${esc(x.title)}</p></li>`).join('')}</ul>
-    </section>` : ''}
   </article>`;
 }
 

@@ -234,5 +234,8 @@ export function parseGpt(text) {
 export const APP_URL = 'https://u2m-iksan.github.io/molipgwan/';
 export function noticeText(student, report) {
   const d = report.period_end ? short(report.period_end) : '';
+  if (report.stats?.is_new) {
+    return `[몰입관] ${student.name} 학생 신규 상담 결과가 등록되었습니다. 앞으로의 성장을 몰입관이 함께하겠습니다.\n다음 주부터는 매주 상담 후 주간 학습 보고서를 보내드립니다. 앱에서 확인해 주세요.\n${APP_URL}`;
+  }
   return `[몰입관] ${student.name} 학생 ${d} 상담 결과가 등록되었습니다. 앱에서 확인해 주세요.\n${APP_URL}`;
 }

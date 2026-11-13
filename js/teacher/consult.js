@@ -120,8 +120,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         <div class="field"><label for="np-goal">학생 목표</label>
           <textarea class="textarea" id="np-goal" rows="3" placeholder="예: 2학기 기말 수학 1등급, 수능 국어 2등급">${esc(P.goal)}</textarea></div>
         <div>
-          <div class="field"><span class="lbl">자신 있는 과목</span><div class="chips">${chips('strong')}</div></div>
-          <div class="field"><span class="lbl">약점 과목</span><div class="chips">${chips('weak')}</div></div>
+          <div class="field"><span class="lbl">자신 있는 과목<span class="opt">1개</span></span><div class="chips">${chips('strong')}</div></div>
+          <div class="field"><span class="lbl">약점 과목<span class="opt">1개</span></span><div class="chips">${chips('weak')}</div></div>
         </div>
       </div>
       <div class="field"><span class="lbl">몰입관에서 만들고 싶은 공부 습관<span class="opt">1~3개</span></span>
@@ -197,11 +197,11 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
           <span class="cs-kind" id="cs-kind"></span>
         </section>
         ${st.isNew ? newProfileHtml() : ''}
-        <div class="cs-cols">
-          <section class="cs-card">
+        <div class="cs-cols${st.isNew ? ' one' : ''}">
+          ${st.isNew ? '' : `<section class="cs-card">
             <div class="cs-card-h"><h4>지난 계획 이행도</h4>${prevMeta()}</div>
-            ${st.isNew && !st.d.prevPlan ? '<div class="cs-empty">신규생은 이행도를 생략합니다.</div>' : prevHtml()}
-          </section>
+            ${prevHtml()}
+          </section>`}
           <section class="cs-card">
             <div class="cs-card-h"><h4>다음 계획</h4>${st.d.newPlan?.author_role === '학생' ? '<span class="pill pill-gray">학생 작성</span>' : ''}</div>
             ${nextHtml()}
@@ -257,9 +257,10 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     const onClick = async (e) => {
       const t = e.target.closest('button'); if (!t) return;
       if (t.dataset.pf) {
-        const L = st.profile[t.dataset.pf], v = t.dataset.v;
-        st.profile[t.dataset.pf] = L.includes(v) ? L.filter((x) => x !== v) : [...L, v];
-        return t.classList.toggle('on');
+        const key = t.dataset.pf, v = t.dataset.v;
+        st.profile[key] = st.profile[key][0] === v ? [] : [v];   // 과목 1개만
+        $$(`[data-pf=${key}]`, panel).forEach((x) => x.classList.toggle('on', st.profile[key][0] === x.dataset.v));
+        return;
       }
       if (t.id === 'np-add') { st.profile.habits.push(''); return keepScroll(drawConsult); }
       if (t.dataset.habitDel != null) { st.profile.habits.splice(Number(t.dataset.habitDel), 1); return keepScroll(drawConsult); }
@@ -335,7 +336,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     try {
       // 상담 중 추가한 지난 계획 항목
       for (const it of prevItems) {
-        if (it.id || !st.d.prevPlan) continue;
+        if (it.id || !st.d.prevPlan || st.isNew) continue;
         const { data, error } = await sb.from('plan_items').insert({
           plan_id: st.d.prevPlan.id, student_id: stu.id, subject: it.subject, title: it.title.trim(),
           source: '추가', created_by: st.me,
@@ -354,7 +355,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       const coachingId = await saveConsult({ profile,
         student: stu, scheduled, heldOn: st.heldOn, absent: st.absent, isNew: st.isNew, isLeaving: st.isLeaving,
         summary: st.summary.trim(), checkItems: st.checkItems,
-        prevPlan: st.d.prevPlan, prevItems: prevItems.filter((i) => i.id), newPlan: st.d.newPlan,
+        prevPlan: st.isNew ? null : st.d.prevPlan, prevItems: st.isNew ? [] : prevItems.filter((i) => i.id), newPlan: st.d.newPlan,
         newItems, removedIds: st.removedIds, subjects: st.d.subjects,
       }, st.me);
       st.d = await loadConsult(stu.id, scheduled);

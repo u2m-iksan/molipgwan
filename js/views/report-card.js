@@ -100,14 +100,16 @@ function newReportCard(r, student) {
   const plan = r.next_plan || [];
   const fb = (r.subject_feedback || []).filter((x) => x.text);
   const habits = (P.habits || []).filter(Boolean);
-  const tags = (arr, cls) => (arr || []).map((x) => `<span class="wr-tag ${cls}">${esc(x)}</span>`).join('');
+  const tile = (cls, label, v, icon) => `<div class="wr-tile ${cls}"><span class="wr-tile-ic"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg></span>
+    <small>${label}</small><b>${v ? esc(v) : '-'}</b></div>`;
   return `<article class="wr">
     <aside class="wr-side">
       <span class="wr-logo">U2M</span>
       <h3 class="wr-name">${esc(student.name)}<span>${student.grade ? `${esc(student.grade)} · ` : ''}신규 상담</span></h3>
-      <div class="wr-welcome"><b>몰입관에 오신 것을 환영합니다.</b><small>첫 상담에서 목표와 다음 주 계획을 함께 세웠습니다.</small></div>
-      ${P.strong_subjects?.length ? `<p class="wr-side-h">자신 있는 과목</p><div class="wr-tags">${tags(P.strong_subjects, 'st')}</div>` : ''}
-      ${P.weak_subjects?.length ? `<p class="wr-side-h">보완할 과목</p><div class="wr-tags">${tags(P.weak_subjects, 'wk')}</div>` : ''}
+      ${P.strong_subjects?.length || P.weak_subjects?.length ? `<div class="wr-sw">
+        ${tile('st', '자신 있는 과목', P.strong_subjects?.[0], '<path d="M12 3.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>')}
+        ${tile('wk', '보완할 과목', P.weak_subjects?.[0], '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="0.8"/>')}
+      </div>` : ''}
     </aside>
     <main class="wr-main">
       <div class="wr-mh"><h2>신규생 상담 보고서</h2><span>상담일 ${dot(r.period_end)}</span></div>

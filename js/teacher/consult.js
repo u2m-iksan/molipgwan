@@ -20,7 +20,8 @@ async function copy(text) {
   }
 }
 
-const SIDE_KEY = 'molip-exam-side';
+const SIDE_KEY = 'molip-ref-side';
+const PANEL_IC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M9.5 4.5v15"/></svg>';
 
 export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   const panel = root;
@@ -28,16 +29,20 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   const sideOpen = wide() && localStorage.getItem(SIDE_KEY) === '1';   // 폰에서는 항상 접힌 채로 시작
   root.innerHTML = `
     <div class="cp">
-      <div class="cp-top">
-        <a href="#/coaching" class="cp-back" aria-label="코칭으로">‹</a>
-        <h2>${esc(stu.name)}<span class="h-sub">${stu.seat_no ? esc(stu.seat_no) + '번 · ' : ''}${esc(stu.grade)} · ${short(scheduled)} 상담</span></h2>
-        <div class="spacer"></div>
-        <a class="link-s" href="#/students?open=${esc(stu.id)}">일정 보기</a>
-        <div class="seg" id="cs-tabs"><button type="button" data-v="c" class="on">상담</button><button type="button" data-v="r">보고</button></div>
-      </div>
+      <header class="cp-head">
+        <a href="#/coaching" class="cp-back" aria-label="코칭으로"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
+        <div class="cp-title">
+          <h2>${esc(stu.name)}</h2>
+          <p>${stu.seat_no ? esc(stu.seat_no) + '번 · ' : ''}${esc(stu.grade)} · ${short(scheduled)} 상담</p>
+        </div>
+        <div class="cp-tools">
+          <button type="button" class="btn btn-gray btn-sm cp-ref${sideOpen ? ' on' : ''}" id="cp-toggle" aria-pressed="${sideOpen}">${PANEL_IC}참고사항</button>
+          <a class="btn btn-gray btn-sm" href="#/students?open=${esc(stu.id)}">일정</a>
+          <div class="seg" id="cs-tabs"><button type="button" data-v="c" class="on">상담</button><button type="button" data-v="r">보고</button></div>
+        </div>
+      </header>
       <div class="cp-wrap${sideOpen ? ' side-open' : ''}" id="cp-wrap">
         <aside class="cp-side" id="cp-side" aria-label="상담 참고사항"></aside>
-        <button type="button" class="cp-toggle" id="cp-toggle" aria-label="상담 참고사항 펼치기"><span class="cp-chev"></span><b>참고사항</b></button>
         <div class="cp-main">
           <div class="pane" id="p-c"><div class="cp-body"><div class="empty">불러오는 중</div></div></div>
           <div class="pane" id="p-r" hidden></div>
@@ -50,7 +55,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   refPanel($('#cp-side', root), stu, { onClose: () => setSide(false) });
   function setSide(on) {
     wrap.classList.toggle('side-open', on);
-    $('#cp-toggle', root).setAttribute('aria-label', on ? '상담 참고사항 접기' : '상담 참고사항 펼치기');
+    const b = $('#cp-toggle', root); b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
     if (wide()) localStorage.setItem(SIDE_KEY, on ? '1' : '0');
   }
   $('#cp-toggle', root).addEventListener('click', () => {
@@ -104,12 +109,15 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   const subOpts = (v) => SUBJECTS.map((s) => `<option${s === v ? ' selected' : ''}>${s}</option>`).join('');
   const subLabel = (i) => `${esc(i.subject)}${i.subject_detail ? `<small>${esc(i.subject_detail)}</small>` : ''}`;
 
+  function prevMeta() {
+    const p = st.d.prevPlan; if (!p) return '';
+    return `<span class="cs-meta">${p.author_role === '학생' ? '<span class="pill pill-gray">학생 작성</span>' : ''}${short(p.start_date)} ~ ${p.due_date ? short(p.due_date) : ''}</span>`;
+  }
+
   function prevHtml() {
     const { prevPlan } = st.d;
     if (!prevPlan) return `<div class="cs-empty">지난 계획이 없습니다.</div>`;
-    const range = `${short(prevPlan.start_date)} ~ ${prevPlan.due_date ? short(prevPlan.due_date) : ''}`;
     return `
-      <p class="cs-range">${range}${prevPlan.author_role === '학생' ? ' · <span class="pill pill-gray">학생 작성</span>' : ''}</p>
       <div class="cs-list" id="prev-list">${st.prevItems.map((i, k) => {
         const h = i.id ? st.d.progress.get(i.id) || [] : [];
         return `<div class="cs-item" data-k="${k}">
@@ -131,7 +139,6 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     if (st.absent && !st.d.newPlan) return `<div class="cs-empty">결석 처리 시 지난 계획이 다음 상담까지 이어집니다.</div>`;
     const mine = st.d.subjects.map((s) => ({ subject: s.subject, subject_detail: s.subject_detail }));
     return `
-      ${st.d.newPlan?.author_role === '학생' ? '<p class="cs-range"><span class="pill pill-gray">학생 작성</span> 확인 후 수정하세요.</p>' : ''}
       <div class="cs-quick">${mine.map((s, k) => `<button type="button" class="chip-t" data-quick="${k}">+ ${esc(s.subject)}${s.subject_detail ? ' ' + esc(s.subject_detail) : ''}</button>`).join('')}
         <button type="button" class="chip-t" data-quick="-1">+ 과목</button>
         ${st.d.prevPlan || st.carry ? '<button type="button" class="chip-t carry" id="carry-btn">지난 계획에서 가져오기</button>' : ''}</div>
@@ -153,31 +160,39 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     const body = $('#p-c', panel);
     body.innerHTML = `
       <div class="cp-body">
-        <div class="cs-bar">
-          <div class="field cs-date"><label for="cs-held">상담일</label><div class="input sm"><input type="date" id="cs-held" value="${st.heldOn}"${st.absent ? ' disabled' : ''}></div></div>
-          <div class="chips" id="cs-flags">
-            <button type="button" class="chip-t${st.isNew ? ' on' : ''}" data-flag="isNew">신규생</button>
-            <button type="button" class="chip-t${st.absent ? ' on' : ''}" data-flag="absent">결석</button>
-            <button type="button" class="chip-t${st.isLeaving ? ' on' : ''}" data-flag="isLeaving">퇴원</button>
-          </div>
+        <section class="cs-info">
+          <div class="cs-info-g"><label for="cs-held">상담일</label>
+            <div class="input sm cs-date"><input type="date" id="cs-held" value="${st.heldOn}"${st.absent ? ' disabled' : ''}></div></div>
+          <span class="cs-div"></span>
+          <div class="cs-info-g"><span class="lbl">구분</span>
+            <div class="chips" id="cs-flags">
+              <button type="button" class="chip-t${st.isNew ? ' on' : ''}" data-flag="isNew">신규생</button>
+              <button type="button" class="chip-t${st.absent ? ' on' : ''}" data-flag="absent">결석</button>
+              <button type="button" class="chip-t${st.isLeaving ? ' on' : ''}" data-flag="isLeaving">퇴원</button>
+            </div></div>
           <span class="cs-kind" id="cs-kind"></span>
-        </div>
+        </section>
         <div class="cs-cols">
-          <section class="cs-col"><h4>지난 계획 이행도</h4>${st.isNew && !st.d.prevPlan ? '<div class="cs-empty">신규생은 이행도를 생략합니다.</div>' : prevHtml()}</section>
-          <section class="cs-col"><h4>다음 계획</h4>${nextHtml()}</section>
+          <section class="cs-card">
+            <div class="cs-card-h"><h4>지난 계획 이행도</h4>${prevMeta()}</div>
+            ${st.isNew && !st.d.prevPlan ? '<div class="cs-empty">신규생은 이행도를 생략합니다.</div>' : prevHtml()}
+          </section>
+          <section class="cs-card">
+            <div class="cs-card-h"><h4>다음 계획</h4>${st.d.newPlan?.author_role === '학생' ? '<span class="pill pill-gray">학생 작성</span>' : ''}</div>
+            ${nextHtml()}
+          </section>
         </div>
-        <div class="cs-bottom">
+        <section class="cs-card cs-wide">
           <div class="field"><label for="cs-sum">총평</label>
-            <textarea class="textarea" id="cs-sum" rows="3" placeholder="상담 내용, 학생 상태, 지도 방향">${esc(st.summary)}</textarea></div>
-          <div class="field"><span class="lbl">다음 점검사항</span>
+            <textarea class="textarea" id="cs-sum" rows="4" placeholder="상담 내용, 학생 상태, 지도 방향">${esc(st.summary)}</textarea></div>
+          <div class="field"><label for="ck-in">다음 점검사항</label>
             <div class="cs-check-add"><div class="input sm grow"><input id="ck-in" placeholder="입력 후 Enter"></div>
               <button type="button" class="btn btn-gray btn-sm" id="ck-add">추가</button></div>
             <div class="chips cs-checks">${st.checkItems.map((c, k) => `<span class="ck">${esc(c)}<button type="button" data-ck="${k}" aria-label="삭제">${X}</button></span>`).join('')}</div>
           </div>
-        </div>
-        <p class="err" id="cs-err" role="alert"></p>
+        </section>
       </div>
-      <div class="cp-foot"><div class="spacer"></div>
+      <div class="cp-foot"><p class="err" id="cs-err" role="alert"></p><div class="spacer"></div>
         <a href="#/coaching" class="btn btn-gray btn-sm">목록</a>
         <button type="button" class="btn btn-primary btn-sm" id="cs-save">저장 · 보고 작성</button></div>`;
     paintKind();
@@ -353,10 +368,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
           </div>
           <div class="rp-preview"><p class="lbl">학부모 화면</p><div id="rp-card"></div></div>
         </div>
-        <p class="err" id="rp-err" role="alert"></p>
       </div>
       <div class="cp-foot">
-        <span id="rp-state"></span><div class="spacer"></div>
+        <span id="rp-state"></span><p class="err" id="rp-err" role="alert"></p><div class="spacer"></div>
         <button type="button" class="btn btn-gray btn-sm" id="rp-save">저장</button>
         <button type="button" class="btn btn-primary btn-sm" id="rp-pub"></button>
       </div>`;

@@ -489,14 +489,7 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .input.sm select{flex:1;border:0;background:none;outline:none;font:inherit;font-size:14px;height:100%}
 .input.sm em{font-size:13px;margin:0 0 0 2px}
 .input.grow,.grow{flex:1;min-width:0}
-.cs-bar{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:24px}
-.cs-bar .field{margin-top:0}
-.cs-date{width:180px}
-.cs-bar .chips{padding-bottom:3px}
-.cs-kind{padding-bottom:8px}
 .cs-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
-.cs-col{border:1px solid var(--line);border-radius:16px;padding:20px;min-width:0}
-.cs-col h4,.cs-bottom h4{font-size:15px;font-weight:700;margin-bottom:12px}
 .cs-range{font-size:13px;color:var(--sub);margin:-4px 0 12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-feature-settings:"tnum"}
 .cs-list{display:flex;flex-direction:column;gap:10px}
 .cs-item{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;background:var(--surface2);border:1px solid var(--line)}
@@ -525,8 +518,6 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .rate-tag{font-size:12px;font-weight:700;color:var(--sub);font-feature-settings:"tnum"}
 .rate-tag.low{color:var(--red)}
 .carry-foot{display:flex;justify-content:flex-end;margin-top:12px}
-.cs-bottom{margin-top:24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
-.cs-bottom .field{margin-top:0}
 .cs-check-add{display:flex;gap:8px}
 .cs-checks{margin-top:10px}
 .cs-checks:empty{display:none}
@@ -590,42 +581,11 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .rc-check li::before{content:"";position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:50%;background:var(--faint)}
 .overlay ~ .toast{bottom:96px}
 @media (max-width:720px){
-  .cs-col{padding:16px;border-radius:14px}
   .cs-item{padding:10px}
-  .cs-bar{gap:12px}
   .rc{padding:16px}
 }
 
-/* ---------- 상담 페이지 (#/consult) ---------- */
-.cp-top{display:flex;align-items:center;gap:12px;margin:4px 0 20px;flex-wrap:wrap}
-.cp-top h2{font-size:24px;font-weight:800;letter-spacing:-0.03em;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.cp-top .h-sub{font-size:14px;font-weight:600;color:var(--sub);letter-spacing:0}
-.cp-back{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:26px;line-height:1;color:var(--sub);padding-bottom:3px}
-.cp-back:hover{background:var(--surface);color:var(--text)}
-.cp-wrap{display:grid;grid-template-columns:0 28px minmax(0,1fr);column-gap:12px;align-items:start;transition:grid-template-columns .3s cubic-bezier(.2,.8,.2,1)}
-.cp-wrap.side-open{grid-template-columns:320px 28px minmax(0,1fr)}
-.cp-side{position:sticky;top:76px;max-height:calc(100vh - 96px);overflow:auto;border:1px solid var(--line);border-radius:16px;background:#fff;
-  opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s}
-.side-open .cp-side{opacity:1;visibility:visible;transition-delay:.08s}
-.cp-toggle{position:sticky;top:76px;width:28px;height:96px;border-radius:10px;border:1px solid var(--line);background:#fff;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--sub);transition:background-color .15s,color .15s}
-.cp-toggle:hover{background:var(--surface);color:var(--text)}
-.cp-toggle b{writing-mode:vertical-rl;font-size:12px;font-weight:700;letter-spacing:.1em}
-.cp-chev{width:7px;height:7px;border-right:2px solid currentColor;border-top:2px solid currentColor;transform:rotate(45deg);margin-left:-3px;transition:transform .25s}
-.side-open .cp-chev{transform:rotate(-135deg);margin-left:3px}
-.cp-main{min-width:0}
-.cp-body{padding:0}
-.cp-foot{position:sticky;bottom:0;z-index:5;display:flex;align-items:center;gap:8px;margin-top:24px;padding:16px 0 20px;
-  background:linear-gradient(to bottom,rgba(255,255,255,0),#fff 14px);border-top:0}
-.cp-foot::before{content:"";position:absolute;left:0;right:0;top:12px;border-top:1px solid var(--line)}
-.cp-foot>*{position:relative}
-.cp-foot{padding-top:28px}
-.cp .err{margin:16px 0 0;font-size:13px;color:var(--red)}
-.cp .err:empty{display:none}
-body.has-foot .toast{bottom:96px}
-.cp .rp-preview{top:76px}
-
-/* 성적 패널 */
+/* 상담 참고사항 패널 */
 .ep-head{display:flex;align-items:center;padding:16px 12px 8px 20px}
 .ep-head h4{flex:1;font-size:16px;font-weight:700}
 .ep-body{padding:4px 20px 20px}
@@ -641,19 +601,9 @@ body.has-foot .toast{bottom:96px}
 .ep-tbl th:not(:first-child),.ep-tbl td:not(:first-child){text-align:right}
 
 @media (max-width:720px){
-  .cp-top{gap:8px;margin-bottom:16px}
-  .cp-top h2{font-size:20px}
-  .cp-top .seg{order:9;flex:0 0 100%;display:flex}
-  .cp-top .seg button{flex:1}
-  .cp-wrap,.cp-wrap.side-open{grid-template-columns:22px minmax(0,1fr);column-gap:8px}
-  .cp-side{display:none}
-  .cp-toggle{width:22px;height:80px}
-  .cp-foot{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}
 }
 .overlay-left .drawer-left{left:0;right:auto;width:min(340px,88vw);transform:translateX(-100%);border-radius:0 16px 16px 0}
 .overlay-left.open .drawer-left{transform:none}
-.cp-side-m{overflow:auto}
-.cp-toggle{height:120px}
 .ep-rates{list-style:none;display:flex;flex-direction:column;gap:14px}
 .ep-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
 .ep-date{font-size:13px;font-weight:600;font-feature-settings:"tnum"}
@@ -669,4 +619,68 @@ body.has-foot .toast{bottom:96px}
 .ep-sub{font-size:13px;font-weight:700}
 .ep-times b{font-size:12px;font-weight:700;text-align:right;font-feature-settings:"tnum"}
 .ep-label{font-feature-settings:"tnum"}
-@media (max-width:720px){.cp-toggle{height:104px}}
+
+/* ---------- 상담 페이지 (#/consult) — 정렬 기준: 본문 왼쪽 선 하나, 카드 간격 16, 카드 안 24 ---------- */
+.cp-head{display:flex;align-items:center;gap:14px;margin:4px 0 20px}
+.cp-back{flex:none;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);display:grid;place-items:center;color:var(--sub);transition:background-color .15s,color .15s}
+.cp-back:hover{background:var(--surface);color:var(--text)}
+.cp-title{flex:1;min-width:0}
+.cp-title h2{font-size:22px;font-weight:800;letter-spacing:-0.03em;line-height:1.25}
+.cp-title p{font-size:13px;font-weight:600;color:var(--sub);margin-top:2px;font-feature-settings:"tnum"}
+.cp-tools{display:flex;align-items:center;gap:8px}
+.cp-tools .btn-sm{height:40px;gap:6px;padding:0 14px}
+.cp-tools .seg{height:40px;align-items:center}
+.cp-tools .seg button{height:34px;padding:0 16px}
+.cp-ref.on{background:var(--blue-soft);color:var(--blue-dark)}
+
+.cp-wrap{display:grid;grid-template-columns:0 minmax(0,1fr);column-gap:0;align-items:start;
+  transition:grid-template-columns .3s cubic-bezier(.2,.8,.2,1),column-gap .3s cubic-bezier(.2,.8,.2,1)}
+.cp-wrap.side-open{grid-template-columns:300px minmax(0,1fr);column-gap:16px}
+.cp-side{position:sticky;top:76px;max-height:calc(100vh - 160px);overflow:auto;border:1px solid var(--line);border-radius:16px;background:#fff;
+  opacity:0;visibility:hidden;transition:opacity .2s,visibility .2s}
+.side-open .cp-side{opacity:1;visibility:visible;transition-delay:.1s}
+.cp-main{min-width:0}
+.cp-body{display:flex;flex-direction:column;gap:16px}
+
+.cs-info{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:14px 20px;border:1px solid var(--line);border-radius:16px}
+.cs-info-g{display:flex;align-items:center;gap:12px}
+.cs-info-g label,.cs-info-g .lbl{font-size:13px;font-weight:600;color:var(--sub);margin:0}
+.cs-date{width:168px}
+.cs-div{width:1px;height:24px;background:var(--line)}
+.cs-info .chips .chip-t{height:34px}
+.cs-kind{margin-left:auto}
+
+.cs-cols{align-items:stretch;gap:16px}
+.cs-card{border:1px solid var(--line);border-radius:16px;padding:24px;min-width:0;background:#fff}
+.cs-card-h{display:flex;align-items:center;gap:8px;min-height:28px;margin-bottom:16px}
+.cs-card-h h4{flex:1;font-size:16px;font-weight:700;margin:0}
+.cs-meta{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--sub);font-feature-settings:"tnum"}
+.cs-wide{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+.cs-wide .field{margin-top:0}
+
+.cp-foot{position:sticky;bottom:0;z-index:5;display:flex;align-items:center;gap:8px;margin-top:20px;padding:14px 0 18px;
+  background:#fff;box-shadow:0 -1px 0 var(--line)}
+.cp-foot .err{margin:0;font-size:13px;color:var(--red)}
+.cp-foot .err:empty{display:none}
+body.has-foot .toast{bottom:92px}
+.rp-cols .rp-preview{top:76px}
+
+.overlay-left .drawer-left{left:0;right:auto;width:min(340px,88vw);transform:translateX(-100%);border-radius:0 16px 16px 0}
+.overlay-left.open .drawer-left{transform:none}
+.cp-side-m{overflow:auto}
+
+@media (max-width:860px){.cs-wide{grid-template-columns:1fr}}
+@media (max-width:720px){
+  .cp-head{flex-wrap:wrap;gap:12px;margin-bottom:16px}
+  .cp-title h2{font-size:20px}
+  .cp-tools{flex:0 0 100%}
+  .cp-tools .seg{flex:1;display:flex}
+  .cp-tools .seg button{flex:1}
+  .cp-wrap,.cp-wrap.side-open{grid-template-columns:minmax(0,1fr);column-gap:0}
+  .cp-side{display:none}
+  .cs-info{padding:14px 16px;gap:12px}
+  .cs-div{display:none}
+  .cs-kind{margin-left:0}
+  .cs-card{padding:16px;border-radius:14px}
+  .cp-foot{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}
+}

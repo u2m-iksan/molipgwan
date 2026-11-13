@@ -72,7 +72,7 @@ export async function renderPlans(body) {
         <span class="spacer"></span>
         ${r.coach ? `<span class="pl-coach">코칭 ${DOW[r.coach.weekday]} ${hm(r.coach.start_time)}</span>` : ''}
         ${r.state === 'none' ? '<span class="pill pill-red">계획 없음</span>' : r.state === 'over' ? '<span class="pill pill-orange">기간 지남</span>' : ''}
-        ${r.avg != null && r.state !== 'none' ? `<b class="pl-avg ${tone(r.avg)}">${r.avg}<i>%</i></b>` : ''}
+        ${r.avg != null && r.state !== 'none' ? `<b class="pl-avg cu ${tone(r.avg)}">${r.avg}<i>%</i></b>` : ''}
       </div>`;
     if (!plan) return `<section class="card pl-card none">${head}</section>`;
     return `<section class="card pl-card ${r.state}">${head}

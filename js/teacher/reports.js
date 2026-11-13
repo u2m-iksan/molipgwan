@@ -46,7 +46,7 @@ export async function renderReports(body, { week } = {}) {
 
   const n = (k) => rows.filter((x) => x.state === k).length;
   $('#rp-sum').innerHTML = [['상담 대상', rows.length], ['상담 완료', rows.filter((x) => x.c).length], ['공개 · 미전송', n('pub')], ['전송 완료', n('sent')], ['학부모 읽음', rows.filter((x) => x.r?.read_at).length]]
-    .map(([k, v], i) => `<div class="${i === 2 && v ? 'hot' : ''}"><span>${k}</span><b>${v}</b></div>`).join('');
+    .map(([k, v], i) => `<div class="${i === 2 && v ? 'hot' : ''}"><span>${k}</span><b class="cu">${v}</b></div>`).join('');
 
   const FILTERS = [['전체', () => true], ['미전송', (x) => x.state === 'pub' || x.state === 'draft'], ['상담 전', (x) => x.state === 'wait' || x.state === 'miss'], ['전송 완료', (x) => x.state === 'sent']];
   const seg = $('#rp-f');

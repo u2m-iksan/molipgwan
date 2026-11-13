@@ -46,16 +46,40 @@ export const ICON = {
   parent:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.6 14.4c2.3-.4 4.3 1 4.9 3.6"/></svg>',
 };
 
-// 화면 아래 잠깐 뜨는 알림
-export function toast(msg) {
+// 화면 아래 잠깐 뜨는 알림 — 성공 · 실패는 문구로 알아서 아이콘 (type으로 직접 지정 가능)
+const T_OK = '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const T_BAD = '<svg viewBox="0 0 24 24"><path d="M12 6v7M12 17.5v.5"/></svg>';
+export function toast(msg, type) {
   document.querySelectorAll('.toast').forEach((o) => o.remove());   // 겹치지 않게 이전 알림 제거
+  const kind = type || (/한 번 더|누르면/.test(msg) ? '' : /실패|오류|없습니다|확인하세요|입력하세요|선택하세요/.test(msg) ? 'bad'
+    : /[했왔됐였]습니다|되었습니다|저장|추가|삭제|변경|복사|완료|보냈|가져왔/.test(msg) ? 'ok' : '');
   const t = document.createElement('div');
-  t.className = 'toast';
-  t.setAttribute('role', 'status');
-  t.textContent = msg;
+  t.className = `toast ${kind}`;
+  t.setAttribute('role', kind === 'bad' ? 'alert' : 'status');
+  t.innerHTML = `${kind ? `<span class="ti">${kind === 'ok' ? T_OK : T_BAD}</span>` : ''}<span></span>`;
+  t.lastChild.textContent = msg;
   document.body.appendChild(t);
   requestAnimationFrame(() => t.classList.add('show'));
-  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2200);
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, kind === 'bad' ? 3200 : 2200);
+}
+
+/* 지운 줄이 접히며 사라짐 (끝나면 resolve) */
+export function fadeOut(el) {
+  if (!el || !el.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  const h = el.offsetHeight;
+  el.style.overflow = 'hidden';
+  return el.animate([{ opacity: 1, height: h + 'px' }, { opacity: 0, height: '0px', paddingTop: 0, paddingBottom: 0, marginTop: 0, marginBottom: 0 }],
+    { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }).finished.catch(() => {});
+}
+
+/* 버튼이 잠깐 '완료' 상태로 바뀜 (복사 등) */
+export function flashDone(btn, label = '복사됨') {
+  if (!btn) return;
+  if (!btn._orig) btn._orig = btn.innerHTML;
+  btn.classList.add('is-done');
+  btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>${label}`;
+  clearTimeout(btn._doneT);
+  btn._doneT = setTimeout(() => { btn.classList.remove('is-done'); btn.innerHTML = btn._orig; btn._orig = null; }, 1600);
 }
 
 /* ---------- 패널(오른쪽) · 모달(가운데) 공통 ---------- */
@@ -80,21 +104,148 @@ export function sheet(inner, where = 'right') {
   return wrap;
 }
 
-/* ---------- 불러온 내용이 부드럽게 등장 ----------
-   "불러오는 중" 자리표시가 실제 내용으로 바뀔 때만 살짝 떠오르며 나타남 (주기 새로고침 때는 그대로) */
+/* =============================================================
+   공통 인터랙션 (화면 코드와 상관없이 전체에 적용)
+   ① 불러오는 중 → 스켈레톤, 내용으로 바뀌면 살짝 떠오르며 등장
+   ② 세그먼트 선택 표시가 미끄러지듯 이동
+   ③ 저장 버튼: 누른 뒤 잠기면 자동으로 "저장 중" 원
+   ④ 폰: 표 → 카드 (머리글 이름을 칸에 붙임)
+   ⑤ 폰: 키보드가 올라와도 입력 칸이 가려지지 않게
+   ⑥ 숫자 카운트업 (.cu)
+   ============================================================= */
 (() => {
-  if (typeof MutationObserver === 'undefined' || reducedMotion()) return;
+  if (typeof MutationObserver === 'undefined') return;
+  const motion = !reducedMotion();
   const isLoader = (n) => n.nodeType === 1 && /불러오는 중/.test(n.textContent || '') && (n.textContent || '').trim().length < 20;
+
+  // ② 세그먼트
+  const segRO = typeof ResizeObserver !== 'undefined' ? new ResizeObserver((es) => es.forEach((e) => syncSeg(e.target, true))) : null;
+  const seen = new WeakSet();
+  function syncSeg(seg, instant) {
+    const on = seg.querySelector(':scope > button.on');
+    let ind = seg.querySelector(':scope > .seg-ind');
+    if (!on || !on.offsetWidth) { if (ind) { ind.remove(); seg.classList.remove('has-ind'); } return; }
+    const fresh = !ind;
+    if (fresh) { ind = document.createElement('i'); ind.className = 'seg-ind'; seg.prepend(ind); seg.classList.add('has-ind'); }
+    if (fresh || instant || !motion) ind.style.transition = 'none';
+    ind.style.width = `${on.offsetWidth}px`; ind.style.height = `${on.offsetHeight}px`;
+    ind.style.transform = `translate(${on.offsetLeft}px,${on.offsetTop}px)`;
+    if (fresh || instant || !motion) { void ind.offsetWidth; ind.style.transition = ''; }
+    if (segRO && !seen.has(seg)) { seen.add(seg); segRO.observe(seg); }
+  }
+
+  // ④ 표 → 카드
+  function cardify(tbl) {
+    if (tbl.classList.contains('tbl-s') || tbl.classList.contains('tt')) return;
+    const heads = [...tbl.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    if (!heads.length) return;
+    tbl.classList.add('cardify');
+    tbl.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => { if (!td.hasAttribute('data-label')) td.setAttribute('data-label', heads[i] || ''); }));
+  }
+
+  // ⑥ 카운트업
+  function countUp(el) {
+    if (!motion || el.dataset.cu === '1') return;
+    const tn = [...el.childNodes].find((n) => n.nodeType === 3 && /\d/.test(n.nodeValue));
+    if (!tn) return;
+    const m = tn.nodeValue.match(/^(\D*)(\d+)(.*)$/s); if (!m) return;
+    const to = Number(m[2]); if (!to) return;
+    el.dataset.cu = '1';
+    const t0 = performance.now(), D = 600;
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - k, 3);
+      tn.nodeValue = `${m[1]}${Math.round(to * e)}${m[3]}`;
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  let segQ = new Set(), raf = 0;
+  const flush = () => { raf = 0; segQ.forEach((g) => syncSeg(g)); segQ = new Set(); };
+  const queueSeg = (g) => { segQ.add(g); if (!raf) raf = requestAnimationFrame(flush); };
+
+  function scan(root) {
+    if (root.nodeType !== 1) return;
+    // 자리표시 칸 자체에만 (감싸는 상자에는 붙이지 않음)
+    const SK = '.empty,.pa-empty,.sa-empty,.ct-empty,.ch-none,li.empty';
+    if (root.matches?.(SK) && isLoader(root)) root.classList.add('is-skel');
+    root.querySelectorAll?.(SK).forEach((n) => { if (isLoader(n) && !n.querySelector(SK)) n.classList.add('is-skel'); });
+    if (root.matches?.('.seg')) queueSeg(root);
+    root.querySelectorAll?.('.seg').forEach(queueSeg);
+    if (root.matches?.('table.tbl')) cardify(root);
+    root.querySelectorAll?.('table.tbl').forEach(cardify);
+    if (root.closest?.('table.tbl')) cardify(root.closest('table.tbl'));
+  }
+
   new MutationObserver((muts) => {
     for (const m of muts) {
-      if (![...m.removedNodes].some(isLoader)) continue;
-      let i = 0;
-      for (const n of m.addedNodes) {
-        if (n.nodeType !== 1 || isLoader(n)) continue;
-        n.classList.add('fx-in');
-        n.style.animationDelay = `${Math.min(i++, 8) * 40}ms`;
-        n.addEventListener('animationend', () => { n.classList.remove('fx-in'); n.style.animationDelay = ''; }, { once: true });
+      if (m.type === 'attributes') { const g = m.target.closest?.('.seg'); if (g) queueSeg(g); continue; }
+      const g = m.target.closest?.('.seg'); if (g) queueSeg(g);
+      if (m.target.classList?.contains('is-skel') && !isLoader(m.target)) m.target.classList.remove('is-skel');
+      m.addedNodes.forEach(scan);
+      // ① 불러오는 중 자리가 내용으로 바뀌면 살짝 떠오르며 등장 + 숫자 카운트업
+      if (motion && [...m.removedNodes].some(isLoader)) {
+        let i = 0;
+        for (const n of m.addedNodes) {
+          if (n.nodeType !== 1 || isLoader(n)) continue;
+          n.classList.add('fx-in');
+          n.style.animationDelay = `${Math.min(i++, 8) * 40}ms`;
+          n.addEventListener('animationend', () => { n.classList.remove('fx-in'); n.style.animationDelay = ''; }, { once: true });
+          n.querySelectorAll?.('.cu').forEach(countUp);
+          if (n.matches?.('.cu')) countUp(n);
+        }
       }
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  addEventListener('resize', () => document.querySelectorAll('.seg').forEach((g) => syncSeg(g, true)));
+  document.fonts?.ready.then(() => document.querySelectorAll('.seg').forEach((g) => syncSeg(g, true)));
+
+  // ③ 저장 중 표시: 버튼을 누른 직후 그 버튼이 잠기면(disabled) 원이 돌고, 풀리면 사라짐
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest?.('.btn');
+    if (!b || b.disabled) return;
+    setTimeout(() => {
+      if (!b.disabled || !b.isConnected) return;
+      b.classList.add('is-busy');
+      const mo = new MutationObserver(() => { if (!b.disabled) { b.classList.remove('is-busy'); mo.disconnect(); } });
+      mo.observe(b, { attributes: true, attributeFilter: ['disabled'] });
+      setTimeout(() => { b.classList.remove('is-busy'); mo.disconnect(); }, 20000);
+    }, 0);
+  }, true);
+
+  // ⑤ 폰: 입력 칸에 들어가면 키보드 위로 보이게
+  if (matchMedia('(pointer:coarse)').matches) {
+    document.addEventListener('focusin', (e) => {
+      const el = e.target;
+      if (!el.matches?.('input:not([type=checkbox]):not([type=radio]),textarea,select')) return;
+      setTimeout(() => {
+        const r = el.getBoundingClientRect(), vh = window.visualViewport?.height || innerHeight;
+        if (r.bottom > vh - 16 || r.top < 60) el.scrollIntoView({ block: 'center', behavior: motion ? 'smooth' : 'auto' });
+      }, 320);
+    });
+  }
+
+  // ⑥ 긴 글 칸(.textarea)은 내용만큼 자동으로 늘어남 → 잘린 문장 없이 한눈에
+  const grow = (t) => {
+    if (!t.isConnected || !t.classList.contains('textarea') || !t.offsetParent) return;
+    const min = t._minH || (t._minH = t.offsetHeight);
+    t.style.height = 'auto';
+    const h = Math.min(Math.max(t.scrollHeight + 2, min), 420);
+    t.style.height = h + 'px';
+    t.style.overflowY = t.scrollHeight + 2 > 420 ? 'auto' : 'hidden';
+  };
+  document.addEventListener('input', (e) => { if (e.target.tagName === 'TEXTAREA') grow(e.target); });
+  const desc = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  Object.defineProperty(HTMLTextAreaElement.prototype, 'value', {
+    get() { return desc.get.call(this); },
+    set(v) { desc.set.call(this, v); if (this.classList.contains('textarea')) requestAnimationFrame(() => grow(this)); },
+    configurable: true,
+  });
+  new MutationObserver((ms) => {
+    for (const m of ms) for (const n of m.addedNodes) {
+      if (n.nodeType !== 1) continue;
+      const list = n.matches('textarea.textarea') ? [n] : n.querySelectorAll('textarea.textarea');
+      if (list.length) requestAnimationFrame(() => list.forEach(grow));
     }
   }).observe(document.documentElement, { childList: true, subtree: true });
 })();

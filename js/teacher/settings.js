@@ -1,6 +1,6 @@
 // 선생님 · 설정: 선생님 관리 / 교시 시간표(전자칠판) / 학년 올리기
 //  학교별 학사일정(방학 · 시험 · 휴업, 직접 입력)
-import { $, $$, esc, toast, X } from '../ui.js';
+import { $, $$, esc, toast, X, fadeOut } from '../ui.js';
 import { loadStudents } from '../data/students.js';
 import { getPeriods, savePeriods, DEFAULT_PERIODS } from '../data/schedules.js';
 import { loadTeachers, addTeacher, removeTeacher, updateTeacher, changeMyPassword, teacherId, promoteAll, NEXT_GRADE, EVENT_KINDS, loadSchoolEvents, addSchoolEvents, deleteSchoolEvent } from '../data/settings.js';
@@ -87,7 +87,7 @@ export async function renderSettings(body, { me } = {}) {
       let armed = false;
       b.addEventListener('click', async () => {
         if (!armed) { armed = true; b.classList.add('armed'); toast('한 번 더 누르면 삭제됩니다'); setTimeout(() => { armed = false; b.classList.remove('armed'); }, 3000); return; }
-        try { await removeTeacher(b.dataset.rm); toast('삭제되었습니다'); drawTeachers(); } catch (e) { toast('삭제 실패: ' + e.message); }
+        try { await removeTeacher(b.dataset.rm); await fadeOut(b.closest('li')); toast('삭제되었습니다'); drawTeachers(); } catch (e) { toast('삭제 실패: ' + e.message); }
       });
     });
     $('#t-add', el).addEventListener('click', async (e) => {
@@ -221,7 +221,7 @@ export async function renderSettings(body, { me } = {}) {
       let armed = false;
       b.addEventListener('click', async () => {
         if (!armed) { armed = true; b.classList.add('armed'); setTimeout(() => { armed = false; b.classList.remove('armed'); }, 3000); return; }
-        try { await deleteSchoolEvent(b.dataset.del); toast('삭제했습니다'); drawCal(); } catch (x) { toast('삭제 실패: ' + x.message); }
+        try { await deleteSchoolEvent(b.dataset.del); await fadeOut(b.closest('li')); toast('삭제했습니다'); drawCal(); } catch (x) { toast('삭제 실패: ' + x.message); }
       });
     });
   }

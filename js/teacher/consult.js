@@ -1,5 +1,5 @@
 // 상담 화면 (전체 페이지 #/consult?sid=…&on=…): ① 상담 (지난 계획 이행도 → 다음 계획 → 총평) ② 보고 (GPT 정돈 → 학부모 카드 공개)
-import { $, $$, esc, toast, sheet, X } from '../ui.js';
+import { $, $$, esc, toast, sheet, X, flashDone } from '../ui.js';
 import { today, short, addDays } from '../date.js';
 import { refPanel } from './ref-panel.js';
 import { segBar } from '../views/progress-bar.js';
@@ -520,9 +520,10 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       badges = badges.includes(k) ? badges.filter((x) => x !== k) : [...badges, k];
       paintBadges(); preview();
     });
-    $('#rp-copy', pane).addEventListener('click', async () => {
+    $('#rp-copy', pane).addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
       const text = buildPrompt({ student: stu, scheduled, report: r, prevItems: st.d.prevItems, summary: st.summary.trim(), checkItems: st.checkItems });
-      toast((await copy(text)) ? '프롬프트를 복사했습니다' : '복사 실패');
+      if (await copy(text)) { flashDone(btn); toast('프롬프트를 복사했습니다'); } else toast('복사 실패');
     });
 
     const persist = async (extraPatch = {}) => {

@@ -99,7 +99,7 @@ export async function renderParentHome({ students, onLogout }) {
       });
       const vals = its.map((x) => x.pct).filter((v) => v != null);
       const avg = vals.length ? Math.round(vals.reduce((a, v) => a + v, 0) / vals.length) : null;
-      box.innerHTML = `<div class="pa-tt-h"><h3>${students.length > 1 ? `${esc(kid().name)} ` : ''}이번 주 계획</h3><span>${md(plan.start_date)} – ${plan.due_date ? md(plan.due_date) : ''}${avg != null ? ` · 평균 <b>${avg}%</b>` : ''}</span></div>
+      box.innerHTML = `<div class="pa-tt-h"><h3>${students.length > 1 ? `${esc(kid().name)} ` : ''}이번 주 계획</h3><span>${md(plan.start_date)} – ${plan.due_date ? md(plan.due_date) : ''}${avg != null ? ` · 평균 <b class="cu">${avg}%</b>` : ''}</span></div>
         <ul class="pa-its">${its.map((x) => `<li>
           <span class="pa-sub">${esc(x.i.subject)}${x.i.subject_detail ? `<small>${esc(x.i.subject_detail)}</small>` : ''}</span>
           <div class="pa-it-t"><p>${esc(x.i.title)}${x.i.academy ? '<em>학원 숙제</em>' : ''}</p>${x.i.academy ? '' : segBar(x.h, { legend: false })}</div>

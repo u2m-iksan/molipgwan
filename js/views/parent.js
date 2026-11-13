@@ -3,7 +3,7 @@
 //  리포트: 받은 주간 보고를 문자처럼 작게 → 누르면 크게 (← 로 메인)
 import { mount, $, $$, esc, BRAND } from '../ui.js';
 import { sb } from '../sb.js';
-import { short, today, mondayOf } from '../date.js';
+import { short, today, mondayOf, DOW, hm } from '../date.js';
 import { mountReport, BADGES, BADGE_ORDER, badgesOf } from './report-card.js';
 import { openReportViewer } from './report-viewer.js';
 import { weekGrid } from '../teacher/schedule-editor.js';
@@ -59,6 +59,7 @@ export async function renderParentHome({ students, onLogout }) {
     root.innerHTML = `
       <section class="pa-kids2">${students.map(statusHtml).join('')}</section>
       <section class="card pa-tt"><div class="pa-tt-h"><h3>${students.length > 1 ? `${esc(kid().name)} ` : ''}이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span></div>
+        <div class="pa-coach" id="pa-coach" hidden></div>
         <div id="pa-grid"><div class="pa-empty">불러오는 중</div></div></section>
       <button type="button" class="pa-rep" id="pa-rep"><div><b>리포트 확인하기</b><span id="pa-rep-s">주간 학습 보고서</span></div><em>›</em></button>`;
     $('#pa-rep').addEventListener('click', drawReports);
@@ -70,6 +71,11 @@ export async function renderParentHome({ students, onLogout }) {
     try {
       const rows = await loadSched(kid());
       const g = $('#pa-grid'); if (!g || root._view !== token || st.view !== 'home') return;
+      // 고정 상담 시간 (코칭 배정)
+      const t = today();
+      const c = rows.filter((r) => r.category === '코칭' && r.valid_from <= t && (!r.valid_to || r.valid_to >= t)).sort((x, y) => (x.valid_from < y.valid_from ? 1 : -1))[0];
+      const cb = $('#pa-coach');
+      if (cb && c) { cb.hidden = false; cb.innerHTML = `<span>정기 상담</span><b>매주 ${DOW[c.weekday]}요일 ${hm(c.start_time)}</b>`; }
       // 한 화면에 들어오게: 화면 높이에 맞춤
       const h = Math.round(Math.min(480, Math.max(300, innerHeight - g.getBoundingClientRect().top - 200 + scrollY)));
       g.innerHTML = weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true });

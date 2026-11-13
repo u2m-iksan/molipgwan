@@ -45,7 +45,7 @@ export async function renderReports(body, { week } = {}) {
   rows.sort((a, b) => ORDER[a.state] - ORDER[b.state] || (a.on || '').localeCompare(b.on || '') || (Number(a.s.seat_no) || 999) - (Number(b.s.seat_no) || 999));
 
   const n = (k) => rows.filter((x) => x.state === k).length;
-  $('#rp-sum').innerHTML = [['상담 대상', rows.length], ['상담 완료', rows.filter((x) => x.c).length], ['공개 · 미전송', n('pub')], ['전송 완료', n('sent')]]
+  $('#rp-sum').innerHTML = [['상담 대상', rows.length], ['상담 완료', rows.filter((x) => x.c).length], ['공개 · 미전송', n('pub')], ['전송 완료', n('sent')], ['학부모 읽음', rows.filter((x) => x.r?.read_at).length]]
     .map(([k, v], i) => `<div class="${i === 2 && v ? 'hot' : ''}"><span>${k}</span><b>${v}</b></div>`).join('');
 
   const FILTERS = [['전체', () => true], ['미전송', (x) => x.state === 'pub' || x.state === 'draft'], ['상담 전', (x) => x.state === 'wait' || x.state === 'miss'], ['전송 완료', (x) => x.state === 'sent']];
@@ -57,7 +57,7 @@ export async function renderReports(body, { week } = {}) {
     const list = rows.filter(FILTERS.find(([k]) => k === st.f)[1]);
     if (!list.length) { $('#rp-tbl').innerHTML = '<div class="empty">해당하는 학생이 없습니다.</div>'; return; }
     $('#rp-tbl').innerHTML = `<table class="tbl rp-tbl"><thead><tr>
-        <th>자리</th><th>이름</th><th>상담일</th><th>구분</th><th>평균 이행도</th><th>배지</th><th>상태</th><th></th></tr></thead>
+        <th>자리</th><th>이름</th><th>상담일</th><th>구분</th><th>평균 이행도</th><th>배지</th><th>상태</th><th>학부모</th><th></th></tr></thead>
       <tbody>${list.map((x, i) => {
         const [lbl, cls] = STATE[x.state];
         const badges = x.r ? badgesOf(x.r) : [];
@@ -69,6 +69,7 @@ export async function renderReports(body, { week } = {}) {
           <td class="rp-n">${x.avg != null ? `<b class="${x.avg >= 90 ? 'g' : x.avg < 50 ? 'r' : ''}">${x.avg}%</b>` : '-'}</td>
           <td>${badges.length ? badges.map((b) => `<span class="rp-bd">${esc(b)}</span>`).join('') : '-'}</td>
           <td><span class="pill ${cls}">${lbl}</span></td>
+          <td class="rp-n">${x.r?.published_at ? (x.r.read_at ? `<span class="rp-read">읽음 <small>${new Date(new Date(x.r.read_at).getTime() + 9 * 3600e3).toISOString().slice(5, 16).replace('-', '/').replace('T', ' ')}</small></span>` : '<span class="rp-unread">안 읽음</span>') : '-'}</td>
           <td class="act">${x.on ? `<a class="btn btn-gray btn-sm" href="#/consult?sid=${esc(x.s.id)}&on=${x.on}">${x.c ? '열기' : '상담'}</a>` : ''}</td></tr>`;
       }).join('')}</tbody></table>`;
     $$('tr.click', $('#rp-tbl')).forEach((tr) => tr.addEventListener('click', (e) => {

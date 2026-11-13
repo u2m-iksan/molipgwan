@@ -9,6 +9,8 @@ import { renderOverview } from './overview.js';
 import { renderSettings } from './settings.js';
 import { renderPlans } from './plans.js';
 import { renderReports } from './reports.js';
+import { renderChat } from './chat.js';
+import { countTeacherUnread } from '../data/chat.js';
 
 const TABS = [
   { id: 'overview', label: '전체 현황' },
@@ -16,9 +18,10 @@ const TABS = [
   { id: 'coaching', label: '코칭' },
   { id: 'exams', label: '성적' },
   { id: 'reports', label: '학부모 보고' },
+  { id: 'chat', label: '학습 문의' },
   { id: 'settings', label: '설정' },
 ];
-const READY = { students: renderOverview, coaching: renderCoaching, consult: renderConsultPage, exams: renderExams, overview: renderOverview, settings: renderSettings, plans: renderPlans, reports: renderReports };
+const READY = { students: renderOverview, coaching: renderCoaching, consult: renderConsultPage, exams: renderExams, overview: renderOverview, settings: renderSettings, plans: renderPlans, reports: renderReports, chat: renderChat };
 const PARENT = { consult: 'coaching', students: 'overview' };   // 하위 화면 → 메뉴 강조
 const DEFAULT_TAB = 'overview';
 
@@ -56,9 +59,19 @@ export function renderTeacher({ me, onLogout }) {
     if (!body) return;
     body.classList.remove('swap'); void body.offsetWidth; body.classList.add('swap');
     const view = READY[tab];
-    if (view) view(body, { me });
+    body.classList.remove('ch-open');
+    if (view) view(body, { me, onUnread: paintUnread });
     else body.innerHTML = `<div class="card empty"><b>${esc(TABS.find((t) => t.id === tab).label)}</b>준비 중입니다.</div>`;
   }
+
+  // 학습 문의 안 읽은 수 (메뉴 옆 빨간 숫자, 30초마다)
+  async function paintUnread() {
+    const a = document.querySelector('.t-tab[data-tab="chat"]'); if (!a) return;
+    let n = 0; try { n = await countTeacherUnread(); } catch { return; }
+    a.innerHTML = `학습 문의${n ? `<i class="pa-n">${n > 99 ? '99+' : n}</i>` : ''}`;
+  }
+  const ut = setInterval(() => { if (!document.querySelector('.t-app')) return clearInterval(ut); paintUnread(); }, 30000);
+  paintUnread();
 
   window.addEventListener('hashchange', show);
   show();

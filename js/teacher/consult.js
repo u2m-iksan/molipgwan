@@ -479,7 +479,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     $('#rp-big', pane).addEventListener('click', () => openReportViewer({ ...r, ...collect() }, stu));
     const paintState = () => {
       const s = $('#rp-state', pane), p = $('#rp-pub', pane);
-      s.innerHTML = r.sent_at ? '<span class="pill pill-green">전송 완료</span>'
+      s.innerHTML = r.sent_at ? `<span class="pill pill-green">전송 완료</span>${r.read_at ? ' <span class="pill pill-blue">학부모 읽음</span>' : ''}`
         : r.published_at ? '<span class="pill pill-blue">공개됨 · 미전송</span>' : '<span class="pill pill-gray">작성 중</span>';
       p.textContent = r.sent_at ? '안내 문자 다시 복사' : r.published_at ? '전송 완료' : '공개 · 안내 문자 복사';
     };

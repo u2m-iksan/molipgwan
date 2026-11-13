@@ -246,7 +246,7 @@ select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible,.chip-t:foc
 .t-tab{transition:background-color var(--t),color .3s var(--ease-out),transform var(--t-fast) var(--ease-spring)}
 
 /* 탭 전환: 머리줄은 그대로, 본문만 살짝 겹쳐 바뀜 */
-.vt-tab .top{view-transition-name:t-top}
+.vt-tab header.top{view-transition-name:t-top}
 .vt-tab #t-body{view-transition-name:t-body}
 ::view-transition-old(t-top){display:none}
 ::view-transition-new(t-top){animation:none}
@@ -298,3 +298,101 @@ html,body{touch-action:manipulation}
 
 /* 누름 효과는 JS(공통)가 'scale'로 처리 → 예전 :active 축소는 끔 (이중 축소 방지) */
 .btn:active,.role:active,.profile:active,.profile:active .avatar,.chip:active,.stu:active,.msg-bubble:active,.keypad button:active,.keypad button.tap{transform:none}
+
+/* ---------- 로그인: 폰은 카드 없이 화면 전체 흰 바탕 (앱처럼) ---------- */
+.auth .err:not(:empty)::before{content:"!";display:inline-grid;place-items:center;width:15px;height:15px;margin-right:6px;border-radius:50%;background:var(--red);color:#fff;font-size:11px;font-weight:800;vertical-align:-2px}
+.auth .err:not(:empty){animation:errIn var(--t) var(--ease)}
+@media (max-width:480px){
+  .auth{background:#fff;padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));justify-content:center}
+  .auth-card{padding:0 0 8vh;border-radius:0;background:none}
+  .enter .auth-card{animation-name:rise}
+}
+
+/* ---------- 학생 이번주 계획: 카드 안 카드 대신 구분선 목록 ---------- */
+.sa-items{gap:0}
+.sa-item{border:0;border-radius:14px;padding:14px 12px 16px;margin:0 -12px;position:relative;transition:background-color var(--t)}
+.sa-item+.sa-item::before{content:"";position:absolute;top:0;left:12px;right:12px;height:1px;background:var(--line)}
+.sa-item.open{background:#F5F8FD;box-shadow:none}
+.sa-item.open::before,.sa-item.open+.sa-item::before{opacity:0}
+.sa-item-h{margin-bottom:12px}
+.sa-item.ac .sa-item-h{margin-bottom:0}
+.sa-ac-d{border-color:transparent}
+.sa-ac{margin-top:12px}
+/* 로그아웃: 좁은 화면은 아이콘만 */
+.lo-btn svg{display:none;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:480px){
+  .lo-btn{width:34px;padding:0;justify-content:center}
+  .lo-btn svg{display:block}
+  .lo-btn span{display:none}
+  .sa .top-in{padding-left:16px;padding-right:12px}
+  .sa .att-state{font-size:12.5px}
+}
+
+/* ---------- 폰: 일정 창 시간표도 가로 스크롤 없이 한 화면에 (학생 메인과 같은 압축 규칙) ---------- */
+@media (max-width:640px){
+  .wk-scroll{overflow:visible;margin:0;padding:0}
+  .wk-scroll .wk-grid{min-width:0;grid-template-columns:24px repeat(7,minmax(0,1fr));border-radius:10px}
+  .wk-scroll .wk-grid.split{grid-template-columns:24px repeat(5,minmax(0,1fr)) 20px repeat(2,minmax(0,1fr))}
+  .wk-scroll .wk-day{font-size:11.5px;height:40px;flex-direction:column;gap:0;line-height:1.2}
+  .wk-scroll .wk-day span{font-size:10.5px}
+  .wk-scroll .wk-axis .wk-body span{font-size:9.5px;right:3px}
+  .wk-scroll .blk{padding:3px;border-radius:5px}
+  .wk-scroll .blk b{font-size:10px;line-height:1.25;white-space:normal!important;text-overflow:clip;word-break:break-all;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+  .wk-scroll .blk.thin{padding:1px 3px;justify-content:center}
+  .wk-scroll .blk.thin b{-webkit-line-clamp:1;font-size:9px;line-height:1.1}
+  .wk-scroll .blk span{display:none}
+}
+
+/* ---------- 성적 입력: 줄마다 테두리 상자(카드 안 카드) 대신 차분한 입력 줄 ---------- */
+.ex-row{background:none;border:0;padding:0;border-radius:0;gap:6px}
+.ex-row .input{background:var(--field-bg)}
+.ex-row .input:hover{background:var(--field-hover)}
+.ex-row .input:focus-within{background:#fff}
+.ex-rows{gap:10px}
+.ex-rows-h{padding:4px 2px 8px}
+.ex-quick{margin-top:14px}
+@media (max-width:640px){
+  /* 카드형 표: 학년은 이름 옆에 작게 (한 줄 절약) */
+  .tbl.cardify td:nth-child(2):has(+ td[data-label="학년"]){flex:0 1 auto}
+  .tbl.cardify td[data-label="학년"]{flex:1 1 auto;display:flex;flex-direction:row;align-items:center;align-self:center;font-size:13px;color:var(--sub)}
+  .tbl.cardify td[data-label="학년"]::before{display:none}
+}
+/* 학부모 보고 요약: 폰은 한 카드 안에 5칸 촘촘히 (세로 공간 절약) */
+@media (max-width:640px){
+  .rp-sum{grid-template-columns:repeat(5,minmax(0,1fr));gap:0;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px 4px}
+  .rp-sum>div{border:0;background:none;padding:2px 4px;align-items:center;text-align:center;border-radius:0}
+  .rp-sum>div+div{border-left:1px solid var(--line)}
+  .rp-sum span{font-size:11px;line-height:1.25;word-break:keep-all}
+  .rp-sum b{font-size:18px;order:-1}
+}
+/* 교시 시간표: 폰에서 시각이 잘리지 않게 */
+@media (max-width:640px){
+  .per-h,.per-row{grid-template-columns:minmax(56px,1fr) minmax(0,100px) minmax(0,100px) 24px;gap:6px}
+  .per-row .input{padding:0 8px}
+  .per-row input[type=time]{font-size:15px;min-width:0;width:100%}
+}
+.per-row .input{background:var(--field-bg)}
+/* 현황판 순위 1~3위 li.top 이 머리줄(.top) 규칙과 겹치던 것 */
+.lv-rank li.top{position:static;border-bottom:0;-webkit-backdrop-filter:none;backdrop-filter:none;z-index:auto}
+.lv-rank li small{white-space:nowrap}
+.lv-rank li b{overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* 폰: 대화방을 열면 위 제목 줄은 접고 대화에 공간 */
+@media (max-width:820px){
+  #t-body.ch-open>.t-head{display:none}
+  #t-body.ch-open .ch{height:calc(100dvh - 120px)}
+}
+
+/* ---------- 자동 저장 상태 ---------- */
+.save-st{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--faint);white-space:nowrap;animation:fxIn .3s var(--ease-out)}
+.save-st:empty{display:none}
+.save-st i{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.save-st.ing i{animation:skel .7s ease-in-out infinite alternate}
+.save-st.ok{color:#7B8794}.save-st.ok i{background:#12A150}
+.save-st.bad{color:var(--red)}
+
+/* ---------- 상담: 항목마다 테두리 상자 대신 구분선 (카드 안 카드 제거) ---------- */
+.cs-item{background:none;border:0;border-radius:0;padding:2px 0 4px}
+.cs-item+.cs-item{border-top:1px solid var(--line);padding-top:18px;margin-top:8px}
+.cs-item .input{background:var(--field-bg)}
+.cs-item .input:hover{background:var(--field-hover)}
+.cs-item .input:focus-within{background:#fff}

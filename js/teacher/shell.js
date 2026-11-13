@@ -55,7 +55,7 @@ export function renderTeacher({ me, onLogout }) {
   function show() {
     const tab = current();
     $$('.t-tab').forEach((a) => a.classList.toggle('on', a.dataset.tab === (PARENT[tab] || tab)));
-    document.querySelector('.t-tab.on')?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    document.querySelector('.t-tab.on')?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: lastTab === null ? 'instant' : 'smooth' });
     document.body.classList.toggle('has-foot', tab === 'consult');
     const body = $('#t-body');
     if (!body) return;

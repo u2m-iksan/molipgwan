@@ -63,6 +63,18 @@ export function toast(msg, type) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, kind === 'bad' ? 3200 : 2200);
 }
 
+/* 자동 저장 상태 (차분하게): 저장 중 → 저장됨 · 시각 / 실패 */
+export function saveState(el) {
+  const set = (cls, html) => { if (!el) return; el.className = `save-st ${cls}`; el.innerHTML = html; };
+  const hm = () => new Date().toTimeString().slice(0, 5);
+  return {
+    saving: (t = '저장 중') => set('ing', `<i></i>${t}`),
+    saved: (t = '저장됨') => set('ok', `<i></i>${t} · ${hm()}`),
+    failed: (t = '저장 실패') => set('bad', `<i></i>${t}`),
+    clear: () => set('', ''),
+  };
+}
+
 /* 지운 줄이 접히며 사라짐 (끝나면 resolve) */
 export function fadeOut(el) {
   if (!el || !el.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();

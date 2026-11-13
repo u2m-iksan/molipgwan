@@ -102,7 +102,7 @@ export async function renderParentHome({ students, onLogout }) {
       box.innerHTML = `<div class="pa-tt-h"><h3>${students.length > 1 ? `${esc(kid().name)} ` : ''}이번 주 계획</h3><span>${md(plan.start_date)} – ${plan.due_date ? md(plan.due_date) : ''}${avg != null ? ` · 평균 <b class="cu">${avg}%</b>` : ''}</span></div>
         <ul class="pa-its">${its.map((x) => `<li>
           <span class="pa-sub">${esc(x.i.subject)}${x.i.subject_detail ? `<small>${esc(x.i.subject_detail)}</small>` : ''}</span>
-          <div class="pa-it-t"><p>${esc(x.i.title)}${x.i.academy ? '<em>학원 숙제</em>' : ''}</p>${x.i.academy ? '' : segBar(x.h, { legend: false })}</div>
+          <div class="pa-it-t"><p>${esc(x.i.title)}${x.i.academy && x.i.title.trim() !== '학원 숙제' ? '<em>학원 숙제</em>' : ''}</p>${x.i.academy ? '' : segBar(x.h, { legend: false })}</div>
           <b>${x.i.academy ? (x.a.total ? `${x.a.done}/${x.a.total}회` : '-') : `${x.pct}%`}</b></li>`).join('')}</ul>`;
     } catch (e) { box.innerHTML = `<div class="pa-tt-h"><h3>${students.length > 1 ? `${esc(kid().name)} ` : ''}이번 주 계획</h3></div><p class="pa-none">불러오기 실패: ${esc(e.message)}</p>`; }
   }

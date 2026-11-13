@@ -1,5 +1,5 @@
 // 상담 화면 (전체 페이지 #/consult?sid=…&on=…): ① 상담 (지난 계획 이행도 → 다음 계획 → 총평) ② 보고 (GPT 정돈 → 학부모 카드 공개)
-import { $, $$, esc, toast, sheet, X, flashDone } from '../ui.js';
+import { $, $$, esc, toast, sheet, X, flashDone, saveState } from '../ui.js';
 import { today, short, addDays } from '../date.js';
 import { refPanel } from './ref-panel.js';
 import { segBar } from '../views/progress-bar.js';
@@ -76,6 +76,28 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     profile: { goal: stu.goal || '', strong: [...(stu.strong_subjects || [])], weak: [...(stu.weak_subjects || [])], habits: stu.habits?.length ? [...stu.habits] : [''] },
   };
 
+  /* ---------- 작성 중 내용 임시저장 (이 기기) — 다른 화면으로 가거나 창을 닫아도 유실 안 됨 ---------- */
+  const DKEY = `molip-draft:${stu.id}:${scheduled}`;
+  const DFIELDS = ['heldOn', 'absent', 'isNew', 'isLeaving', 'summary', 'checkItems', 'profile', 'prevItems', 'newItems', 'removedIds'];
+  let dTimer = 0, dReady = false;
+  const readDraft = () => { try { return JSON.parse(localStorage.getItem(DKEY) || 'null'); } catch { return null; } };
+  const clearDraft = () => { clearTimeout(dTimer); try { localStorage.removeItem(DKEY); } catch { /* 무시 */ } };
+  const queueDraft = () => {
+    if (!dReady) return;
+    const ss = saveState($('#cs-draft', panel));
+    ss.saving('임시저장 중');
+    clearTimeout(dTimer);
+    dTimer = setTimeout(() => {
+      try {
+        const snap = { ts: Date.now() }; DFIELDS.forEach((k) => { snap[k] = st[k]; });
+        localStorage.setItem(DKEY, JSON.stringify(snap));
+        ss.saved('임시저장됨');
+      } catch { ss.failed('임시저장 실패'); }
+    }, 600);
+  };
+  panel.addEventListener('input', (e) => { if (e.target.closest('#p-c')) queueDraft(); });
+  panel.addEventListener('click', (e) => { if (e.target.closest('#p-c button:not(#cs-save):not([href])')) setTimeout(queueDraft, 0); });
+
   const tabs = $('#cs-tabs', panel);
   function showTab(v) {
     if (v === 'r' && !st.report) return toast('상담을 먼저 저장하세요');
@@ -107,7 +129,14 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       st.prevItems = d.prevItems.map((i) => ({ ...i, final_rate: i.final_rate ?? (i.academy ? acRate(i) : last(i.id)) }));
       st.newItems = d.newItems.map((i) => ({ ...i }));
       if (!d.newPlan) seedAcademy();
+      const dr = readDraft();
+      if (dr && (!c || !c.created_at || dr.ts > Date.parse(c.created_at))) {
+        DFIELDS.forEach((k) => { if (dr[k] !== undefined) st[k] = dr[k]; });
+        toast('작성 중이던 내용을 이어서 불러왔습니다');
+      } else if (dr) clearDraft();
       drawConsult();
+      dReady = true;
+      if (dr && readDraft()) saveState($('#cs-draft', panel)).saved('임시저장됨');
     } catch (e) {
       $('#p-c .cp-body', panel).innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`;
     }
@@ -248,7 +277,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
           <textarea class="textarea" id="cs-sum" rows="4" aria-label="총평" placeholder="상담 내용, 학생 상태, 지도 방향">${esc(st.summary)}</textarea>
         </section>
       </div>
-      <div class="cp-foot"><p class="err" id="cs-err" role="alert"></p><div class="spacer"></div>
+      <div class="cp-foot"><span class="save-st" id="cs-draft"></span><p class="err" id="cs-err" role="alert"></p><div class="spacer"></div>
         <a href="#/coaching" class="btn btn-gray btn-sm">목록</a>
         <button type="button" class="btn btn-primary btn-sm" id="cs-save">저장 · 보고 작성</button></div>`;
     paintKind();
@@ -421,6 +450,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       st.d = await loadConsult(stu.id, scheduled);
       st.coachingId = coachingId; st.report = st.d.report; st.removedIds = []; st.rDrawn = false;
       st.newItems = st.d.newItems.map((i) => ({ ...i }));
+      clearDraft();
       onSaved?.();
       toast('상담이 저장되었습니다');
       drawConsult();
@@ -465,7 +495,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         </div>
       </div>
       <div class="cp-foot">
-        <span id="rp-state"></span><p class="err" id="rp-err" role="alert"></p><div class="spacer"></div>
+        <span id="rp-state"></span><span class="save-st" id="rp-auto"></span><p class="err" id="rp-err" role="alert"></p><div class="spacer"></div>
         <button type="button" class="btn btn-gray btn-sm" id="rp-save">저장</button>
         <button type="button" class="btn btn-primary btn-sm" id="rp-pub"></button>
       </div>`;
@@ -512,13 +542,13 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         $('#rp-parsed', pane).innerHTML = g.feedback.length || g.summary
           ? `과목 ${n}개${g.summary ? ' · 총평' : ''} 반영${miss.length ? ` · <b>${esc(miss.join(', '))}</b>은(는) 과목이 없어 제외` : ''}` : '';
       }
-      preview();
+      preview(); autoSave();
     });
     $('#rp-badge', pane).addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       const k = b.dataset.v;
       badges = badges.includes(k) ? badges.filter((x) => x !== k) : [...badges, k];
-      paintBadges(); preview();
+      paintBadges(); preview(); autoSave();
     });
     $('#rp-copy', pane).addEventListener('click', async (e) => {
       const btn = e.currentTarget;
@@ -526,6 +556,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       if (await copy(text)) { flashDone(btn); toast('프롬프트를 복사했습니다'); } else toast('복사 실패');
     });
 
+    let aTimer = 0;
+    const ss = saveState($('#rp-auto', pane));
     const persist = async (extraPatch = {}) => {
       const err = $('#rp-err', pane); err.textContent = '';
       try {
@@ -534,8 +566,16 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         return true;
       } catch (e) { err.textContent = '저장 실패: ' + e.message; return false; }
     };
-    $('#rp-save', pane).addEventListener('click', async () => { if (await persist()) toast('저장되었습니다'); });
+    $('#rp-save', pane).addEventListener('click', async () => { clearTimeout(aTimer); if (await persist()) { toast('저장되었습니다'); ss.saved(); } });
+    // 공개 전에는 입력을 멈추면 자동 저장 (공개 후에는 학부모 화면이 바뀌므로 직접 저장)
+    function autoSave() {
+      if (r.published_at) return;
+      ss.saving('자동 저장 중');
+      clearTimeout(aTimer);
+      aTimer = setTimeout(async () => { (await persist()) ? ss.saved('자동 저장됨') : ss.failed(); }, 1400);
+    }
     $('#rp-pub', pane).addEventListener('click', async () => {
+      clearTimeout(aTimer);
       if (r.published_at && !r.sent_at) {
         if (await persist({ sent_at: new Date().toISOString() })) toast('전송 완료로 표시했습니다');
         return;

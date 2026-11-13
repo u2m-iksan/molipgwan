@@ -64,12 +64,12 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
               <span class="pill ${CAT_PILL['코칭']}">코칭</span>
               <div class="sched-main">${coach ? `<b>${DOW[coach.weekday]}요일 ${hm(coach.start_time)}~${hm(coach.end_time)}</b>` : '<span class="sub">미배정</span>'}
                 <span class="sub" id="c-warn"></span></div>
+              ${canCoach && coach ? '<button type="button" class="btn btn-sm btn-danger-text" id="c-clear">해제</button>' : ''}
             </div>
             ${canCoach ? `<div class="coach-pick">
               <div class="seg" id="c-day">${[...cfg.days].sort().map((d) => `<button type="button" data-v="${d}">${DOW[d]}</button>`).join('')}</div>
               <div class="input"><select id="c-time" aria-label="코칭 시간"></select></div>
               <button type="button" class="btn btn-primary btn-sm" id="c-save">${coach ? '변경' : '배정'}</button>
-              ${coach ? '<button type="button" class="btn btn-sm btn-danger-text" id="c-clear">해제</button>' : ''}
             </div>` : ''}
           </div>
 
@@ -308,7 +308,7 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
       const top = S.y(toMin(it.start_time)), h = Math.max(16, S.y(toMin(it.end_time)) - top);
       return `<div class="blk blk-${it.category}${it.valid_to ? ' temp' : ''}${h < 40 ? ' thin' : ''}" style="top:${top}px;height:${h - 2}px;left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)"
         title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">
-        <b>${esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title)}</b>${h >= 40 ? `<span>${hm(it.start_time)}~${hm(it.end_time)}</span>` : ''}</div>`;
+        <b>${esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title)}</b>${h >= 40 ? `<span>${hm(it.start_time)}~<wbr>${hm(it.end_time)}</span>` : ''}</div>`;
     }).join('');
     return `<div class="wk-col${date === t ? ' today-col' : ''}${d === 6 && !split ? ' wk-wkend' : ''}">
       <div class="wk-day">${DOW[d]}<span>${Number(date.slice(8))}</span></div>

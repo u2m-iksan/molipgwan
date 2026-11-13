@@ -25,7 +25,7 @@ export async function renderStudentHome({ student, onLogout }) {
     <header class="top"><div class="top-in">${BRAND}<div class="spacer"></div>
       <div class="sa-att" id="att"></div>
       <span class="chip">${esc(student.name)}</span>
-      <button type="button" class="chip muted" id="lo">로그아웃</button></div></header>
+      <button type="button" class="chip muted lo-btn" id="lo" aria-label="로그아웃"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg><span>로그아웃</span></button></div></header>
     <div class="sa-mtop">
       <button type="button" class="sa-today" id="today"><span class="sa-today-l"><i></i>오늘 공부시간</span><b id="today-t">0분</b><em>›</em></button>
       <div class="sa-sum" id="sum">
@@ -229,7 +229,7 @@ ${SUM}
           return `<li class="sa-item ac" data-id="${esc(i.id)}">
             <div class="sa-item-h">
               <span class="sa-sub">${esc(i.subject)}${i.subject_detail ? `<small>${esc(i.subject_detail)}</small>` : ''}</span>
-              <span class="sa-title">${esc(i.title)}<small>학원 숙제 · 학원 간 날 해갔는지 체크</small></span>
+              <span class="sa-title">${esc(i.title)}${i.title.trim() === '학원 숙제' ? '' : '<em class="pl-ac">학원 숙제</em>'}</span>
               <b class="sa-pct">${a.total ? `${a.done}/${a.total}회` : '-'}</b>
             </div>
             <div class="sa-ac">${a.dates.length ? a.dates.map((d) => {

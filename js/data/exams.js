@@ -9,8 +9,19 @@ import { today } from '../date.js';
 export const EXAM_TYPES = ['3월 모의', '1학기 중간', '6월 모의', '1학기 기말', '9월 모의', '2학기 중간', '10월 모의', '2학기 기말'];
 export const NAESIN = ['1학기 중간', '1학기 기말', '2학기 중간', '2학기 기말'];
 export const MOCK = ['3월 모의', '6월 모의', '9월 모의', '10월 모의'];
-export const isMock = (t) => MOCK.includes(t);
-export const examOrder = (a, b) => (a.school_year - b.school_year) || (EXAM_TYPES.indexOf(a.exam_type) - EXAM_TYPES.indexOf(b.exam_type));
+// 기본 시험은 1·2학기 중간·기말 4개. 그 밖의 시험은 선생님이 이름을 지어 추가 (이름에 '모의'가 있으면 모의고사형)
+export const BASIC = NAESIN;
+export const isMock = (t) => MOCK.includes(t) || /모의/.test(t || '');
+// 학년도 안의 순서: 기본/알려진 시험은 정해진 시기, 직접 추가한 시험은 시험일(없으면 입력일) 기준 (3월 = 1 … 2월 = 12)
+const KNOWN_AT = { '3월 모의': 1.0, '1학기 중간': 2.3, '6월 모의': 4.0, '1학기 기말': 4.8, '9월 모의': 7.0, '2학기 중간': 8.0, '10월 모의': 8.5, '2학기 기말': 10.0 };
+const at = (e) => {
+  if (KNOWN_AT[e.exam_type] != null) return KNOWN_AT[e.exam_type];
+  const d = e.taken_on || (e.created_at || '').slice(0, 10);
+  if (!d) return 11.5;
+  const m = Number(d.slice(5, 7)), day = Number(d.slice(8, 10));
+  return ((m + 9) % 12) + 1 + day / 31 - 1;   // 3월 → 1.x, 2월 → 12.x
+};
+export const examOrder = (a, b) => (a.school_year - b.school_year) || (at(a) - at(b)) || String(a.exam_type).localeCompare(String(b.exam_type), 'ko');
 
 const check = (r) => { if (r.error) throw r.error; return r.data || []; };
 
@@ -24,8 +35,7 @@ export function schoolYear(d = today()) {
 export function recentExam(d = today()) {
   const m = Number(d.slice(5, 7));
   if (m <= 2 || m === 12) return '2학기 기말';
-  if (m <= 4) return '3월 모의';
-  if (m === 5) return '1학기 중간';
+  if (m <= 5) return '1학기 중간';
   if (m <= 8) return '1학기 기말';
   return '2학기 중간';
 }
@@ -74,9 +84,10 @@ export async function loadStudentSubjects(sid) {
 }
 
 // 저장: 시험(학생·학년도·시험) 1건 + 과목 성적 전체 교체
-export async function saveExam({ id, student_id, school_year, grade, exam_type, feedback, scores }) {
+export async function saveExam({ id, student_id, school_year, grade, exam_type, feedback, scores, taken_on }) {
   let examId = id;
   const row = { student_id, school_year, grade, exam_type, feedback: feedback || null };
+  if (taken_on !== undefined) row.taken_on = taken_on || null;
   if (examId) check(await sb.from('exams').update(row).eq('id', examId));
   else examId = check(await sb.from('exams').insert(row).select('id').single()).id;
   check(await sb.from('exam_scores').delete().eq('exam_id', examId));
@@ -155,4 +166,12 @@ export function subjectChange(s, type, prev) {
   const k = d > 0 || (d === 0 && raw > 0) ? 'up' : d < 0 || (d === 0 && raw < 0) ? 'down' : 'same';
   const same = d === 0 && raw != null && pm.unit !== '점';
   return { from: same ? `${p.raw_score}점` : pm.text, to: same ? `${s.raw_score}점` : m.text, k };
+}
+
+// 그 학년도에 쓰인 시험 이름 (기본 4개 + 누군가 추가한 시험) — 순서대로
+export function examNames(allMap, year) {
+  const seen = new Map();
+  BASIC.forEach((t) => seen.set(t, { school_year: year, exam_type: t }));
+  for (const list of allMap.values()) for (const e of list) if (e.school_year === year && !seen.has(e.exam_type)) seen.set(e.exam_type, e);
+  return [...seen.values()].sort(examOrder).map((e) => e.exam_type);
 }

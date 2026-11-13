@@ -565,3 +565,17 @@ button:disabled{cursor:default}
   .ex-line .ex-sub{grid-area:sub}.ex-line .ex-det{grid-area:det}.ex-line .ex-raw{grid-area:raw}.ex-line .ex-v{grid-area:val}
   .ex-line .ex-acts{grid-area:acts;grid-column:auto}
 }
+/* 시험 추가 */
+.xp-tag{font-style:normal;font-size:11.5px;font-weight:700;color:var(--sub);background:#F2F4F6;padding:2px 7px;border-radius:6px}
+.xp-more{width:100%;display:flex;align-items:center;justify-content:center;gap:6px;height:48px;margin-top:8px;border-radius:12px;border:1.5px dashed #D5DAE0;color:var(--sub);font-size:14px;font-weight:700}
+.xp-more span{font-size:18px;font-weight:600;line-height:1}
+.xp-more:hover{border-color:#B0B8C1;color:var(--text);background:#FAFBFC}
+.xp-add{margin-top:12px;padding:16px;border-radius:14px;background:#F6F7F9;display:flex;flex-direction:column;gap:12px}
+.xp-add .input{background:#fff}
+.xp-add .field{margin:0}
+.xp-add label small{font-weight:500;color:var(--faint)}
+.xp-add-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:end}
+.xp-add-acts{display:flex;justify-content:flex-end;gap:8px}
+.xp-add .err:empty{display:none}
+@media (max-width:480px){ .xp-add-row{grid-template-columns:minmax(0,1fr)} }
+.ex-types{flex-wrap:wrap;max-width:100%}

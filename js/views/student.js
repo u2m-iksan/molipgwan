@@ -1,4 +1,5 @@
-// 학생 앱 (태블릿 가로 우선): 위 = 등원 체크 · 이름 / 왼쪽 = 시간표 / 오른쪽 = 이번 계획 + 오늘 진행률 / 오른쪽 아래 = 스톱워치
+// 학생 앱 (태블릿 가로 우선): 위 = 등원 체크 · 이름 / 왼쪽 = 시간표 / 오른쪽 = 이번주 계획 + 오늘 진행률 / 오른쪽 아래 = 스톱워치
+// 폰: 오늘 공부시간(누르면 스톱워치) + [시간표 | 이번주 계획] 옆으로 넘기기, 세로 스크롤 없음
 import { mount, $, $$, esc, toast, sheet, BRAND, X } from '../ui.js';
 import { DOW, today, mondayOf, short, isoDow, toMin, toTime, hm } from '../date.js';
 import { loadStudentSchedules } from '../data/schedules.js';
@@ -21,7 +22,11 @@ export async function renderStudentHome({ student, onLogout }) {
       <div class="sa-att" id="att"></div>
       <span class="chip">${esc(student.name)}</span>
       <button type="button" class="chip muted" id="lo">로그아웃</button></div></header>
-    <main class="sa-main">
+    <div class="sa-mtop">
+      <button type="button" class="sa-today" id="today"><span class="sa-today-l"><i></i>오늘 공부시간</span><b id="today-t">0분</b><em>›</em></button>
+      <div class="sa-pg" id="pg"><button type="button" data-p="0" class="on">시간표</button><button type="button" data-p="1">이번주 계획</button></div>
+    </div>
+    <main class="sa-main" id="sam">
       <section class="card sa-tt" id="tt"><div class="empty">불러오는 중</div></section>
       <section class="card sa-plan" id="plan"><div class="empty">불러오는 중</div></section>
     </main>
@@ -126,11 +131,6 @@ export async function renderStudentHome({ student, onLogout }) {
       let lastKey = '';
       const draw = () => {
         if (root._view !== token || !$('#tt')) return;
-        // 폰(세로): 시간표 카드를 화면 높이에 고정 → 스크롤 없이 한 화면
-        if (innerWidth <= 820) {
-          const top = $('.top', root)?.offsetHeight || 56;
-          el.style.height = `${innerHeight - top - 24}px`;
-        } else el.style.height = '';
         const key = `${el.clientWidth}x${el.clientHeight}`;
         if (key === lastKey && el.querySelector('.wk-grid')) return;   // 크기 그대로면 다시 그리지 않음
         lastKey = key;
@@ -165,11 +165,11 @@ export async function renderStudentHome({ student, onLogout }) {
   function drawPlan() {
     const el = $('#plan');
     if (!st.plan) {
-      el.innerHTML = '<div class="sa-h"><h3>이번 계획</h3></div><div class="sa-empty"><b>진행 중인 계획이 없습니다.</b>상담에서 계획을 세웁니다.</div>';
+      el.innerHTML = '<div class="sa-h"><h3>이번주 계획</h3></div><div class="sa-empty"><b>진행 중인 계획이 없습니다.</b>상담에서 계획을 세웁니다.</div>';
       return;
     }
     const p = st.plan;
-    el.innerHTML = `<div class="sa-h"><h3>이번 계획</h3><span>${md(p.start_date)} – ${p.due_date ? md(p.due_date) : ''}</span></div>
+    el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3><span>${md(p.start_date)} – ${p.due_date ? md(p.due_date) : ''}</span></div>
       <ul class="sa-items">${st.items.map((i) => {
         const open = st.open === i.id, tp = todayPct(i.id);
         return `<li class="sa-item${open ? ' open' : ''}" data-id="${esc(i.id)}">
@@ -201,8 +201,18 @@ export async function renderStudentHome({ student, onLogout }) {
   });
 
   /* ---------- 스톱워치 버튼 ---------- */
-  async function loadSess() { try { st.sess = (await loadSessions(student.id)).active; } catch { st.sess = null; } paintFab(); }
+  async function loadSess() {
+    try { const r = await loadSessions(student.id); st.sess = r.active; st.doneSec = r.doneSec; } catch { st.sess = null; }
+    paintFab();
+  }
   function paintFab() {
+    // 폰: 위쪽 "오늘 공부시간" (오늘 누적 = 끝난 세션 + 지금 세션)
+    const tt = $('#today-t');
+    if (tt) {
+      const sec = (st.doneSec || 0) + (st.sess ? elapsedSec(st.sess) : 0);
+      tt.textContent = st.sess && !st.sess.paused_at ? clock(sec) : `${Math.floor(sec / 3600)}시간 ${Math.floor(sec / 60) % 60}분`;
+      $('#today').classList.toggle('on', !!st.sess && !st.sess.paused_at);
+    }
     const f = $('#fab'); if (!f) return;
     f.classList.toggle('on', !!st.sess && !st.sess.paused_at);
     $('#fab-t').textContent = st.sess ? clock(elapsedSec(st.sess)) : '';
@@ -212,6 +222,14 @@ export async function renderStudentHome({ student, onLogout }) {
     planSubjects: [...new Set(st.items.map((i) => i.subject))], onChange: () => { swOpen = false; loadSess(); },
   }); };
   $('#fab').addEventListener('click', openSW);
+  $('#today').addEventListener('click', openSW);
+  // 폰: 시간표 | 이번주 계획 옆으로 넘기기
+  const sam = $('#sam'), pg = $('#pg');
+  pg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) sam.scrollTo({ left: Number(b.dataset.p) * sam.clientWidth, behavior: 'smooth' }); });
+  sam.addEventListener('scroll', () => {
+    const i = Math.round(sam.scrollLeft / Math.max(1, sam.clientWidth));
+    $$('button', pg).forEach((b) => b.classList.toggle('on', Number(b.dataset.p) === i));
+  }, { passive: true });
   // 2시간 확인 시점이 되면 스톱워치를 자동으로 열어 확인 팝업 표시
   const t = setInterval(() => {
     if (root._view !== token || !document.body.contains(root)) return clearInterval(t);

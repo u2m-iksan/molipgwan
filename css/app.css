@@ -906,8 +906,12 @@ body.has-foot .toast{bottom:92px}
 .sa-fab span:empty{display:none}
 .sa-fab.on{background:#12A150}
 @media (max-width:820px){
-  .sa{height:auto;min-height:100dvh}
-  .sa-main{grid-template-columns:1fr;padding:12px}
+  .sa{height:100dvh;overflow:hidden}
+  .sa-mtop{display:flex;flex-direction:column;gap:10px;padding:12px 12px 0}
+  .sa-main{display:flex;gap:0;padding:10px 0 12px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .sa-main::-webkit-scrollbar{display:none}
+  .sa-main>.card{flex:0 0 calc(100% - 24px);margin:0 12px;scroll-snap-align:center;height:100%}
+  .sa-fab{display:none}
   .sa-tt{overflow:hidden;padding:12px 10px 10px!important}
   .sa-tt .sa-h{padding:0 4px}
   .sa-tt .wk-grid{min-width:0;grid-template-columns:24px repeat(7,minmax(0,1fr));border-radius:10px}
@@ -919,6 +923,7 @@ body.has-foot .toast{bottom:92px}
   .sa-tt .blk.thin b{-webkit-line-clamp:1;font-size:9.5px}
   .sa-tt .wk-axis .wk-body span:last-child{display:none}
   .sa-tt .blk span{display:none}
+  .sa-plan{overflow-y:auto}
   .sa-steps{grid-template-columns:repeat(6,minmax(0,1fr))}
 }
 
@@ -1215,3 +1220,16 @@ body.has-foot .toast{bottom:92px}
 @media (max-width:900px){.set-grid{grid-template-columns:1fr}.grade-flow{grid-template-columns:repeat(2,1fr)}.row3{grid-template-columns:1fr}}
 .lv-s.ret{opacity:.5;border-style:dashed}
 .lv-s.ret .lv-pill{background:rgba(110,168,255,.12);color:#6EA8FF}
+
+/* 폰: 오늘 공부시간 + 시간표/계획 넘기기 (태블릿·PC에서는 숨김) */
+@media (min-width:821px){.sa-mtop{display:none}}
+.sa-today{display:flex;align-items:center;gap:10px;width:100%;padding:14px 18px;border-radius:16px;background:#191F28;color:#fff;text-align:left}
+.sa-today-l{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#B0B8C1}
+.sa-today-l i{width:8px;height:8px;border-radius:4px;background:#6B7684}
+.sa-today.on .sa-today-l i{background:#3DDC84;animation:lvPulse 1.6s ease-in-out infinite}
+.sa-today b{margin-left:auto;font-size:22px;font-weight:800;font-feature-settings:"tnum";letter-spacing:-.01em}
+.sa-today.on b{color:#3DDC84}
+.sa-today em{font-style:normal;font-size:20px;color:#6B7684;margin-left:2px}
+.sa-pg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:12px;background:#EBEEF2}
+.sa-pg button{height:34px;border-radius:9px;font-size:14px;font-weight:700;color:var(--sub);transition:background .15s,color .15s}
+.sa-pg button.on{background:#fff;color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}

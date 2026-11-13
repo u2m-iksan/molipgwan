@@ -469,3 +469,7 @@ html,body{touch-action:manipulation}
 .sp-row+.sp-row{border-top:1px solid var(--line)}
 .sp-row .input{background:var(--field-bg)}
 .sp-row .input:focus-within{background:#fff}
+/* 학생 폰 [시간표 | 이번주 계획]: 선택 표시가 넘기는 손가락을 따라감 */
+.sa-pg{position:relative}
+.sa-pg>button{position:relative;z-index:1;background:none!important;box-shadow:none!important;transition:color .2s}
+.sa-pg-ind{position:absolute;left:0;top:4px;bottom:4px;border-radius:9px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);will-change:transform}

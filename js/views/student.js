@@ -340,10 +340,21 @@ ${SUM}
   // 폰: 시간표 | 이번주 계획 옆으로 넘기기
   const sam = $('#sam'), pg = $('#pg');
   pg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) sam.scrollTo({ left: Number(b.dataset.p) * sam.clientWidth, behavior: 'smooth' }); });
+  // 폰: 흰 선택 표시가 손가락으로 넘기는 만큼 실시간으로 따라 움직임
+  const ind = document.createElement('i'); ind.className = 'sa-pg-ind'; pg.prepend(ind);
+  const follow = () => {
+    const max = Math.max(1, sam.scrollWidth - sam.clientWidth), k = Math.min(1, Math.max(0, sam.scrollLeft / max));
+    const b0 = pg.querySelector('[data-p="0"]'), b1 = pg.querySelector('[data-p="1"]');
+    if (!b0?.offsetWidth) return;
+    ind.style.width = `${b0.offsetWidth}px`;
+    ind.style.transform = `translateX(${b0.offsetLeft + (b1.offsetLeft - b0.offsetLeft) * k}px)`;
+  };
   sam.addEventListener('scroll', () => {
     const i = Math.round(sam.scrollLeft / Math.max(1, sam.clientWidth));
     $$('button', pg).forEach((b) => b.classList.toggle('on', Number(b.dataset.p) === i));
+    follow();
   }, { passive: true });
+  addEventListener('resize', follow); requestAnimationFrame(follow);
   // 2시간 확인 시점이 되면 스톱워치를 자동으로 열어 확인 팝업 표시
   const t = setInterval(() => {
     if (root._view !== token || !document.body.contains(root)) return clearInterval(t);

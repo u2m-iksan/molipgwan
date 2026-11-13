@@ -182,6 +182,7 @@ export function reportSubjects(report) {
 }
 
 export function buildPrompt({ student, scheduled, report, prevItems, summary, checkItems }) {
+  if (report.stats?.is_new) return buildNewPrompt({ student, scheduled, report, summary });
   const subs = reportSubjects(report);
   const lines = [];
   lines.push('아래는 학원 학습 코칭 상담 기록입니다. 학부모에게 보낼 문장으로 정돈해 주세요.');
@@ -213,6 +214,38 @@ export function buildPrompt({ student, scheduled, report, prevItems, summary, ch
   lines.push(`선생님 총평 원문: ${summary || '(없음)'}`);
   if (checkItems.length) lines.push(`다음 점검사항: ${checkItems.join(' / ')}`);
   return lines.join('\n');
+}
+
+// 신규생 상담: 총평 하나만 (과목별 앞으로의 공부 방향 중심)
+function buildNewPrompt({ student, scheduled, report, summary }) {
+  const P = report.stats?.profile || {};
+  const L = [];
+  L.push('아래는 학원 신규생 첫 상담 기록입니다. 학부모에게 보낼 총평으로 정돈해 주세요.');
+  L.push('');
+  L.push('[규칙]');
+  L.push('- 아래 출력 형식 그대로만 답합니다. 머리말·맺음말·꾸밈 기호를 넣지 않습니다.');
+  L.push('- 선생님 메모에 적힌 과목별 앞으로의 공부 방향이 과목마다 분명히 드러나게 씁니다.');
+  L.push('- 학생 목표와 자신 있는 과목·보완할 과목, 만들어 갈 공부 습관을 자연스럽게 연결합니다.');
+  L.push('- 분량은 내용에 맞게 정하되 한 문단으로, 읽기 편하게 씁니다.');
+  L.push('- 학부모께 드리는 정중한 존댓말(~습니다)로 씁니다. 이모지·과장 표현을 쓰지 않습니다.');
+  L.push('- 기록에 없는 내용을 지어내지 않습니다. 인사말과 "감사합니다" 같은 맺음말은 넣지 않습니다.');
+  L.push('');
+  L.push('[출력 형식]');
+  L.push('[총평] 총평');
+  L.push('');
+  L.push('[상담 기록]');
+  L.push(`학생: ${student.name} (${student.grade})`);
+  L.push(`상담일: ${short(scheduled)} · 신규생 첫 상담`);
+  if (P.goal) L.push(`학생 목표: ${P.goal}`);
+  if (P.strong_subjects?.length) L.push(`자신 있는 과목: ${P.strong_subjects.join(', ')}`);
+  if (P.weak_subjects?.length) L.push(`보완할 과목: ${P.weak_subjects.join(', ')}`);
+  if (P.habits?.length) L.push(`몰입관에서 만들 공부 습관: ${P.habits.join(' / ')}`);
+  if (report.next_plan?.length) {
+    L.push('다음 주 계획:');
+    for (const i of report.next_plan) L.push(`- ${i.subject}${i.detail ? `(${i.detail})` : ''} | ${i.title}`);
+  }
+  L.push(`선생님 메모 (과목별 앞으로의 공부 방향): ${summary || '(없음)'}`);
+  return L.join('\n');
 }
 
 // "[국어] …" 형식 → { feedback:[{subject,text}], summary }

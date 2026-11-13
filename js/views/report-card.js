@@ -98,7 +98,6 @@ export function reportCard(r, student) {
 function newReportCard(r, student) {
   const P = r.stats.profile || {};
   const plan = r.next_plan || [];
-  const fb = (r.subject_feedback || []).filter((x) => x.text);
   const habits = (P.habits || []).filter(Boolean);
   const tile = (cls, label, v, icon) => `<div class="wr-tile ${cls}"><span class="wr-tile-ic"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg></span>
     <small>${label}</small><b>${v ? esc(v) : '-'}</b></div>`;
@@ -118,8 +117,6 @@ function newReportCard(r, student) {
         <ol class="wr-habits">${habits.map((h, i) => `<li><b>${i + 1}</b><span>${esc(h)}</span></li>`).join('')}</ol></section>` : ''}
       ${plan.length ? `<section class="wr-sec"><h4>다음 주 계획</h4>
         <ul class="wr-fb">${plan.map((x) => `<li><b>${esc(x.subject)}${x.detail ? `<small>${esc(x.detail)}</small>` : ''}</b><span>${esc(x.title)}</span></li>`).join('')}</ul></section>` : ''}
-      ${fb.length ? `<section class="wr-sec"><h4>과목별 상담 내용</h4>
-        <ul class="wr-fb">${fb.map((x) => `<li><b>${esc(x.subject)}</b><span>${esc(x.text)}</span></li>`).join('')}</ul></section>` : ''}
       ${r.summary ? `<section class="wr-sec"><h4>총평</h4><p class="wr-sum">${esc(r.summary)}</p></section>` : ''}
     </main>
   </article>`;

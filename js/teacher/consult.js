@@ -374,9 +374,10 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   /* ---------- ② 보고 ---------- */
   function drawReport() {
     const r = st.report;
-    const subs = reportSubjects(r);
+    const isNew = !!r.stats?.is_new;
+    const subs = isNew ? [] : reportSubjects(r);   // 신규생은 총평만
     const fbOf = (s) => (r.subject_feedback || []).find((x) => x.subject === s)?.text || '';
-    const extra = (r.subject_feedback || []).filter((x) => !subs.includes(x.subject));
+    const extra = isNew ? [] : (r.subject_feedback || []).filter((x) => !subs.includes(x.subject));
     const pane = $('#p-r', panel);
     // 배지: 처음 열 때 자동 판정(이행도·순공시간·기록 일수) → 선생님이 끄고 켤 수 있음
     let badges = r.stats ? [...badgesOf(r)] : [];
@@ -384,7 +385,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       <div class="cp-body">
         <div class="rp-cols">
           <div class="rp-edit">
-            <div class="rp-step"><span class="num">1</span><div class="grow"><b>프롬프트 복사</b><p class="sub-s">GPT에 붙여넣으면 과목별 피드백과 총평이 정돈됩니다.</p></div>
+            <div class="rp-step"><span class="num">1</span><div class="grow"><b>프롬프트 복사</b><p class="sub-s">${isNew ? 'GPT에 붙여넣으면 신규생 총평이 정돈됩니다.' : 'GPT에 붙여넣으면 과목별 피드백과 총평이 정돈됩니다.'}</p></div>
               <button type="button" class="btn btn-gray btn-sm" id="rp-copy">복사</button></div>
             <div class="rp-step col"><div class="rp-step-h"><span class="num">2</span><b>GPT 결과 붙여넣기</b></div>
               <textarea class="textarea mono" id="rp-paste" rows="4" placeholder="[국어] …&#10;[총평] …"></textarea>
@@ -393,7 +394,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
               ${[...subs, ...extra.map((x) => x.subject)].map((s) => `
                 <div class="field"><label>${esc(s)}<span class="opt">2문장 이내</span></label>
                   <textarea class="textarea" rows="2" data-fb="${esc(s)}">${esc(fbOf(s))}</textarea></div>`).join('')}
-              <div class="field"><label for="rp-sum">총평<span class="opt">3문장 이내</span></label>
+              <div class="field"><label for="rp-sum">총평<span class="opt">${isNew ? '과목별 공부 방향 · 분량 자유' : '3문장 이내'}</span></label>
                 <textarea class="textarea" id="rp-sum" rows="3">${esc(r.summary || '')}</textarea></div>
               <div class="field"><span class="lbl">배지<span class="opt">자동 판정 · 눌러서 끄고 켜기</span></span>
                 <div class="chips" id="rp-badge">${BADGE_ORDER.map((k) => `<button type="button" class="chip-t" data-v="${k}">${k}</button>`).join('')}</div>

@@ -44,7 +44,7 @@ export async function loadStudentSchedules(studentId) {
 export function groupSchedules(rows) {
   const map = new Map();
   for (const r of rows) {
-    const k = [r.category, r.title, r.subject ?? '', hm(r.start_time), hm(r.end_time), r.valid_from, r.valid_to].join('|');
+    const k = [r.category, r.title, r.subject ?? '', r.subject_detail ?? '', hm(r.start_time), hm(r.end_time), r.valid_from, r.valid_to].join('|');
     if (!map.has(k)) map.set(k, { ...r, ids: [], weekdays: [] });
     const g = map.get(k); g.ids.push(r.id); g.weekdays.push(r.weekday);
   }
@@ -52,13 +52,13 @@ export function groupSchedules(rows) {
 }
 
 // period: 'always' | 'week' | 'range'
-export async function addSchedule({ student_id, category, title, weekdays, start, end, period, from, to, subject = null }) {
+export async function addSchedule({ student_id, category, title, weekdays, start, end, period, from, to, subject = null, subject_detail = null }) {
   let valid_from = today(), valid_to = null;
   if (period === 'week') { valid_from = mondayOf(today()); valid_to = addDays(valid_from, 6); }
   if (period === 'range') { valid_from = from; valid_to = to; }
   const rows = weekdays.map((weekday) => ({
     student_id, category, title: title.trim(), weekday, start_time: start, end_time: end, valid_from, valid_to,
-    ...(subject != null ? { subject } : {}),
+    ...(subject != null ? { subject } : {}), ...(subject_detail ? { subject_detail } : {}),
   }));
   check(await sb.from('schedules').insert(rows));
 }

@@ -1258,3 +1258,8 @@ body.has-foot .toast{bottom:92px}
 .sa-ac-d.no{background:#FDECEE;border-color:#F6CDD2}.sa-ac-d.no b{color:#E5323F}
 .sa-ac-d:disabled{opacity:.5}
 .sa-ac-none{font-size:13px;color:var(--faint)}
+.sched-sub.none{background:var(--bg2,#F2F4F6);color:var(--sub)}
+.sub-det{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line,#E5E8EB)}
+.ac-fb{display:grid;gap:8px}
+.wr-ac{display:block;font-style:normal;font-size:11px;font-weight:600;color:var(--blue-dark,#1B64DA);margin:-2px 0 5px}
+.ac-fb .input em{font-style:normal;flex:none;margin-right:8px;font-size:12px;font-weight:700;color:var(--sub)}

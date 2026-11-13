@@ -86,7 +86,7 @@ export async function saveConsult(s, me) {
 
   // 1) 지난 계획: 최종 이행률 기록, 마감 (결석이면 마감하지 않음 → 계획이 다음 상담까지 이어짐)
   for (const it of s.prevItems) {
-    check(await sb.from('plan_items').update({ final_rate: it.final_rate ?? null, final_note: it.final_note || null }).eq('id', it.id));
+    check(await sb.from('plan_items').update({ final_rate: it.final_rate ?? null, final_note: it.final_note || null, ...(it.academy ? { academy_progress: it.academy_progress?.trim() || null } : {}) }).eq('id', it.id));
   }
   if (s.prevPlan && !s.absent && s.prevPlan.status !== '마감') {
     check(await sb.from('plans').update({ status: '마감', closed_at: new Date().toISOString() }).eq('id', s.prevPlan.id));
@@ -134,7 +134,11 @@ export async function saveConsult(s, me) {
   }, { onConflict: 'student_id,scheduled_on' }).select('id').single());
 
   // 4) 보고 (숫자·계획은 저장 시점으로 고정)
-  const rates = s.prevItems.map((i) => ({ subject: i.subject, detail: i.subject_detail || '', title: i.title, rate: i.final_rate ?? null }));
+  // 학원 숙제 항목: 해간 횟수 · 학원 진도 · 피드백도 함께 (학부모 보고에 표시)
+  const rates = s.prevItems.map((i) => ({
+    subject: i.subject, detail: i.subject_detail || '', title: i.title, rate: i.final_rate ?? null,
+    ...(i.academy ? { academy: { done: i.acStat?.done ?? null, total: i.acStat?.total ?? null, progress: i.academy_progress?.trim() || '', note: i.final_note?.trim() || '' } } : {}),
+  }));
   const next_plan = s.newItems.map((i) => ({ subject: i.subject, detail: i.subject_detail || '', title: i.title.trim() }));
   check(await sb.from('reports').upsert({
     coaching_id: coaching.id, student_id: sid,
@@ -204,7 +208,11 @@ export function buildPrompt({ student, scheduled, report, prevItems, summary, ch
     lines.push('지난 계획 이행도:');
     for (const i of prevItems) {
       const sub = i.subject + (i.subject_detail ? `(${i.subject_detail})` : '');
-      lines.push(`- ${sub} | ${i.title} | ${i.final_rate ?? '-'}%${i.final_note ? ` | ${i.final_note}` : ''}`);
+      if (i.academy) {
+        const ra = (report.rates || []).find((x) => x.subject === i.subject && x.title === i.title)?.academy;
+        const st = ra?.total ? `학원 숙제 ${ra.done}/${ra.total}회 해감` : '학원 숙제';
+        lines.push(`- ${sub} | ${i.title} | ${st}${i.academy_progress ? ` | 학원 진도: ${i.academy_progress}` : ''}${i.final_note ? ` | 선생님 메모: ${i.final_note}` : ''}`);
+      } else lines.push(`- ${sub} | ${i.title} | ${i.final_rate ?? '-'}%${i.final_note ? ` | ${i.final_note}` : ''}`);
     }
   } else lines.push('지난 계획 이행도: 없음 (신규생)');
   if (report.next_plan?.length) {

@@ -47,6 +47,12 @@ function ring(avg) {
 }
 
 /* ---------- 보고서 ---------- */
+// 학원 숙제 항목: 해간 횟수 · 학원 진도
+const acLine = (x) => {
+  const a = x.academy; if (!a) return '';
+  const parts = [a.total ? `학원 숙제 ${a.done}/${a.total}회` : '학원 숙제', a.progress ? `진도 ${a.progress}` : ''].filter(Boolean);
+  return `<em class="wr-ac">${esc(parts.join(' · '))}</em>`;
+};
 export function reportCard(r, student) {
   if (r.stats?.is_new) return newReportCard(r, student);
   const rates = (r.rates || []).filter((x) => x.rate != null);
@@ -77,7 +83,7 @@ export function reportCard(r, student) {
         <h4>계획 이행도<small>${done ? `달성 ${done}` : ''}${done && low ? ' · ' : ''}${low ? `보완 ${low}` : ''}</small></h4>
         <ul class="wr-bars">${rates.map((x) => `<li class="${tone(x.rate)}">
           <span class="wr-s">${esc(x.subject)}${x.detail ? `<small>${esc(x.detail)}</small>` : ''}</span>
-          <div><p>${esc(x.title)}</p><span class="wr-bar"><i style="width:${Math.max(2, x.rate)}%"></i></span></div>
+          <div><p>${esc(x.title)}</p>${acLine(x)}<span class="wr-bar"><i style="width:${Math.max(2, x.rate)}%"></i></span></div>
           <b>${x.rate}%</b></li>`).join('')}</ul>
       </section>` : ''}
 

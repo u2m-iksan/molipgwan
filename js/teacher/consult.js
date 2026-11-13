@@ -6,7 +6,7 @@ import { segBar } from '../views/progress-bar.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
 import { loadStudentSchedules } from '../data/schedules.js';
-import { academySubjects, academyStat, dayLabel } from '../data/academy.js';
+import { hasAcademy, academyStat, dayLabel } from '../data/academy.js';
 import {
   loadConsult, loadCarryCandidates, saveConsult, saveReport, computeReportStats,
   buildPrompt, parseGpt, reportSubjects, noticeText,
@@ -92,7 +92,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     try {
       const [d, ses, sched] = await Promise.all([loadConsult(stu.id, scheduled), sb.auth.getSession(), loadStudentSchedules(stu.id).catch(() => [])]);
       st.d = d; st.me = ses?.data?.session?.user?.email || null;
-      st.sched = sched; st.acSet = academySubjects(sched);
+      st.sched = sched; st.acHas = (i) => hasAcademy(i, sched);
       const c = d.coaching;
       if (c) {
         Object.assign(st, {
@@ -170,7 +170,10 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
             ${i.id ? '' : `<button type="button" class="icon-btn sm" data-del-prev="${k}" aria-label="삭제">${X}</button>`}
           </div>
           ${i.academy && st.d.prevPlan ? acHist(i, h) : h.length ? segBar(h) : (i.id ? '<div class="cs-hist none">진행률 입력 없음</div>' : '')}
-          <div class="input sm"><input data-f="final_note" value="${esc(i.final_note || '')}" placeholder="세부 이행도"></div>
+          ${i.academy ? `<div class="ac-fb">
+            <div class="input sm"><em>진도</em><input data-f="academy_progress" value="${esc(i.academy_progress || '')}" placeholder="예: 수특 6강까지"></div>
+            <div class="input sm"><em>피드백</em><input data-f="final_note" value="${esc(i.final_note || '')}" placeholder="숙제 상태 · 보완할 점"></div></div>`
+            : `<div class="input sm"><input data-f="final_note" value="${esc(i.final_note || '')}" placeholder="세부 이행도"></div>`}
         </div>`;
       }).join('') || '<div class="cs-empty">항목이 없습니다.</div>'}</div>
       <button type="button" class="link-s cs-add" id="prev-add">+ 항목 추가</button>`;
@@ -265,7 +268,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
           it.final_rate = v === '' ? null : Math.min(100, Number(v));
         } else it[f] = e.target.value;
         // 과목을 바꾸면 학원 과목인지 다시 판정 (직접 바꾼 적 없을 때)
-        if (f === 'subject' && listSel === '#next-list' && !it.acManual) { it.academy = !!st.acSet?.has(it.subject); keepScroll(drawConsult); }
+        if (f === 'subject' && listSel === '#next-list' && !it.acManual) { it.academy = !!st.acHas?.(it); keepScroll(drawConsult); }
       });
       list.addEventListener('blur', (e) => {
         if (e.target.dataset.f === 'final_rate' && e.target.value) e.target.value = String(Math.min(100, Number(e.target.value)));
@@ -291,7 +294,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       if (t.dataset.delPrev != null) { st.prevItems.splice(Number(t.dataset.delPrev), 1); return keepScroll(drawConsult); }
       if (t.dataset.quick != null) {
         const s = Number(t.dataset.quick) >= 0 ? st.d.subjects[Number(t.dataset.quick)] : { subject: '국어', subject_detail: null };
-        st.newItems.push({ subject: s.subject, subject_detail: s.subject_detail, title: '', detail: '', source: '계획', academy: !!st.acSet?.has(s.subject) });
+        st.newItems.push({ subject: s.subject, subject_detail: s.subject_detail, title: '', detail: '', source: '계획', academy: !!st.acHas?.(s) });
         keepScroll(drawConsult);
         const last = $$('#next-list .cs-item', panel).pop();
         last?.querySelector('[data-f=title]')?.focus();
@@ -339,7 +342,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       const all = st.carry.flatMap((p) => p.items);
       for (const id of ids) {
         const i = all.find((x) => x.id === id);
-        st.newItems.push({ subject: i.subject, subject_detail: i.subject_detail, title: i.title, detail: i.detail || '', source: '이월', carried_from: i.id, academy: i.academy ?? !!st.acSet?.has(i.subject) });
+        st.newItems.push({ subject: i.subject, subject_detail: i.subject_detail, title: i.title, detail: i.detail || '', source: '이월', carried_from: i.id, academy: i.academy ?? !!st.acHas?.(i) });
       }
       const y = window.scrollY; drawConsult(); window.scrollTo(0, y);
       if (ids.length) toast(`${ids.length}개 항목을 가져왔습니다`);
@@ -383,6 +386,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         if (error) throw error;
         Object.assign(stu, profile);
       }
+      // 학원 숙제 횟수 (보고에 고정)
+      if (st.d.prevPlan) for (const i of prevItems) if (i.academy) i.acStat = academyStat(i, st.d.prevPlan, st.sched || [], st.d.progress.get(i.id), st.d.prevPlan.due_date || today());
       const coachingId = await saveConsult({ profile,
         student: stu, scheduled, heldOn: st.heldOn, absent: st.absent, isNew: st.isNew, isLeaving: st.isLeaving,
         summary: st.summary.trim(), checkItems: st.checkItems,

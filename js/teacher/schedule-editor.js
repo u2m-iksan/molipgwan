@@ -7,7 +7,7 @@ import {
   loadStudentSchedules, groupSchedules, addSchedule, endSchedule, periodLabel,
   getCoachConfig, slotTimes, loadCoachingSlots, setCoachingSlot, logScheduleRequest,
 } from '../data/schedules.js';
-import { guessSubject, subjectOf } from '../data/academy.js';
+import { subjectLabel, ACADEMY_DETAILS } from '../data/academy.js';
 import { SUBJECTS } from '../data/students.js';
 
 const CATS = ['학교', '학원', '기타'];
@@ -34,8 +34,8 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
   const groups = groupSchedules(rows.filter((r) => r.category !== '코칭'));
   const f = { category: '학원', weekdays: [], period: 'always' };
   const again = (opts = {}) => renderScheduleEditor(root, stu, { canCoach, student, week: mon, ...opts });
-  const editing = student && editIdx != null ? groups[editIdx] : null;
-  if (editing) { f.weekdays = [...editing.weekdays]; f.period = editing.valid_to ? 'range' : 'always'; }
+  const editing = editIdx != null ? groups[editIdx] : null;
+  if (editing) { f.category = editing.category; f.weekdays = [...editing.weekdays]; f.period = editing.valid_to ? 'range' : 'always'; f.subject = editing.subject || (editing.subject === '' ? '기타' : null); f.detail = editing.subject_detail || null; }
   const mine = (g) => !student || g.category === '학원';
   const summary = (title, days, start, end) => `${title} ${days.map((d) => DOW[d]).join('·')} ${hm(start)}~${hm(end)}`;
   const log = (action, text) => (student ? logScheduleRequest(stu.id, action, text).catch(() => {}) : null);
@@ -76,21 +76,22 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
             ${groups.length ? groups.map((g, i) => `
               <div class="sched-row">
                 <span class="pill ${CAT_PILL[g.category]}">${esc(g.category)}</span>
-                <div class="sched-main"><b>${esc(g.title)}${g.category === '학원' && subjectOf(g) ? `<em class="sched-sub">${esc(subjectOf(g))}</em>` : ''}</b>
+                <div class="sched-main"><b>${esc(g.title)}${g.category === '학원' ? (g.subject ? `<em class="sched-sub">${esc(subjectLabel(g))}</em>` : g.subject === '' ? '' : '<em class="sched-sub none">과목 미지정</em>') : ''}</b>
                   <span class="sub">${g.weekdays.map((d) => DOW[d]).join('·')} ${hm(g.start_time)}~${hm(g.end_time)}</span></div>
                 <span class="period${g.valid_to ? ' temp' : ''}">${esc(periodLabel(g))}</span>
-                ${mine(g) ? `${student ? `<button type="button" class="icon-btn sm${editIdx === i ? ' on' : ''}" data-edit="${i}" aria-label="일정 변경">${PEN}</button>` : ''}
+                ${mine(g) ? `<button type="button" class="icon-btn sm${editIdx === i ? ' on' : ''}" data-edit="${i}" aria-label="일정 변경">${PEN}</button>
                 <button type="button" class="icon-btn sm" data-del="${i}" aria-label="일정 삭제">${TRASH}</button>` : ''}
               </div>`).join('') : '<p class="sub-s">등록된 일정이 없습니다.</p>'}
           </div>
         </div>
 
         <div class="sched-add">
-          <h4>${editing ? '학원 일정 변경' : student ? '학원 일정 추가' : '일정 추가'}</h4>
+          <h4>${editing ? `${editing.category} 일정 변경` : student ? '학원 일정 추가' : '일정 추가'}</h4>
           ${student ? '' : `<div class="field"><span class="lbl">구분</span><div class="seg seg-wide" id="a-cat">${CATS.map((c) => `<button type="button" data-v="${c}">${c}</button>`).join('')}</div></div>`}
           <div class="field"><label for="a-title">이름</label><div class="input"><input id="a-title" placeholder="예: 수학학원" autocomplete="off" value="${esc(editing?.title || '')}"></div></div>
-          <div class="field" id="a-subw"><span class="lbl">학원 과목 <span class="opt">이름으로 자동 · 숙제 이행률에 사용</span></span>
-            <div class="chips" id="a-sub">${[...SUBJECTS.filter((x) => x !== '기타'), '없음'].map((x) => `<button type="button" class="chip-t" data-v="${x}">${x}</button>`).join('')}</div></div>
+          <div class="field" id="a-subw"><span class="lbl">과목 <span class="opt">학원 숙제 이행률에 사용</span></span>
+            <div class="chips" id="a-sub">${[...SUBJECTS.filter((x) => x !== '기타'), '기타'].map((x) => `<button type="button" class="chip-t" data-v="${x}">${x}</button>`).join('')}</div>
+            <div class="chips sub-det" id="a-det" hidden></div></div>
           <div class="field"><span class="lbl">요일 <span class="opt">복수 선택</span></span>
             <div class="chips days" id="a-days">${[1, 2, 3, 4, 5, 6, 7].map((d) => `<button type="button" class="chip-t" data-v="${d}">${DOW[d]}</button>`).join('')}</div></div>
           <div class="row2">
@@ -150,16 +151,21 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
     $$('#a-days button', root).forEach((b) => b.classList.toggle('on', f.weekdays.includes(Number(b.dataset.v))));
     $$('#a-period button', root).forEach((b) => b.classList.toggle('on', b.dataset.v === f.period));
     $('#a-range', root).hidden = f.period !== 'range';
-    // 학원 과목: 직접 고르기 전까지는 이름으로 추정
+    // 학원 과목: 직접 선택 (과학·사회는 세부 과목까지)
     $('#a-subw', root).hidden = f.category !== '학원';
-    const sub = f.subjectSet ? f.subject : guessSubject($('#a-title', root).value);
-    $$('#a-sub button', root).forEach((b) => b.classList.toggle('on', b.dataset.v === (sub || '없음')));
+    $$('#a-sub button', root).forEach((b) => b.classList.toggle('on', b.dataset.v === f.subject));
+    const dets = ACADEMY_DETAILS[f.subject], det = $('#a-det', root);
+    det.hidden = !dets;
+    if (dets) det.innerHTML = dets.map((x) => `<button type="button" class="chip-t${x === f.detail ? ' on' : ''}" data-v="${x}">${x}</button>`).join('');
   };
-  if (editing && editing.subject != null) { f.subjectSet = true; f.subject = editing.subject || null; }
-  $('#a-title', root).addEventListener('input', () => { if (!f.subjectSet) paint(); });
   $('#a-sub', root).addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
-    f.subjectSet = true; f.subject = b.dataset.v === '없음' ? null : b.dataset.v; paint();
+    if (f.subject !== b.dataset.v) f.detail = null;
+    f.subject = b.dataset.v; $('#a-err', root).textContent = ''; paint();
+  });
+  $('#a-det', root).addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    f.detail = b.dataset.v; $('#a-err', root).textContent = ''; paint();
   });
   $('#a-cancel', root)?.addEventListener('click', () => again({ editIdx: null }));
   $$('[data-edit]', root).forEach((b) => b.addEventListener('click', () => again({ editIdx: Number(b.dataset.edit) })));
@@ -181,12 +187,16 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
     if (!f.weekdays.length) return (err.textContent = '요일을 선택하세요.');
     if (!start || !end || toMin(end) <= toMin(start)) return (err.textContent = '시간을 확인하세요.');
     if (f.period === 'range' && (!from || !to || to < from)) return (err.textContent = '기간을 확인하세요.');
+    if (f.category === '학원' && !f.subject) return (err.textContent = '과목을 선택하세요.');
+    if (f.category === '학원' && ACADEMY_DETAILS[f.subject] && !f.detail) return (err.textContent = '세부 과목을 선택하세요.');
     const btn = $('#a-go', root); btn.disabled = true; err.textContent = '';
     try {
       if (editing) await endSchedule(editing);
-      // 과목: 직접 고른 값 저장(없음 = ''), 안 고르면 null(이름 추정)
-      const subject = f.category !== '학원' ? null : f.subjectSet ? (f.subject || '') : null;
-      await addSchedule({ student_id: stu.id, category: f.category, title, weekdays: f.weekdays, start, end, period: f.period, from, to, subject });
+      // 과목: 기타 = '' (학원 숙제 연결 안 함)
+      const ac = f.category === '학원';
+      const subject = ac ? (f.subject === '기타' ? '' : f.subject) : null;
+      const subject_detail = ac && ACADEMY_DETAILS[f.subject] ? f.detail : null;
+      await addSchedule({ student_id: stu.id, category: f.category, title, weekdays: f.weekdays, start, end, period: f.period, from, to, subject, subject_detail });
       if (editing) await log('변경', `${summary(editing.title, editing.weekdays, editing.start_time, editing.end_time)} → ${summary(title, f.weekdays, start, end)}`);
       else await log('추가', summary(title, f.weekdays, start, end));
       toast(editing ? '일정이 변경되었습니다' : '일정이 추가되었습니다'); again({ editIdx: null });

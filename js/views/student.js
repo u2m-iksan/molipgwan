@@ -7,9 +7,10 @@ import { weekGrid, renderScheduleEditor } from '../teacher/schedule-editor.js';
 import { academyStat, dayLabel } from '../data/academy.js';
 import { segBar } from './progress-bar.js';
 import { openStopwatch, clock } from './stopwatch.js';
+import { openSelfPlan } from './self-plan.js';
 import {
   loadOpenPlan, saveProgress, loadAttendance, attState, isSaturday, checkIn, addAttendance, autoCheckout,
-  loadSessions, elapsedSec, needsCheck, loadWeekDone,
+  loadSessions, elapsedSec, needsCheck, loadWeekDone, selfPlanNeed,
 } from '../data/student.js';
 
 const REASONS = ['학원', '식사', '기타'];
@@ -137,7 +138,7 @@ ${SUM}
     const el = $('#tt');
     try {
       const rows = await loadStudentSchedules(student.id);
-      st.sched = rows; paintSum(); if (st.items.some((i) => i.academy)) drawPlan();
+      st.sched = rows; paintSum(); drawPlan();
       let lastKey = '';
       const draw = () => {
         if (root._view !== token || !$('#tt')) return;
@@ -208,12 +209,19 @@ ${SUM}
   const todayPct = (id) => (st.progress.get(id) || []).find((r) => r.on_date === today())?.pct;
   function drawPlan() {
     const el = $('#plan');
+    // 보강 대상(상담일 지남 · 새 계획 없음) · 계획 없음 → 직접 계획 세우기
+    const need = st.sched ? selfPlanNeed(st.plan, st.sched) : null;
+    const spBtn = need ? `<div class="sa-self ${need.reason}"><div><b>${need.reason === 'makeup' ? '이번 주 상담을 하지 못했습니다' : '진행 중인 계획이 없습니다'}</b>
+      <span>${need.reason === 'makeup' ? `다음 상담(${md(need.due)})까지의 계획을 직접 세우세요. 토요일 보강 때 함께 점검합니다.` : `다음 상담(${md(need.due)})까지의 계획을 직접 세우세요.`}</span></div>
+      <button type="button" class="btn btn-primary btn-sm" id="sp-open">계획 세우기</button></div>` : '';
     if (!st.plan) {
-      el.innerHTML = '<div class="sa-h"><h3>이번주 계획</h3></div><div class="sa-empty"><b>진행 중인 계획이 없습니다.</b>상담에서 계획을 세웁니다.</div>';
+      el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3></div>${spBtn || '<div class="sa-empty"><b>진행 중인 계획이 없습니다.</b>상담에서 계획을 세웁니다.</div>'}`;
+      $('#sp-open')?.addEventListener('click', () => openSelfPlan(student, { plan: null, items: [], sched: st.sched, need, onSaved: loadPlan }));
+      paintSum();
       return;
     }
     const p = st.plan;
-    el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3><span>${md(p.start_date)} – ${p.due_date ? md(p.due_date) : ''}</span></div>
+    el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3><span>${md(p.start_date)} – ${p.due_date ? md(p.due_date) : ''}</span></div>${spBtn}
       <ul class="sa-items">${st.items.map((i) => {
         if (i.academy) {
           // 학원 숙제: 학원 가는 날마다 해갔는지 체크
@@ -243,6 +251,7 @@ ${SUM}
             <div class="sa-steps">${[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((v) => `<button type="button" data-pct="${v}" class="${tp === v ? 'on' : ''}${v < lastPct(i.id) && tp == null ? ' past' : ''}">${v}</button>`).join('')}</div></div>` : ''}
         </li>`;
       }).join('') || '<div class="sa-empty">계획 항목이 없습니다.</div>'}</ul>`;
+    $('#sp-open')?.addEventListener('click', () => openSelfPlan(student, { plan: st.plan, items: st.items, sched: st.sched, need, onSaved: loadPlan }));
     paintSum();
   }
   $('#plan').addEventListener('click', async (e) => {

@@ -1,6 +1,6 @@
 // 학생 앱 데이터: 이번 계획 · 진행률 · 등원 기록 · 스톱워치
 import { sb } from '../sb.js';
-import { mondayOf, today, isoDow } from '../date.js';
+import { mondayOf, today, isoDow, addDays } from '../date.js';
 
 function check(res) { if (res.error) throw res.error; return res.data; }
 const nowIso = () => new Date().toISOString();
@@ -134,4 +134,32 @@ export async function loadWeekDone(studentId) {
   const sum = (a) => a.reduce((x, r) => x + (r.net_seconds || 0), 0);
   const today_ = rows.filter((r) => r.study_date === t);
   return { weekDone: sum(rows), todayDone: sum(today_), weekBySub: bySubject(rows), todayBySub: bySubject(today_) };
+}
+
+/* ---------- 학생 자율 계획 (보강 대상 · 계획 없음) ---------- */
+// 이번 주 상담일이 지났는데 새 계획이 없으면 보강 대상 → 다음 상담일까지 직접 계획
+//  반환: null(필요 없음) | { reason: 'makeup' | 'none', due, scheduled }
+export function selfPlanNeed(plan, sched, t = today()) {
+  const coach = (sched || []).filter((r) => r.category === '코칭' && r.valid_from <= t && (!r.valid_to || r.valid_to >= t))
+    .sort((a, b) => (a.valid_from < b.valid_from ? 1 : -1))[0];
+  if (!coach) return plan ? null : { reason: 'none', due: addDays(t, 7), scheduled: null };
+  const scheduled = addDays(mondayOf(t), coach.weekday - 1);
+  const next = scheduled > t ? scheduled : addDays(scheduled, 7);
+  if (!plan) return { reason: 'none', due: next, scheduled };
+  if (t > scheduled && plan.start_date < scheduled) return { reason: 'makeup', due: addDays(scheduled, 7), scheduled };
+  return null;
+}
+export const loadMySubjects = async (sid) => check(await sb.from('student_subjects').select('subject,subject_detail,sort_order').eq('student_id', sid).order('sort_order'));
+
+// 새 계획 저장: 지난 계획 마감(학생 쪽) → 새 계획(학생 작성) + 항목
+export async function saveSelfPlan(student, prevPlan, items, due) {
+  const t = today();
+  if (prevPlan && prevPlan.status !== '마감') check(await sb.from('plans').update({ status: '마감', closed_at: nowIso() }).eq('id', prevPlan.id));
+  const plan = check(await sb.from('plans').insert({ student_id: student.id, start_date: t, due_date: due, author_role: '학생', status: '확정' }).select('*').single());
+  check(await sb.from('plan_items').insert(items.map((it, i) => ({
+    plan_id: plan.id, student_id: student.id, subject: it.subject, subject_detail: it.subject_detail || null,
+    title: it.title.trim(), detail: it.detail?.trim() || null, sort_order: i, source: it.carried_from ? '이월' : '계획',
+    ...(it.carried_from ? { carried_from: it.carried_from } : {}), academy: !!it.academy,
+  }))));
+  return plan;
 }

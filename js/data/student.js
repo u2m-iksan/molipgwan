@@ -81,6 +81,3 @@ export async function stopSession(s) {
   const net = elapsedSec(s);
   return check(await sb.from('study_sessions').update({ ended_at: nowIso(), paused_at: null, net_seconds: net }).eq('id', s.id).select('*').single());
 }
-
-// 학기 / 방학 구분 — 추후 설정(방학 기간)으로 판단. 지금은 항상 학기 중
-export function isVacation(_date) { return false; }

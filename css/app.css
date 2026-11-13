@@ -393,9 +393,12 @@ button,a,input,label{touch-action:manipulation;-webkit-tap-highlight-color:trans
 .wk-body{position:relative}
 .wk-axis .wk-body span{position:absolute;right:6px;transform:translateY(-50%);font-size:11px;color:var(--faint);font-feature-settings:"tnum"}
 .wk-axis .wk-body span:first-child{transform:none}
-.wk-lines{position:absolute;left:36px;right:0;top:40px;pointer-events:none;z-index:0}
-.wk-lines i{position:absolute;left:0;right:0;border-top:1px solid #F0F2F4}
-.wk-lines i.sq{border-top-style:dashed;border-color:#F4F5F7}
+.wk-ln{position:absolute;left:0;right:0;border-top:1px solid #F0F2F4;pointer-events:none}
+.wk-ln.sq{border-top-style:dashed;border-color:#F4F5F7}
+.wk-grid.split{grid-template-columns:36px repeat(5,minmax(0,1fr)) 30px repeat(2,minmax(0,1fr))}
+.wk-axis2,.wk-col.wk-wkend{border-left:2px solid #C4CAD2}
+.wk-axis2+.wk-col{border-left:none}
+.wk-axis2 .wk-body span{right:5px}
 .blk{position:absolute;border-radius:10px;padding:5px 8px;overflow:hidden;font-size:12px;line-height:1.3;display:flex;flex-direction:column;gap:1px;
   border:1px solid var(--bd);background:var(--bg);color:var(--fg);animation:fadeIn .25s ease both}
 .blk b{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

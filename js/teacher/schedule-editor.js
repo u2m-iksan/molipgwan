@@ -175,37 +175,60 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
 }
 
 /* ---------- 주간 시간표 (월~일 × 08~23시) ----------
-   squeeze: { from, to, ratio } — 그 시간대(분)를 ratio 배로 줄여 그림 (학기 중 학교 시간 축소) */
-export function weekGrid(rows, mon, t, hourPx = HOUR_PX, squeeze = null) {
-  const scale = (m) => {   // DAY_START부터 m까지의 높이(px)
-    m = Math.min(Math.max(m, DAY_START), DAY_END);
-    if (!squeeze) return ((m - DAY_START) / 60) * hourPx;
-    const a = Math.max(DAY_START, squeeze.from), b = Math.min(DAY_END, squeeze.to);
-    const inSq = Math.max(0, Math.min(m, b) - a), out = (m - DAY_START) - inSq;
-    return ((out + inSq * squeeze.ratio) / 60) * hourPx;
-  };
-  const H = scale(DAY_END);
-  const y = scale;
-  const hours = [];
-  for (let h = DAY_START / 60; h <= DAY_END / 60; h++) hours.push(h);
-  // 줄어든 구간은 짝수 시만 표시 (글자 겹침 방지)
-  const inSqH = (h) => squeeze && h * 60 > squeeze.from && h * 60 < squeeze.to;
-  const label = (h) => !inSqH(h) || h % 2 === 0;
-
-  const cols = [1, 2, 3, 4, 5, 6, 7].map((d) => {
+   opt.fitH: 본문 높이(px)를 지정하면 그 높이에 맞춤
+   opt.squeezeSchool: 학교 있는 주중은 학교 시간을 줄이고 오후·저녁을 크게 (주말은 고르게, 시간 눈금 따로) */
+export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
+  const RANGE = DAY_END - DAY_START;
+  const H = opt.fitH ?? (RANGE / 60) * hourPx;
+  const sun = addDays(mon, 6);
+  const dayItems = (d) => {
     const date = addDays(mon, d - 1);
     // 그 날짜에 유효한 일정. '계속' 일정은 그 주 안에 시작했으면 주 전체에 표시(주간 패턴으로 보기)
-    const sun = addDays(mon, 6);
-    const items = rows
-      .filter((r) => r.weekday === d && (r.valid_to
-        ? r.valid_from <= date && r.valid_to >= date
-        : r.valid_from <= sun))
+    return rows
+      .filter((r) => r.weekday === d && (r.valid_to ? r.valid_from <= date && r.valid_to >= date : r.valid_from <= sun))
       .filter((r) => toMin(r.end_time) > DAY_START && toMin(r.start_time) < DAY_END)
       .sort((a, b) => toMin(a.start_time) - toMin(b.start_time));
+  };
+  const items = [1, 2, 3, 4, 5, 6, 7].map(dayItems);
+
+  // 눈금(scale): 분 → 높이(px)
+  const mkScale = (sq) => {
+    const units = (RANGE - (sq ? (sq.to - sq.from) * (1 - sq.ratio) : 0)) / 60;
+    const px = H / units;
+    const y = (m) => {
+      m = Math.min(Math.max(m, DAY_START), DAY_END);
+      if (!sq) return ((m - DAY_START) / 60) * px;
+      const inSq = Math.max(0, Math.min(m, sq.to) - sq.from);
+      return (((m - DAY_START) - inSq + inSq * sq.ratio) / 60) * px;
+    };
+    const inSqH = (h) => !!sq && h * 60 > sq.from && h * 60 < sq.to;
+    return { y, px, inSqH };
+  };
+  let sq = null;
+  if (opt.squeezeSchool) {
+    const sch = items.slice(0, 5).flat().filter((r) => r.category === '학교');
+    if (sch.length) sq = {
+      from: Math.max(DAY_START, Math.min(...sch.map((r) => toMin(r.start_time)))),
+      to: Math.min(DAY_END, Math.max(...sch.map((r) => toMin(r.end_time)))), ratio: 0.35,
+    };
+  }
+  const W = mkScale(sq), E = mkScale(null);
+  const split = !!sq;   // 주중·주말 눈금이 다르면 주말 앞에 눈금 한 줄 더
+  const hours = [];
+  for (let h = DAY_START / 60; h <= DAY_END / 60; h++) hours.push(h);
+
+  const lines = (S) => hours.map((h) => `<i class="wk-ln${S.inSqH(h) ? ' sq' : ''}" style="top:${S.y(h * 60)}px"></i>`).join('');
+  const axis = (S, cls = '') => `<div class="wk-axis${cls}"><div class="wk-day"></div><div class="wk-body" style="height:${H}px">
+      ${hours.filter((h) => !S.inSqH(h) || h % 2 === 0).map((h) => `<span style="top:${S.y(h * 60)}px">${h}</span>`).join('')}</div></div>`;
+
+  const col = (d) => {
+    const S = d <= 5 ? W : E;
+    const date = addDays(mon, d - 1);
+    const its = items[d - 1];
     // 겹치는 일정끼리만 나란히 (겹침 묶음별로 칸 나누기)
     let cluster = [], clusterEnd = -1;
     const flush = () => { const n = Math.max(...cluster.map((c) => c._lane)) + 1; cluster.forEach((c) => { c._n = n; }); cluster = []; };
-    for (const it of items) {
+    for (const it of its) {
       const s0 = toMin(it.start_time);
       if (cluster.length && s0 >= clusterEnd) flush();
       const used = cluster.filter((c) => toMin(c.end_time) > s0).map((c) => c._lane);
@@ -214,24 +237,20 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, squeeze = null) {
       clusterEnd = Math.max(clusterEnd, toMin(it.end_time));
     }
     if (cluster.length) flush();
-    const blocks = items.map((it) => {
+    const blocks = its.map((it) => {
       const n = it._n || 1;
-      const top = y(toMin(it.start_time)), h = Math.max(16, y(toMin(it.end_time)) - top);
+      const top = S.y(toMin(it.start_time)), h = Math.max(16, S.y(toMin(it.end_time)) - top);
       return `<div class="blk blk-${it.category}${it.valid_to ? ' temp' : ''}${h < 40 ? ' thin' : ''}" style="top:${top}px;height:${h - 2}px;left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)"
         title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">
         <b>${esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title)}</b>${h >= 40 ? `<span>${hm(it.start_time)}~${hm(it.end_time)}</span>` : ''}</div>`;
     }).join('');
-    const isToday = date === t;
-    return `<div class="wk-col${isToday ? ' today-col' : ''}">
+    return `<div class="wk-col${date === t ? ' today-col' : ''}${d === 6 && !split ? ' wk-wkend' : ''}">
       <div class="wk-day">${DOW[d]}<span>${Number(date.slice(8))}</span></div>
-      <div class="wk-body" style="height:${H}px">${blocks}</div></div>`;
-  }).join('');
+      <div class="wk-body" style="height:${H}px">${lines(S)}${blocks}</div></div>`;
+  };
 
-  return `<div class="wk-grid">
-    <div class="wk-axis"><div class="wk-day"></div><div class="wk-body" style="height:${H}px">
-      ${hours.filter(label).map((h) => `<span style="top:${y(h * 60)}px">${h}</span>`).join('')}</div></div>
-    ${cols}
-    <div class="wk-lines" style="height:${H}px">${hours.map((h) => `<i${inSqH(h) ? ' class="sq"' : ''} style="top:${y(h * 60)}px"></i>`).join('')}</div>
+  return `<div class="wk-grid${split ? ' split' : ''}">
+    ${axis(W)}${[1, 2, 3, 4, 5].map(col).join('')}${split ? axis(E, ' wk-axis2') : ''}${[6, 7].map(col).join('')}
   </div>`;
 }
 

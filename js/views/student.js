@@ -3,13 +3,11 @@ import { mount, $, $$, esc, toast, sheet, BRAND, X } from '../ui.js';
 import { DOW, today, mondayOf, short, isoDow } from '../date.js';
 import { loadStudentSchedules } from '../data/schedules.js';
 import { weekGrid } from '../teacher/schedule-editor.js';
-const SCHOOL_SQUEEZE = { from: 8 * 60, to: 16 * 60, ratio: 0.35 };
 import { segBar } from './progress-bar.js';
 import { openStopwatch, clock } from './stopwatch.js';
 import {
   loadOpenPlan, saveProgress, loadAttendance, attState, isSaturday, checkIn, addAttendance, autoCheckout,
   loadSessions, elapsedSec,
-  isVacation,
 } from '../data/student.js';
 
 const SW_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 3h5M12 3v3M18.5 6.5l1.5-1.5"/></svg>';
@@ -108,11 +106,8 @@ export async function renderStudentHome({ student, onLogout }) {
       const draw = () => {
         if (root._view !== token || !$('#tt')) return;
         const avail = el.clientHeight - 40 - 52;          // 요일 머리 · 제목 줄
-        // 학기 중: 학교 시간(08~16시)을 줄이고 오후·저녁을 크게. 방학: 고르게
-        const sq = isVacation(today()) ? null : SCHOOL_SQUEEZE;
-        const units = sq ? 15 - ((sq.to - sq.from) / 60) * (1 - sq.ratio) : 15;
-        const hourPx = Math.max(22, Math.min(72, Math.floor(avail / units)));
-        el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span></div>${weekGrid(rows, mondayOf(today()), today(), hourPx, sq)}`;
+        // 학교 있는 주중은 학교 시간을 줄이고 오후·저녁을 크게 (주말·학교 없는 주는 고르게)
+        el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: Math.max(330, avail), squeezeSchool: true })}`;
       };
       draw();
       new ResizeObserver(() => draw()).observe($('.sa-main'));

@@ -103,3 +103,14 @@ export async function setCoachingSlot(studentId, slot, cfg) {
     }));
   }
 }
+
+/* ---------- 학원 일정 변경 알림 (학생이 바꾸면 바로 반영 + 선생님 확인 목록) ---------- */
+export async function logScheduleRequest(student_id, action, summary) {
+  check(await sb.from('schedule_requests').insert({ student_id, action, summary }));
+}
+export async function loadOpenRequests() {
+  return check(await sb.from('schedule_requests').select('*').is('checked_at', null).order('created_at'));
+}
+export async function checkRequests(ids, by) {
+  check(await sb.from('schedule_requests').update({ checked_at: new Date().toISOString(), checked_by: by }).in('id', ids));
+}

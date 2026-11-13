@@ -2,7 +2,7 @@
 import { mount, $, $$, esc, toast, sheet, BRAND, X } from '../ui.js';
 import { DOW, today, mondayOf, short, isoDow } from '../date.js';
 import { loadStudentSchedules } from '../data/schedules.js';
-import { weekGrid } from '../teacher/schedule-editor.js';
+import { weekGrid, renderScheduleEditor } from '../teacher/schedule-editor.js';
 import { segBar } from './progress-bar.js';
 import { openStopwatch, clock } from './stopwatch.js';
 import {
@@ -107,10 +107,20 @@ export async function renderStudentHome({ student, onLogout }) {
         if (root._view !== token || !$('#tt')) return;
         const avail = el.clientHeight - 40 - 52;          // 요일 머리 · 제목 줄
         // 학교 있는 주중은 학교 시간을 줄이고 오후·저녁을 크게 (주말·학교 없는 주는 고르게)
-        el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: Math.max(330, avail), squeezeSchool: true })}`;
+        el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span><button type="button" class="link-s sa-edit" id="tt-edit">학원 일정</button></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: Math.max(330, avail), squeezeSchool: true })}`;
       };
       draw();
       new ResizeObserver(() => draw()).observe($('.sa-main'));
+      // 학원 일정 변경 (바로 반영 + 선생님 알림)
+      el.addEventListener('click', (e) => {
+        if (e.target.id !== 'tt-edit') return;
+        const panel = sheet(`<div class="modal modal-lg" role="dialog" aria-label="학원 일정">
+          <div class="drawer-head"><h3>학원 일정</h3><button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
+          <div class="pane" id="se"></div></div>`, 'center');
+        renderScheduleEditor($('#se', panel), student, { student: true });
+        const close = panel.close;
+        panel.close = () => { close(); loadStudentSchedules(student.id).then((r) => { rows.splice(0, rows.length, ...r); draw(); }).catch(() => {}); };
+      });
     } catch (e) { el.innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`; }
   }
 

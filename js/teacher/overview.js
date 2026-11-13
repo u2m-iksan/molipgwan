@@ -1,7 +1,8 @@
 // 선생님 · 전체 현황(상황판): 자리순 학생 카드, 빨강·주황·초록 + 몰입 중 · 오늘 순공 · (토) 등원 상태
-import { $, $$, esc } from '../ui.js';
+import { $, $$, esc, toast } from '../ui.js';
 import { isoDow, today } from '../date.js';
 import { loadOverview, judge } from '../data/overview.js';
+import { loadOpenRequests, checkRequests } from '../data/schedules.js';
 
 const COLOR = { red: '빨강', orange: '주황', green: '초록' };
 const bySeat = (a, b) => {
@@ -11,7 +12,7 @@ const bySeat = (a, b) => {
 const hm = (sec) => { const m = Math.floor(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`; };
 const clock = () => new Date().toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
 
-export async function renderOverview(body) {
+export async function renderOverview(body, { me } = {}) {
   const st = { filter: '전체', level: '전체', data: null, list: [], timer: null };
   const sat = isoDow(today()) === 6;
 
@@ -23,16 +24,36 @@ export async function renderOverview(body) {
       <div class="spacer"></div>
       <span class="ov-rule">빨강: 계획 없음 · 스톱워치/진행률 2일 공백 &nbsp;·&nbsp; 주황: 최근 2일 순공 2시간 미만</span>
     </div>
+    <div id="ov-req"></div>
     <div id="ov-grid" class="ov-grid"><div class="card empty">불러오는 중</div></div>`;
 
   $('#ov-f').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; st.filter = b.dataset.v; paint(); });
   const lv = $('#ov-l');
   lv.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; st.level = b.dataset.v; paint(); });
 
+  // 학원 일정 변경 알림 (학생이 바꾼 것, 선생님 확인 전)
+  async function loadReq() {
+    const box = $('#ov-req'); if (!box) return;
+    let reqs = [];
+    try { reqs = await loadOpenRequests(); } catch { box.innerHTML = ''; return; }
+    if (!reqs.length) { box.innerHTML = ''; return; }
+    const name = (id) => st.list.find((s) => s.id === id)?.name || '';
+    const when = (t) => !t ? '' : new Date(t).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    box.innerHTML = `<section class="card ov-req"><div class="ov-req-h"><h3>학원 일정 변경 <span>${reqs.length}</span></h3>
+        <button type="button" class="btn btn-gray btn-sm" id="req-all">모두 확인</button></div>
+      <ul>${reqs.map((r) => `<li><span class="pill ${r.action === '삭제' ? 'pill-red' : r.action === '변경' ? 'pill-orange' : 'pill-blue'}">${esc(r.action)}</span>
+        <b>${esc(name(r.student_id))}</b><span class="ov-req-s">${esc(r.summary)}</span><time>${when(r.created_at)}</time>
+        <button type="button" class="link-s" data-req="${esc(r.id)}">확인</button></li>`).join('')}</ul></section>`;
+    const done = async (ids) => { try { await checkRequests(ids, me?.name || '선생님'); loadReq(); } catch (e) { toast('저장 실패: ' + e.message); } };
+    $('#req-all').addEventListener('click', () => done(reqs.map((r) => r.id)));
+    box.querySelectorAll('[data-req]').forEach((b) => b.addEventListener('click', () => done([b.dataset.req])));
+  }
+
   async function load() {
     try { st.data = await loadOverview(); }
     catch (e) { $('#ov-grid').innerHTML = `<div class="card empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
     st.list = judge(st.data).sort(bySeat);
+    loadReq();
     $('#ov-at') && ($('#ov-at').textContent = `${clock()} 기준`);
     paint();
   }

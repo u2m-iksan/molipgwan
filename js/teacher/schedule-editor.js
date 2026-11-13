@@ -5,14 +5,15 @@ import { $, $$, esc, toast } from '../ui.js';
 import { DOW, today, addMonths, addDays, mondayOf, isoDow, short, hm, toMin } from '../date.js';
 import {
   loadStudentSchedules, groupSchedules, addSchedule, endSchedule, periodLabel,
-  getCoachConfig, slotTimes, loadCoachingSlots, setCoachingSlot,
+  getCoachConfig, slotTimes, loadCoachingSlots, setCoachingSlot, logScheduleRequest,
 } from '../data/schedules.js';
 
 const CATS = ['학교', '학원', '기타'];
 const CAT_PILL = { 학교: 'pill-gray', 학원: 'pill-blue', 기타: 'pill-orange', 코칭: 'pill-green' };
 const DAY_START = 8 * 60, DAY_END = 23 * 60, HOUR_PX = 40;
 
-export async function renderScheduleEditor(root, stu, { canCoach = false, week = null } = {}) {
+// student: 학생 화면용 — 학원 일정만 추가·변경·삭제, 바꿀 때마다 선생님 확인 목록(schedule_requests)에 기록
+export async function renderScheduleEditor(root, stu, { canCoach = false, week = null, student = false, editIdx = null } = {}) {
   const keepScroll = $('.drawer-body', root)?.scrollTop || 0;   // 다시 그릴 때 스크롤 위치 유지
   if (!root.firstElementChild) root.innerHTML = '<div class="drawer-body"><div class="empty">불러오는 중</div></div>';
   let rows, cfg = null, allSlots = new Map();
@@ -30,7 +31,12 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
   const coach = rows.filter((r) => r.category === '코칭' && r.valid_from <= t).sort((a, b) => b.valid_from.localeCompare(a.valid_from))[0];
   const groups = groupSchedules(rows.filter((r) => r.category !== '코칭'));
   const f = { category: '학원', weekdays: [], period: 'always' };
-  const again = (opts = {}) => renderScheduleEditor(root, stu, { canCoach, week: mon, ...opts });
+  const again = (opts = {}) => renderScheduleEditor(root, stu, { canCoach, student, week: mon, ...opts });
+  const editing = student && editIdx != null ? groups[editIdx] : null;
+  if (editing) { f.weekdays = [...editing.weekdays]; f.period = editing.valid_to ? 'range' : 'always'; }
+  const mine = (g) => !student || g.category === '학원';
+  const summary = (title, days, start, end) => `${title} ${days.map((d) => DOW[d]).join('·')} ${hm(start)}~${hm(end)}`;
+  const log = (action, text) => (student ? logScheduleRequest(stu.id, action, text).catch(() => {}) : null);
 
   root.innerHTML = `
     <div class="drawer-body">
@@ -64,27 +70,28 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
           </div>
 
           <div class="sched-sec">
-            <h4>학교 · 학원 일정</h4>
+            <h4>학교 · 학원 일정</h4>${student ? '<p class="sub-s">학원 일정은 바꾸면 바로 반영되고 선생님께 알림이 갑니다.</p>' : ''}
             ${groups.length ? groups.map((g, i) => `
               <div class="sched-row">
                 <span class="pill ${CAT_PILL[g.category]}">${esc(g.category)}</span>
                 <div class="sched-main"><b>${esc(g.title)}</b>
                   <span class="sub">${g.weekdays.map((d) => DOW[d]).join('·')} ${hm(g.start_time)}~${hm(g.end_time)}</span></div>
                 <span class="period${g.valid_to ? ' temp' : ''}">${esc(periodLabel(g))}</span>
-                <button type="button" class="icon-btn sm" data-del="${i}" aria-label="일정 삭제">${TRASH}</button>
+                ${mine(g) ? `${student ? `<button type="button" class="icon-btn sm${editIdx === i ? ' on' : ''}" data-edit="${i}" aria-label="일정 변경">${PEN}</button>` : ''}
+                <button type="button" class="icon-btn sm" data-del="${i}" aria-label="일정 삭제">${TRASH}</button>` : ''}
               </div>`).join('') : '<p class="sub-s">등록된 일정이 없습니다.</p>'}
           </div>
         </div>
 
         <div class="sched-add">
-          <h4>일정 추가</h4>
-          <div class="field"><span class="lbl">구분</span><div class="seg seg-wide" id="a-cat">${CATS.map((c) => `<button type="button" data-v="${c}">${c}</button>`).join('')}</div></div>
-          <div class="field"><label for="a-title">이름</label><div class="input"><input id="a-title" placeholder="예: 수학학원" autocomplete="off"></div></div>
+          <h4>${editing ? '학원 일정 변경' : student ? '학원 일정 추가' : '일정 추가'}</h4>
+          ${student ? '' : `<div class="field"><span class="lbl">구분</span><div class="seg seg-wide" id="a-cat">${CATS.map((c) => `<button type="button" data-v="${c}">${c}</button>`).join('')}</div></div>`}
+          <div class="field"><label for="a-title">이름</label><div class="input"><input id="a-title" placeholder="예: 수학학원" autocomplete="off" value="${esc(editing?.title || '')}"></div></div>
           <div class="field"><span class="lbl">요일 <span class="opt">복수 선택</span></span>
             <div class="chips days" id="a-days">${[1, 2, 3, 4, 5, 6, 7].map((d) => `<button type="button" class="chip-t" data-v="${d}">${DOW[d]}</button>`).join('')}</div></div>
           <div class="row2">
-            <div class="field"><label for="a-start">시작</label><div class="input"><input id="a-start" type="time" step="300"></div></div>
-            <div class="field"><label for="a-end">종료</label><div class="input"><input id="a-end" type="time" step="300"></div></div>
+            <div class="field"><label for="a-start">시작</label><div class="input"><input id="a-start" type="time" step="300" value="${editing ? hm(editing.start_time) : ''}"></div></div>
+            <div class="field"><label for="a-end">종료</label><div class="input"><input id="a-end" type="time" step="300" value="${editing ? hm(editing.end_time) : ''}"></div></div>
           </div>
           <div class="field"><span class="lbl">기간</span>
             <div class="seg seg-wide" id="a-period"><button type="button" data-v="always">계속</button><button type="button" data-v="week">이번 주만</button><button type="button" data-v="range">기간 지정</button></div></div>
@@ -93,7 +100,8 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
             <div class="field"><label for="a-to">종료일</label><div class="input"><input id="a-to" type="date" value="${addDays(addMonths(t, 1), -1)}"></div></div>
           </div>
           <p class="err" id="a-err" role="alert"></p>
-          <button type="button" class="btn btn-primary btn-sm btn-block" id="a-go">추가</button>
+          <div class="sched-btns">${editing ? '<button type="button" class="btn btn-gray btn-sm" id="a-cancel">취소</button>' : ''}
+          <button type="button" class="btn btn-primary btn-sm" id="a-go">${editing ? '변경' : '추가'}</button></div>
         </div>
       </div>
     </div>`;
@@ -133,12 +141,15 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
 
   /* ---------- 일정 추가 ---------- */
   const paint = () => {
+    if (student) f.category = '학원';
     $$('#a-cat button', root).forEach((b) => b.classList.toggle('on', b.dataset.v === f.category));
     $$('#a-days button', root).forEach((b) => b.classList.toggle('on', f.weekdays.includes(Number(b.dataset.v))));
     $$('#a-period button', root).forEach((b) => b.classList.toggle('on', b.dataset.v === f.period));
     $('#a-range', root).hidden = f.period !== 'range';
   };
-  $('#a-cat', root).addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { f.category = b.dataset.v; paint(); } });
+  $('#a-cancel', root)?.addEventListener('click', () => again({ editIdx: null }));
+  $$('[data-edit]', root).forEach((b) => b.addEventListener('click', () => again({ editIdx: Number(b.dataset.edit) })));
+  $('#a-cat', root)?.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { f.category = b.dataset.v; paint(); } });
   $('#a-period', root).addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { f.period = b.dataset.v; paint(); } });
   $('#a-days', root).addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
@@ -158,8 +169,11 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
     if (f.period === 'range' && (!from || !to || to < from)) return (err.textContent = '기간을 확인하세요.');
     const btn = $('#a-go', root); btn.disabled = true; err.textContent = '';
     try {
+      if (editing) await endSchedule(editing);
       await addSchedule({ student_id: stu.id, category: f.category, title, weekdays: f.weekdays, start, end, period: f.period, from, to });
-      toast('일정이 추가되었습니다'); again();
+      if (editing) await log('변경', `${summary(editing.title, editing.weekdays, editing.start_time, editing.end_time)} → ${summary(title, f.weekdays, start, end)}`);
+      else await log('추가', summary(title, f.weekdays, start, end));
+      toast(editing ? '일정이 변경되었습니다' : '일정이 추가되었습니다'); again({ editIdx: null });
     } catch (e) { err.textContent = '저장 실패: ' + e.message; btn.disabled = false; }
   });
 
@@ -168,7 +182,8 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
     let armed = false;
     b.addEventListener('click', async () => {
       if (!armed) { armed = true; b.classList.add('armed'); setTimeout(() => { armed = false; b.classList.remove('armed'); }, 3000); return; }
-      try { await endSchedule(groups[Number(b.dataset.del)]); toast('일정이 삭제되었습니다'); again(); }
+      const g = groups[Number(b.dataset.del)];
+      try { await endSchedule(g); await log('삭제', summary(g.title, g.weekdays, g.start_time, g.end_time)); toast('일정이 삭제되었습니다'); again({ editIdx: null }); }
       catch (e) { toast('삭제 실패: ' + e.message); }
     });
   });
@@ -254,6 +269,7 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
   </div>`;
 }
 
+const PEN = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
 const TRASH = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>';
 const CHEV_L = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
 const CHEV_R = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';

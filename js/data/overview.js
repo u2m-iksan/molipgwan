@@ -5,6 +5,7 @@
 //  초록: 그 외
 import { sb } from '../sb.js';
 import { today, addDays, isoDow } from '../date.js';
+import { settleStale } from './student.js';
 
 const check = (r) => { if (r.error) throw r.error; return r.data || []; };
 export const ORANGE_SEC = 2 * 3600;
@@ -20,9 +21,11 @@ export async function loadOverview() {
   const [students, plans, sessions, att] = await Promise.all([
     sb.from('students').select('id,name,grade,seat_no,status').eq('status', '재원').then(check),
     sb.from('plans').select('id,student_id,start_date,due_date,status').neq('status', '마감').then(check),
-    sb.from('study_sessions').select('student_id,subject,started_at,ended_at,paused_at,pause_seconds,net_seconds,study_date').gte('study_date', from).then(check),
+    sb.from('study_sessions').select('id,student_id,subject,started_at,ended_at,paused_at,pause_seconds,net_seconds,checked_net,study_date').gte('study_date', from).then(check),
     sb.from('attendance').select('student_id,kind,reason,at').eq('on_date', t).order('at').then(check).catch(() => []),
   ]);
+  const sessions2 = await settleStale(sessions);   // 2시간 무응답 세션 정리
+  sessions.splice(0, sessions.length, ...sessions2);
   const items = plans.length ? check(await sb.from('plan_items').select('id,plan_id').in('plan_id', plans.map((p) => p.id))) : [];
   const prog = items.length ? check(await sb.from('plan_progress').select('item_id,on_date').in('item_id', items.map((i) => i.id)).gte('on_date', from)) : [];
   return { students, plans, items, prog, sessions, att, win, t };

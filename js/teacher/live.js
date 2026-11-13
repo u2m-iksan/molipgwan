@@ -6,6 +6,7 @@
 import { $, esc } from '../ui.js';
 import { sb } from '../sb.js';
 import { DOW, today, mondayOf, isoDow, toMin, hm } from '../date.js';
+import { settleStale } from '../data/student.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const kst = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -25,11 +26,11 @@ async function loadLive() {
   const t = today(), mon = mondayOf(t);
   const [students, sessions, att, sched] = await Promise.all([
     sb.from('students').select('id,name,grade,seat_no,status').eq('status', '재원').then(check),
-    sb.from('study_sessions').select('student_id,subject,started_at,ended_at,paused_at,pause_seconds,net_seconds,study_date').gte('study_date', mon).then(check),
+    sb.from('study_sessions').select('id,student_id,subject,started_at,ended_at,paused_at,pause_seconds,net_seconds,checked_net,study_date').gte('study_date', mon).then(check),
     sb.from('attendance').select('student_id,kind,reason,at').eq('on_date', t).order('at').then(check).catch(() => []),
     sb.from('schedules').select('student_id,category,title,weekday,start_time,end_time,valid_from,valid_to').eq('weekday', isoDow(t)).then(check),
   ]);
-  return { t, students, sessions, att, sched: sched.filter((r) => r.valid_from <= t && (!r.valid_to || r.valid_to >= t)) };
+  return { t, students, sessions: await settleStale(sessions), att, sched: sched.filter((r) => r.valid_from <= t && (!r.valid_to || r.valid_to >= t)) };
 }
 
 export async function openLive() {

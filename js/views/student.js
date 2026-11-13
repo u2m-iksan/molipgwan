@@ -7,7 +7,7 @@ import { segBar } from './progress-bar.js';
 import { openStopwatch, clock } from './stopwatch.js';
 import {
   loadOpenPlan, saveProgress, loadAttendance, attState, isSaturday, checkIn, addAttendance, autoCheckout,
-  loadSessions, elapsedSec,
+  loadSessions, elapsedSec, needsCheck,
 } from '../data/student.js';
 
 const SW_IC = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M9.5 3h5M12 3v3M18.5 6.5l1.5-1.5"/></svg>';
@@ -167,10 +167,17 @@ export async function renderStudentHome({ student, onLogout }) {
     f.classList.toggle('on', !!st.sess && !st.sess.paused_at);
     $('#fab-t').textContent = st.sess ? clock(elapsedSec(st.sess)) : '';
   }
-  $('#fab').addEventListener('click', () => openStopwatch(student, {
-    planSubjects: [...new Set(st.items.map((i) => i.subject))], onChange: loadSess,
-  }));
-  const t = setInterval(() => { if (root._view !== token || !document.body.contains(root)) return clearInterval(t); paintFab(); }, 1000);
+  let swOpen = false;
+  const openSW = () => { swOpen = true; openStopwatch(student, {
+    planSubjects: [...new Set(st.items.map((i) => i.subject))], onChange: () => { swOpen = false; loadSess(); },
+  }); };
+  $('#fab').addEventListener('click', openSW);
+  // 2시간 확인 시점이 되면 스톱워치를 자동으로 열어 확인 팝업 표시
+  const t = setInterval(() => {
+    if (root._view !== token || !document.body.contains(root)) return clearInterval(t);
+    paintFab();
+    if (!swOpen && st.sess && !st.sess.paused_at && needsCheck(st.sess)) openSW();
+  }, 1000);
 
   await Promise.all([loadAtt(), loadTT(), loadPlan(), loadSess()]);
 }

@@ -1,7 +1,7 @@
 // 스톱워치: 검은 전체 화면. 시작 시각을 서버에 저장 → 앱을 닫아도 계속 흐름
 import { $, $$, esc, toast } from '../ui.js';
 import { SUBJECTS } from '../data/students.js';
-import { loadSessions, elapsedSec, startSession, pauseSession, resumeSession, stopSession } from '../data/student.js';
+import { loadSessions, elapsedSec, startSession, pauseSession, resumeSession, stopSession, needsCheck, isStale, sinceCheck, confirmSession, autoEnd, CHECK_SEC, GRACE_SEC } from '../data/student.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 export const clock = (sec) => `${pad(Math.floor(sec / 3600))}:${pad(Math.floor(sec / 60) % 60)}:${pad(sec % 60)}`;
@@ -53,7 +53,25 @@ export async function openStopwatch(student, { planSubjects = [], onChange } = {
   const tick = () => {
     const t = $('#sw-time', el); if (t) t.textContent = clock(elapsedSec(s));
     const tt = $('#sw-total', el); if (tt) tt.textContent = dur(doneSec + elapsedSec(s));
+    checkTick();
   };
+  // 2시간 확인 팝업 (10분 안에 응답 없으면 2시간만 기록하고 종료)
+  function checkTick() {
+    const box = $('#sw-check', el);
+    if (!s || s.paused_at || !needsCheck(s)) { box?.remove(); return; }
+    if (isStale(s)) {
+      box?.remove();
+      act(async () => { const done = await autoEnd(s); doneSec += done.net_seconds || 0; s = null; toast('응답이 없어 2시간까지만 기록되었습니다'); });
+      return;
+    }
+    const left = CHECK_SEC + GRACE_SEC - sinceCheck(s);
+    const msg = `${pad(Math.floor(left / 60))}:${pad(left % 60)} 안에 응답이 없으면 2시간까지만 기록하고 종료합니다.`;
+    if (box) { $('#sw-check-t', box).textContent = msg; return; }
+    el.insertAdjacentHTML('beforeend', `<div class="sw-check" id="sw-check"><div class="sw-check-in">
+      <h3>계속 공부 중인가요?</h3><p id="sw-check-t">${msg}</p>
+      <div class="sw-check-b"><button type="button" class="sw-b stop" id="sw-stop">종료</button><button type="button" class="sw-b go" id="sw-ok">계속</button></div>
+    </div></div>`);
+  }
   draw();
   timer = setInterval(tick, 1000);
 
@@ -65,10 +83,11 @@ export async function openStopwatch(student, { planSubjects = [], onChange } = {
   el.addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.id === 'sw-x') return close();
+    if (b.id === 'sw-ok') { $('#sw-check', el)?.remove(); return act(async () => { s = await confirmSession(s); }); }
     if (b.dataset.sub && !s) { subject = b.dataset.sub; return draw(); }
     if (b.id === 'sw-go') return act(async () => { s = await startSession(student.id, subject); });
     if (b.id === 'sw-pause') return act(async () => { s = s.paused_at ? await resumeSession(s) : await pauseSession(s); });
-    if (b.id === 'sw-stop') return act(async () => { const done = await stopSession(s); doneSec += done.net_seconds || 0; s = null; toast(`${dur(done.net_seconds || 0)} 기록되었습니다`); });
+    if (b.id === 'sw-stop') return $('#sw-check', el)?.remove(), act(async () => { const done = await stopSession(s); doneSec += done.net_seconds || 0; s = null; toast(`${dur(done.net_seconds || 0)} 기록되었습니다`); });
   });
   document.addEventListener('keydown', function onKey(e) { if (e.key === 'Escape' && el.isConnected) { document.removeEventListener('keydown', onKey); close(); } });
 }

@@ -55,7 +55,7 @@ export async function autoCheckout(studentId, rows) {
 
 /* ---------- 스톱워치 (study_sessions) ---------- */
 export async function loadSessions(studentId) {
-  const rows = check(await sb.from('study_sessions').select('*').eq('student_id', studentId).eq('study_date', today()));
+  const rows = await settleStale(check(await sb.from('study_sessions').select('*').eq('student_id', studentId).eq('study_date', today())));
   const active = rows.find((r) => !r.ended_at) || null;
   const doneSec = rows.filter((r) => r.ended_at).reduce((a, r) => a + (r.net_seconds || 0), 0);
   return { active, doneSec };
@@ -80,4 +80,28 @@ export async function resumeSession(s) {
 export async function stopSession(s) {
   const net = elapsedSec(s);
   return check(await sb.from('study_sessions').update({ ended_at: nowIso(), paused_at: null, net_seconds: net }).eq('id', s.id).select('*').single());
+}
+
+/* ---------- 2시간 확인: 타이머를 안 끄고 가는 경우 ----------
+   마지막 확인(checked_net)부터 순공 2시간이 되면 "계속 공부 중인가요?" → 10분 안에 응답 없으면
+   마지막 확인 + 2시간까지만 기록하고 자동 종료 (auto_ended). 앱이 닫혀 있어도 다음에 누가 불러올 때 정리 */
+export const CHECK_SEC = 2 * 3600, GRACE_SEC = 10 * 60;
+export const sinceCheck = (s, at = Date.now()) => (s ? elapsedSec(s, at) - (s.checked_net || 0) : 0);
+export const needsCheck = (s, at) => !!s && !s.ended_at && sinceCheck(s, at) >= CHECK_SEC;
+export const isStale = (s, at) => !!s && !s.ended_at && sinceCheck(s, at) >= CHECK_SEC + GRACE_SEC;
+export async function confirmSession(s) {
+  return check(await sb.from('study_sessions').update({ checked_net: elapsedSec(s) }).eq('id', s.id).select('*').single());
+}
+export async function autoEnd(s) {
+  const net = (s.checked_net || 0) + CHECK_SEC;
+  // 종료 시각 = 시작 + 기록 순공 + 그때까지의 휴식 (일시정지 중이었다면 그 휴식은 제외)
+  const end = new Date(new Date(s.started_at).getTime() + (net + (s.pause_seconds || 0)) * 1000).toISOString();
+  return check(await sb.from('study_sessions').update({ ended_at: end, paused_at: null, net_seconds: net, auto_ended: true }).eq('id', s.id).select('*').single());
+}
+// 목록 안의 오래 방치된 세션을 정리해서 돌려줌 (실패하면 그대로)
+export async function settleStale(rows, at = Date.now()) {
+  return Promise.all(rows.map(async (r) => {
+    if (!isStale(r, at)) return r;
+    try { return await autoEnd(r); } catch { return { ...r, ended_at: new Date(at).toISOString(), net_seconds: (r.checked_net || 0) + CHECK_SEC, auto_ended: true }; }
+  }));
 }

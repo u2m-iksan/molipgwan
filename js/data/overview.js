@@ -7,6 +7,7 @@ import { sb } from '../sb.js';
 import { today, addDays, isoDow } from '../date.js';
 import { settleStale } from './student.js';
 import { satAlert } from './att-rules.js';
+import { loadVacations, isVacation, termOk } from './schedules.js';
 
 const check = (r) => { if (r.error) throw r.error; return r.data || []; };
 export const ORANGE_SEC = 2 * 3600;
@@ -20,13 +21,15 @@ export function lastDays(n = 2, from = today()) {
 export async function loadOverview() {
   const t = today(), win = lastDays(2), from = win[win.length - 1];
   const [students, plans, sessions, att] = await Promise.all([
-    sb.from('students').select('id,name,grade,seat_no,status,sat_arrive').eq('status', '재원').then(check),
+    sb.from('students').select('id,name,grade,school,seat_no,status,sat_arrive').eq('status', '재원').then(check),
     sb.from('plans').select('id,student_id,start_date,due_date,status').neq('status', '마감').then(check),
     sb.from('study_sessions').select('id,student_id,subject,started_at,ended_at,paused_at,pause_seconds,net_seconds,checked_net,study_date').gte('study_date', from).then(check),
     sb.from('attendance').select('*').eq('on_date', t).order('at').then(check).catch(() => []),
   ]);
-  const sched = isoDow(t) === 6 ? await sb.from('schedules').select('student_id,category,title,weekday,start_time,end_time,valid_from,valid_to')
-    .eq('weekday', 6).then(check).then((r) => r.filter((x) => x.valid_from <= t && (!x.valid_to || x.valid_to >= t))).catch(() => []) : [];
+  const vac = isoDow(t) === 6 ? await loadVacations() : [];
+  const school = new Map(students.map((s) => [s.id, s.school]));
+  const sched = isoDow(t) === 6 ? await sb.from('schedules').select('student_id,category,title,weekday,start_time,end_time,valid_from,valid_to,term')
+    .eq('weekday', 6).then(check).then((r) => r.filter((x) => x.valid_from <= t && (!x.valid_to || x.valid_to >= t) && termOk(x, isVacation(school.get(x.student_id), t, vac) ? '방학' : '학기'))).catch(() => []) : [];
   const sessions2 = await settleStale(sessions);   // 2시간 무응답 세션 정리
   sessions.splice(0, sessions.length, ...sessions2);
   const items = plans.length ? check(await sb.from('plan_items').select('id,plan_id,academy').in('plan_id', plans.map((p) => p.id))) : [];

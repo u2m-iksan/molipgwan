@@ -2,6 +2,7 @@
 // 계획 한 장 = 상담일 ~ 다음 상담일. 상담 1회 = 지난 계획 마감 + 새 계획 + 보고 1개.
 import { sb } from '../sb.js';
 import { today, addDays, mondayOf, short } from '../date.js';
+import { loadVacations } from './schedules.js';
 
 function check(res) { if (res.error) throw res.error; return res.data; }
 const byOrder = (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0);
@@ -285,10 +286,11 @@ export function noticeText(student, report) {
 // { students, plans: Map(sid → plan), items: Map(planId → [item]), progress: Map(itemId → [{on_date,pct}]), sched: [학원 일정], coach: Map(sid → 코칭 일정) }
 export async function loadAllPlans() {
   const [students, plans, sched] = await Promise.all([
-    sb.from('students').select('id,name,grade,seat_no,status').eq('status', '재원').then(check),
+    sb.from('students').select('id,name,grade,school,seat_no,status').eq('status', '재원').then(check),
     sb.from('plans').select('id,student_id,start_date,due_date,author_role,status').neq('status', '마감').then(check),
     sb.from('schedules').select('*').in('category', ['학원', '코칭']).then(check),
   ]);
+  const vac = await loadVacations();
   const t = today();
   const live = sched.filter((r) => r.valid_from <= addDays(t, 7) && (!r.valid_to || r.valid_to >= t));
   const ids = plans.map((p) => p.id);
@@ -302,7 +304,7 @@ export async function loadAllPlans() {
   for (const a of itemsBy.values()) a.sort(byOrder);
   return {
     students, plans: planBy, items: itemsBy, progress: group(prog, 'item_id'),
-    sched: live.filter((r) => r.category === '학원'),
+    sched: live.filter((r) => r.category === '학원'), vac,
     coach: new Map(live.filter((r) => r.category === '코칭').map((r) => [r.student_id, r])),
   };
 }

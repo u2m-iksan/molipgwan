@@ -44,7 +44,7 @@ export async function loadStudentSchedules(studentId) {
 export function groupSchedules(rows) {
   const map = new Map();
   for (const r of rows) {
-    const k = [r.category, r.title, r.subject ?? '', r.subject_detail ?? '', hm(r.start_time), hm(r.end_time), r.valid_from, r.valid_to].join('|');
+    const k = [r.category, r.title, r.subject ?? '', r.subject_detail ?? '', r.term ?? '', hm(r.start_time), hm(r.end_time), r.valid_from, r.valid_to].join('|');
     if (!map.has(k)) map.set(k, { ...r, ids: [], weekdays: [] });
     const g = map.get(k); g.ids.push(r.id); g.weekdays.push(r.weekday);
   }
@@ -52,13 +52,13 @@ export function groupSchedules(rows) {
 }
 
 // period: 'always' | 'week' | 'range'
-export async function addSchedule({ student_id, category, title, weekdays, start, end, period, from, to, subject = null, subject_detail = null }) {
+export async function addSchedule({ student_id, category, title, weekdays, start, end, period, from, to, subject = null, subject_detail = null, term = null }) {
   let valid_from = today(), valid_to = null;
   if (period === 'week') { valid_from = mondayOf(today()); valid_to = addDays(valid_from, 6); }
   if (period === 'range') { valid_from = from; valid_to = to; }
   const rows = weekdays.map((weekday) => ({
     student_id, category, title: title.trim(), weekday, start_time: start, end_time: end, valid_from, valid_to,
-    ...(subject != null ? { subject } : {}), ...(subject_detail ? { subject_detail } : {}),
+    ...(subject != null ? { subject } : {}), ...(subject_detail ? { subject_detail } : {}), ...(term ? { term } : {}),
   }));
   check(await sb.from('schedules').insert(rows));
 }
@@ -130,3 +130,17 @@ export async function getPeriods() {
 export async function savePeriods(list) {
   check(await sb.from('app_settings').upsert({ key: 'periods', value: list }));
 }
+
+/* ---------- 학기 / 방학 ---------- */
+// 일정 적용 시기(term): null = 항상 / '학기' / '방학'. 학생 학교의 방학 일정(설정 탭 학사일정)으로 그날이 방학인지 판단
+let evCache = null;
+export function loadVacations(force = false) {
+  if (!evCache || force) evCache = sb.from('school_events').select('school,kind,title,start_date,end_date').eq('kind', '방학').then(check).catch(() => []);
+  return evCache;
+}
+export const isVacation = (school, date, evs) => !!school && (evs || []).some((e) => e.school === school && e.start_date <= date && e.end_date >= date);
+// 그날의 시기 판정 함수: date → '방학' | '학기'
+export const termFn = (school, evs) => (date) => (isVacation(school, date, evs) ? '방학' : '학기');
+export const termOk = (r, term) => !r.term || r.term === term;
+// 일정 목록에 시기 판정 붙이기 (시간표 · 학원 숙제 날짜 계산에서 사용)
+export function withTerm(rows, school, evs) { rows.termAt = termFn(school, evs); return rows; }

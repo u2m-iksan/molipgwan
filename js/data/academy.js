@@ -30,7 +30,7 @@ export function academyDates(item, start, end, rows) {
   const ac = rows.filter((r) => matches(item, r));
   const out = [];
   for (let d = start; d < last; d = addDays(d, 1)) {
-    if (ac.some((r) => r.weekday === isoDow(d) && r.valid_from <= d && (!r.valid_to || r.valid_to >= d))) out.push(d);
+    if (ac.some((r) => r.weekday === isoDow(d) && r.valid_from <= d && (!r.valid_to || r.valid_to >= d) && (!r.term || !rows.termAt || r.term === rows.termAt(d)))) out.push(d);
   }
   return out;
 }

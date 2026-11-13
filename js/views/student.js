@@ -2,7 +2,7 @@
 // 폰: 오늘 공부시간(누르면 스톱워치) + [시간표 | 이번주 계획] 옆으로 넘기기, 세로 스크롤 없음
 import { mount, $, $$, esc, toast, sheet, BRAND, X } from '../ui.js';
 import { DOW, today, mondayOf, short, isoDow, toMin, toTime, hm, addDays } from '../date.js';
-import { loadStudentSchedules } from '../data/schedules.js';
+import { loadStudentSchedules, loadVacations, withTerm, termOk } from '../data/schedules.js';
 import { weekGrid, renderScheduleEditor } from '../teacher/schedule-editor.js';
 import { academyStat, dayLabel } from '../data/academy.js';
 import { segBar } from './progress-bar.js';
@@ -117,8 +117,8 @@ ${SUM}
       let back = now + 60;
       if (reason === '학원') {
         try {
-          const rows = await loadStudentSchedules(student.id);
-          const blk = rows.filter((r) => r.category === '학원' && r.weekday === isoDow(today()) && r.valid_from <= today() && (!r.valid_to || r.valid_to >= today()))
+          const rows = withTerm(await loadStudentSchedules(student.id), student.school, await loadVacations());
+          const blk = rows.filter((r) => r.category === '학원' && r.weekday === isoDow(today()) && r.valid_from <= today() && (!r.valid_to || r.valid_to >= today()) && termOk(r, rows.termAt(today())))
             .find((r) => toMin(r.end_time) > now && toMin(r.start_time) <= now + 60);
           back = blk ? toMin(blk.end_time) + 20 : now + 120;
         } catch { back = now + 120; }
@@ -137,7 +137,7 @@ ${SUM}
   async function loadTT() {
     const el = $('#tt');
     try {
-      const rows = await loadStudentSchedules(student.id);
+      const rows = withTerm(await loadStudentSchedules(student.id), student.school, await loadVacations());
       st.sched = rows; paintSum(); drawPlan();
       let lastKey = '';
       const draw = () => {
@@ -146,7 +146,7 @@ ${SUM}
         if (key === lastKey && el.querySelector('.wk-grid')) return;   // 크기 그대로면 다시 그리지 않음
         lastKey = key;
         // 학교 있는 주중은 학교 시간을 줄이고 오후·저녁을 크게 (주말·학교 없는 주는 고르게)
-        const paint = (h) => { el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span><button type="button" class="link-s sa-edit" id="tt-edit">학원 일정</button></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true })}`; };
+        const paint = (h) => { el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주${rows.termAt?.(today()) === '방학' ? ' · 방학' : ''}</span><button type="button" class="link-s sa-edit" id="tt-edit">학원 일정</button></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true })}`; };
         const min = innerWidth <= 820 ? 200 : 330;
         let h = Math.max(min, el.clientHeight - 100);
         paint(h);

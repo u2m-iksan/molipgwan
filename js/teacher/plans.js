@@ -4,6 +4,7 @@ import { $, $$, esc } from '../ui.js';
 import { today, short, DOW, hm } from '../date.js';
 import { loadAllPlans } from '../data/coaching.js';
 import { academyStat } from '../data/academy.js';
+import { withTerm } from '../data/schedules.js';
 import { segBar } from '../views/progress-bar.js';
 
 const md = (d) => short(d).replace(/\(.\)/, '');
@@ -28,10 +29,12 @@ export async function renderPlans(body) {
   const rows = st.data.students.map((s) => {
     const plan = st.data.plans.get(s.id) || null;
     const items = plan ? st.data.items.get(plan.id) || [] : [];
+    // 그 학생 학원 일정만 (학기 / 방학 반영)
+    const mySched = withTerm(st.data.sched.filter((r) => r.student_id === s.id), s.school, st.data.vac);
     const its = items.map((i) => {
       const h = st.data.progress.get(i.id) || [];
       if (i.academy) {
-        const a = academyStat(i, plan, st.data.sched, h);
+        const a = academyStat(i, plan, mySched, h);
         return { ...i, h, a, pct: a.rate };
       }
       return { ...i, h, pct: h.length ? h[h.length - 1].pct : 0 };

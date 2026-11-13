@@ -5,7 +5,7 @@ import { refPanel } from './ref-panel.js';
 import { segBar } from '../views/progress-bar.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
-import { loadStudentSchedules } from '../data/schedules.js';
+import { loadStudentSchedules, loadVacations, withTerm } from '../data/schedules.js';
 import { hasAcademy, matches, academyStat, dayLabel } from '../data/academy.js';
 import {
   loadConsult, loadCarryCandidates, saveConsult, saveReport, computeReportStats,
@@ -90,8 +90,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   /* ---------- 불러오기 ---------- */
   (async () => {
     try {
-      const [d, ses, sched] = await Promise.all([loadConsult(stu.id, scheduled), sb.auth.getSession(), loadStudentSchedules(stu.id).catch(() => [])]);
+      const [d, ses, sched0, vac] = await Promise.all([loadConsult(stu.id, scheduled), sb.auth.getSession(), loadStudentSchedules(stu.id).catch(() => []), loadVacations()]);
       st.d = d; st.me = ses?.data?.session?.user?.email || null;
+      const sched = withTerm(sched0, stu.school, vac);
       st.sched = sched; st.acHas = (i) => hasAcademy(i, sched);
       const c = d.coaching;
       if (c) {

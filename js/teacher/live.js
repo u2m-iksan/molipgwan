@@ -8,6 +8,7 @@ import { sb } from '../sb.js';
 import { DOW, today, mondayOf, isoDow, toMin, hm } from '../date.js';
 import { settleStale } from '../data/student.js';
 import { satAlert } from '../data/att-rules.js';
+import { loadVacations, isVacation, termOk } from '../data/schedules.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const kst = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -25,13 +26,16 @@ const bySeat = (a, b) => {
 
 async function loadLive() {
   const t = today(), mon = mondayOf(t);
-  const [students, sessions, att, sched] = await Promise.all([
-    sb.from('students').select('id,name,grade,seat_no,status,sat_arrive,return_on').in('status', ['재원', '휴원']).then(check),
+  const [students, sessions, att, sched, vac] = await Promise.all([
+    sb.from('students').select('id,name,grade,school,seat_no,status,sat_arrive,return_on').in('status', ['재원', '휴원']).then(check),
     sb.from('study_sessions').select('id,student_id,subject,started_at,ended_at,paused_at,pause_seconds,net_seconds,checked_net,study_date').gte('study_date', mon).then(check),
     sb.from('attendance').select('*').eq('on_date', t).order('at').then(check).catch(() => []),
-    sb.from('schedules').select('student_id,category,title,weekday,start_time,end_time,valid_from,valid_to').eq('weekday', isoDow(t)).then(check),
+    sb.from('schedules').select('student_id,category,title,weekday,start_time,end_time,valid_from,valid_to,term').eq('weekday', isoDow(t)).then(check),
+    loadVacations(true),
   ]);
-  return { t, students: students.filter((x) => x.status === '재원' || (x.return_on && x.return_on >= t)), sessions: await settleStale(sessions), att, sched: sched.filter((r) => r.valid_from <= t && (!r.valid_to || r.valid_to >= t)) };
+  return { t, students: students.filter((x) => x.status === '재원' || (x.return_on && x.return_on >= t)), sessions: await settleStale(sessions), att, vac,
+    sched: sched.filter((r) => r.valid_from <= t && (!r.valid_to || r.valid_to >= t))
+      .filter((r) => termOk(r, isVacation(students.find((s) => s.id === r.student_id)?.school, t, vac) ? '방학' : '학기')) };
 }
 
 export async function openLive() {
@@ -39,7 +43,7 @@ export async function openLive() {
   el.className = 'bd lv';
   el.innerHTML = `<div class="lv-in">
     <div class="lv-top"><span class="bd-logo">U2M</span><span class="lv-date" id="lv-date"></span>
-      <span class="lv-count" id="lv-count"></span>
+      <span class="lv-vac" id="lv-vac"></span><span class="lv-count" id="lv-count"></span>
       <button type="button" class="bd-x" id="lv-x" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="lv-main">
       <section class="lv-card lv-stu"><h4>실시간 학생 현황</h4><div class="lv-grid" id="lv-grid"><p class="bd-muted">불러오는 중</p></div></section>
@@ -60,6 +64,17 @@ export async function openLive() {
   $('#lv-x', el).addEventListener('click', close);
   document.addEventListener('keydown', function k(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', k); if (alive) close(); } });
 
+  // 방학 D-N: 재원생 학교 중 가장 가까운 방학 (진행 중이면 "방학 중")
+  function paintVac() {
+    const box = $('#lv-vac', el); if (!box || !data) return;
+    const schools = new Set(data.students.map((s) => s.school).filter(Boolean));
+    const evs = (data.vac || []).filter((e) => schools.has(e.school) && e.end_date >= data.t);
+    const now = evs.filter((e) => e.start_date <= data.t);
+    const next = evs.filter((e) => e.start_date > data.t).sort((a, b) => (a.start_date < b.start_date ? -1 : 1))[0];
+    const dn = next ? Math.round((new Date(next.start_date) - new Date(data.t)) / 86400000) : null;
+    box.innerHTML = now.length ? `방학 중 <b>${new Set(now.map((e) => e.school)).size}개교</b>`
+      : next ? `${esc(next.title || '방학')} <b>D-${dn}</b>` : '';
+  }
   function stateOf(s, nowMin, at) {
     const ses = data.sessions.filter((x) => x.student_id === s.id && x.study_date === data.t);
     const active = ses.find((x) => !x.ended_at);
@@ -88,6 +103,7 @@ export async function openLive() {
     const list = data.students.map((s) => ({ s, st: stateOf(s, nowMin, at) }))
       .sort((a, b) => (ORDER[a.st.k] - ORDER[b.st.k]) || bySeat(a.s, b.s));
     const on = list.filter((x) => x.st.k === 'on').length;
+    paintVac();
     $('#lv-count', el).innerHTML = `<i></i>몰입 중 <b>${on}</b><span>/ ${list.filter((x) => x.st.k !== 'ret').length}</span>`;
     $('#lv-grid', el).innerHTML = list.length ? list.map(({ s, st }) => `
       <div class="lv-s ${st.k}">

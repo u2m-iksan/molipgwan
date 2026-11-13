@@ -193,7 +193,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
             <div class="input sm cs-subsel"><select data-f="subject">${subOpts(i.subject)}</select></div>
             <div class="input sm cs-detail"><input data-f="subject_detail" value="${esc(i.subject_detail || '')}" placeholder="세부 과목"></div>
             ${i.source === '이월' ? '<span class="pill pill-orange">이월</span>' : ''}
-            <button type="button" class="chip-t ac-chip${i.academy ? ' on' : ''}" data-ac="${k}" title="학원 가는 날마다 숙제 해갔는지 체크">학원 숙제</button>
+            <button type="button" class="chip-t ac-chip${i.academy ? ' on' : ''}" data-ac="${k}" title="학원 가는 날마다 숙제 해갔는지 체크"${st.acHas?.(i) ? '' : ' hidden'}>학원 숙제</button>
             <button type="button" class="icon-btn sm" data-del-next="${k}" aria-label="삭제">${X}</button>
           </div>
           <div class="input sm"><input data-f="title" value="${esc(i.title)}" placeholder="분량 (예: 쎈 B단계 p.40–72)"></div>
@@ -256,6 +256,13 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       keepScroll(drawConsult);
     });
 
+    // 학원 숙제: 그 과목(과학·사회는 세부 과목까지) 학원이 있을 때만 칩 표시, 있으면 기본으로 켜짐 · 끄고 켜기 가능
+    const acSync = (it, row) => {
+      const has = !!st.acHas?.(it);
+      if (!has) { it.academy = false; it.acManual = false; } else if (!it.acManual) it.academy = true;
+      const chip = row?.querySelector('[data-ac]');
+      if (chip) { chip.hidden = !has; chip.classList.toggle('on', it.academy); }
+    };
     // 입력 → 상태 (다시 그리지 않음)
     const bind = (listSel, arr) => {
       const list = $(listSel, body); if (!list) return;
@@ -268,7 +275,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
           it.final_rate = v === '' ? null : Math.min(100, Number(v));
         } else it[f] = e.target.value;
         // 과목을 바꾸면 학원 과목인지 다시 판정 (직접 바꾼 적 없을 때)
-        if (f === 'subject' && listSel === '#next-list' && !it.acManual) { it.academy = !!st.acHas?.(it); keepScroll(drawConsult); }
+        if ((f === 'subject' || f === 'subject_detail') && listSel === '#next-list') acSync(it, e.target.closest('[data-k]'));
       });
       list.addEventListener('blur', (e) => {
         if (e.target.dataset.f === 'final_rate' && e.target.value) e.target.value = String(Math.min(100, Number(e.target.value)));
@@ -342,7 +349,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       const all = st.carry.flatMap((p) => p.items);
       for (const id of ids) {
         const i = all.find((x) => x.id === id);
-        st.newItems.push({ subject: i.subject, subject_detail: i.subject_detail, title: i.title, detail: i.detail || '', source: '이월', carried_from: i.id, academy: i.academy ?? !!st.acHas?.(i) });
+        st.newItems.push({ subject: i.subject, subject_detail: i.subject_detail, title: i.title, detail: i.detail || '', source: '이월', carried_from: i.id, academy: !!st.acHas?.(i) && (i.academy ?? true) });
       }
       const y = window.scrollY; drawConsult(); window.scrollTo(0, y);
       if (ids.length) toast(`${ids.length}개 항목을 가져왔습니다`);
@@ -352,7 +359,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   async function save(btn) {
     const err = $('#cs-err', panel); err.textContent = '';
     const prevItems = st.prevItems.filter((i) => i.id || i.title.trim());
-    const newItems = st.newItems.filter((i) => i.title.trim());
+    const newItems = st.newItems.filter((i) => i.title.trim()).map((i) => ({ ...i, academy: !!i.academy && !!st.acHas?.(i) }));
     if (st.newItems.some((i) => !i.title.trim() && (i.detail || '').trim())) return (err.textContent = '분량이 비어 있는 계획이 있습니다.');
     if (!st.absent && !newItems.length && !st.isLeaving) return (err.textContent = '다음 계획을 하나 이상 입력하세요.');
 

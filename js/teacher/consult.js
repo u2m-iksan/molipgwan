@@ -6,7 +6,7 @@ import { segBar } from '../views/progress-bar.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
 import { loadStudentSchedules } from '../data/schedules.js';
-import { hasAcademy, academyStat, dayLabel } from '../data/academy.js';
+import { hasAcademy, matches, academyStat, dayLabel } from '../data/academy.js';
 import {
   loadConsult, loadCarryCandidates, saveConsult, saveReport, computeReportStats,
   buildPrompt, parseGpt, reportSubjects, noticeText,
@@ -105,11 +105,25 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       const acRate = (i) => (i.academy && d.prevPlan ? academyStat(i, d.prevPlan, sched, d.progress.get(i.id), d.prevPlan.due_date ? d.prevPlan.due_date : today()).rate : null);
       st.prevItems = d.prevItems.map((i) => ({ ...i, final_rate: i.final_rate ?? (i.academy ? acRate(i) : last(i.id)) }));
       st.newItems = d.newItems.map((i) => ({ ...i }));
+      if (!d.newPlan) seedAcademy();
       drawConsult();
     } catch (e) {
       $('#p-c .cp-body', panel).innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`;
     }
   })();
+
+  // 다음 계획 기본: 다니는 학원 과목마다 칸 하나 (과목 · 세부 과목 · 학원 숙제 켜짐)
+  function seedAcademy() {
+    const t = today(), seen = new Set();
+    const acs = (st.sched || []).filter((r) => r.category === '학원' && r.subject && r.valid_from <= addDays(t, 7) && (!r.valid_to || r.valid_to >= t));
+    const add = [];
+    for (const r of acs) {
+      const k = `${r.subject}|${r.subject_detail || ''}`; if (seen.has(k)) continue; seen.add(k);
+      if (st.newItems.some((i) => matches(i, r))) continue;
+      add.push({ subject: r.subject, subject_detail: r.subject_detail || null, title: '', detail: '', source: '계획', academy: true, acSeed: true });
+    }
+    st.newItems = [...add, ...st.newItems];
+  }
 
   /* ---------- ① 상담 ---------- */
   const subOpts = (v) => SUBJECTS.map((s) => `<option${s === v ? ' selected' : ''}>${s}</option>`).join('');
@@ -196,7 +210,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
             <button type="button" class="chip-t ac-chip${i.academy ? ' on' : ''}" data-ac="${k}" title="학원 가는 날마다 숙제 해갔는지 체크"${st.acHas?.(i) ? '' : ' hidden'}>학원 숙제</button>
             <button type="button" class="icon-btn sm" data-del-next="${k}" aria-label="삭제">${X}</button>
           </div>
-          <div class="input sm"><input data-f="title" value="${esc(i.title)}" placeholder="분량 (예: 쎈 B단계 p.40–72)"></div>
+          <div class="input sm"><input data-f="title" value="${esc(i.title)}" placeholder="${i.academy ? '숙제 범위 (선택)' : '분량 (예: 쎈 B단계 p.40–72)'}"></div>
           <div class="input sm"><input data-f="detail" value="${esc(i.detail || '')}" placeholder="세부 사항"></div>
         </div>`).join('') || '<div class="cs-empty">위에서 과목을 눌러 추가하세요.</div>'}</div>`;
   }
@@ -349,7 +363,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       const all = st.carry.flatMap((p) => p.items);
       for (const id of ids) {
         const i = all.find((x) => x.id === id);
-        st.newItems.push({ subject: i.subject, subject_detail: i.subject_detail, title: i.title, detail: i.detail || '', source: '이월', carried_from: i.id, academy: !!st.acHas?.(i) && (i.academy ?? true) });
+        const row = { subject: i.subject, subject_detail: i.subject_detail, title: i.title, detail: i.detail || '', source: '이월', carried_from: i.id, academy: !!st.acHas?.(i) && (i.academy ?? true) };
+        const k = st.newItems.findIndex((x) => x.acSeed && !x.title.trim() && x.subject === i.subject && (x.subject_detail || '') === (i.subject_detail || ''));
+        if (k >= 0) st.newItems[k] = row; else st.newItems.push(row);
       }
       const y = window.scrollY; drawConsult(); window.scrollTo(0, y);
       if (ids.length) toast(`${ids.length}개 항목을 가져왔습니다`);
@@ -359,7 +375,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   async function save(btn) {
     const err = $('#cs-err', panel); err.textContent = '';
     const prevItems = st.prevItems.filter((i) => i.id || i.title.trim());
-    const newItems = st.newItems.filter((i) => i.title.trim()).map((i) => ({ ...i, academy: !!i.academy && !!st.acHas?.(i) }));
+    const newItems = st.newItems.map((i) => (i.academy && !i.title.trim() ? { ...i, title: '학원 숙제' } : i)).filter((i) => i.title.trim()).map((i) => ({ ...i, academy: !!i.academy && !!st.acHas?.(i) }));
     if (st.newItems.some((i) => !i.title.trim() && (i.detail || '').trim())) return (err.textContent = '분량이 비어 있는 계획이 있습니다.');
     if (!st.absent && !newItems.length && !st.isLeaving) return (err.textContent = '다음 계획을 하나 이상 입력하세요.');
 

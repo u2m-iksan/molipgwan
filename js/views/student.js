@@ -123,14 +123,24 @@ export async function renderStudentHome({ student, onLogout }) {
     const el = $('#tt');
     try {
       const rows = await loadStudentSchedules(student.id);
+      let lastKey = '';
       const draw = () => {
         if (root._view !== token || !$('#tt')) return;
+        // 폰(세로): 시간표 카드를 화면 높이에 고정 → 스크롤 없이 한 화면
+        if (innerWidth <= 820) {
+          const top = $('.top', root)?.offsetHeight || 56;
+          el.style.height = `${innerHeight - top - 24}px`;
+        } else el.style.height = '';
+        const key = `${el.clientWidth}x${el.clientHeight}`;
+        if (key === lastKey && el.querySelector('.wk-grid')) return;   // 크기 그대로면 다시 그리지 않음
+        lastKey = key;
         const avail = el.clientHeight - 40 - 52;          // 요일 머리 · 제목 줄
         // 학교 있는 주중은 학교 시간을 줄이고 오후·저녁을 크게 (주말·학교 없는 주는 고르게)
-        el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span><button type="button" class="link-s sa-edit" id="tt-edit">학원 일정</button></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: Math.max(330, avail), squeezeSchool: true })}`;
+        el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span><button type="button" class="link-s sa-edit" id="tt-edit">학원 일정</button></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: Math.max(innerWidth <= 820 ? 200 : 330, avail), squeezeSchool: true })}`;
       };
       draw();
       new ResizeObserver(() => draw()).observe($('.sa-main'));
+      addEventListener('resize', draw);
       // 학원 일정 변경 (바로 반영 + 선생님 알림)
       el.addEventListener('click', (e) => {
         if (e.target.id !== 'tt-edit') return;

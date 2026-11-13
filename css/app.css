@@ -806,3 +806,30 @@ body.has-foot .toast{bottom:92px}
 .msg-badges i{display:flex;width:22px;height:22px}
 .msg-badges i svg{width:22px;height:22px}
 .msg-badges em{font-style:normal;font-size:12px;font-weight:700;color:var(--sub);margin-left:4px}
+/* 신규생 정보 */
+.np-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+.np-grid .field:first-child{margin-top:0}
+.np-habits{display:flex;flex-direction:column;gap:8px}
+.np-habit{display:flex;align-items:center;gap:10px}
+.np-n{flex:none;width:24px;height:24px;border-radius:12px;background:var(--surface);display:grid;place-items:center;font-size:12px;font-weight:800;color:var(--sub)}
+#np .chips .chip-t{height:32px}
+@media (max-width:860px){.np-grid{grid-template-columns:1fr}}
+/* 신규생 상담 보고서 */
+.wr-welcome{margin-top:32px;padding:14px;border-radius:12px;background:#fff;border:1px solid var(--line)}
+.wr-welcome b{display:block;font-size:13.5px;font-weight:800;color:#1D5FC4}
+.wr-welcome small{display:block;font-size:11.5px;color:var(--sub);margin-top:4px;line-height:1.5}
+.wr-tags{display:flex;flex-wrap:wrap;gap:6px}
+.wr-tag{height:28px;padding:0 11px;border-radius:14px;display:inline-flex;align-items:center;font-size:12.5px;font-weight:700;background:#fff;border:1px solid var(--line)}
+.wr-tag.st{color:#1D5FC4;border-color:#C6DCFC}
+.wr-tag.wk{color:#C2510E;border-color:#F5D3BC}
+.wr-goal{font-size:17px;font-weight:700;line-height:1.6;padding:18px 20px;border-radius:10px;border:1px solid var(--line);word-break:keep-all}
+.wr-habits{list-style:none;border-bottom:1px solid var(--line)}
+.wr-habits li{display:flex;gap:14px;padding:12px 0;border-top:1px solid var(--line);font-size:14.5px;line-height:1.6}
+.wr-habits b{color:#1D5FC4;font-weight:800;width:14px}
+.wr-fb li b small{display:block;font-size:11px;font-weight:600;color:var(--sub)}
+.ep-goal{font-size:14px;font-weight:700;line-height:1.55}
+.ep-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ep-tag{height:24px;padding:0 9px;border-radius:12px;display:inline-flex;align-items:center;font-size:12px;font-weight:700;border:1px solid var(--line)}
+.ep-tag.st{color:#1D5FC4;border-color:#C6DCFC}.ep-tag.wk{color:#C2510E;border-color:#F5D3BC}
+.ep-tag.st:first-child::before{content:"강점 ";font-weight:500;color:var(--sub);margin-right:2px}
+.ep-habits{margin:10px 0 0 18px;font-size:13px;line-height:1.6;color:var(--text)}

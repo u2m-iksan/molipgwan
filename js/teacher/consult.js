@@ -70,6 +70,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     heldOn: today(), absent: false, isNew: false, isLeaving: false,
     prevItems: [], newItems: [], removedIds: [], summary: '', checkItems: [],
     carry: null, report: null, coachingId: null,
+    profile: { goal: stu.goal || '', strong: [...(stu.strong_subjects || [])], weak: [...(stu.weak_subjects || [])], habits: stu.habits?.length ? [...stu.habits] : [''] },
   };
 
   const tabs = $('#cs-tabs', panel);
@@ -108,6 +109,29 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   /* ---------- ① 상담 ---------- */
   const subOpts = (v) => SUBJECTS.map((s) => `<option${s === v ? ' selected' : ''}>${s}</option>`).join('');
   const subLabel = (i) => `${esc(i.subject)}${i.subject_detail ? `<small>${esc(i.subject_detail)}</small>` : ''}`;
+
+  // 신규생: 목표 · 자신 있는 과목 · 약점 과목 · 만들고 싶은 공부 습관 (학생 정보에 저장)
+  function newProfileHtml() {
+    const P = st.profile;
+    const chips = (key) => SUBJECTS.map((x) => `<button type="button" class="chip-t${P[key].includes(x) ? ' on' : ''}" data-pf="${key}" data-v="${x}">${x}</button>`).join('');
+    return `<section class="cs-card" id="np">
+      <div class="cs-card-h"><h4>신규생 정보</h4><span class="cs-meta">학생 정보에 저장 · 상담 참고사항에 표시</span></div>
+      <div class="np-grid">
+        <div class="field"><label for="np-goal">학생 목표</label>
+          <textarea class="textarea" id="np-goal" rows="3" placeholder="예: 2학기 기말 수학 1등급, 수능 국어 2등급">${esc(P.goal)}</textarea></div>
+        <div>
+          <div class="field"><span class="lbl">자신 있는 과목</span><div class="chips">${chips('strong')}</div></div>
+          <div class="field"><span class="lbl">약점 과목</span><div class="chips">${chips('weak')}</div></div>
+        </div>
+      </div>
+      <div class="field"><span class="lbl">몰입관에서 만들고 싶은 공부 습관<span class="opt">1~3개</span></span>
+        <div class="np-habits">${P.habits.map((h, k) => `<div class="np-habit"><span class="np-n">${k + 1}</span>
+          <div class="input sm grow"><input data-habit="${k}" value="${esc(h)}" placeholder="예: 매일 스톱워치 3시간 이상"></div>
+          ${P.habits.length > 1 ? `<button type="button" class="icon-btn sm" data-habit-del="${k}" aria-label="삭제">${X}</button>` : ''}</div>`).join('')}</div>
+        ${P.habits.length < 3 ? '<button type="button" class="link-s cs-add" id="np-add">+ 습관 추가</button>' : ''}
+      </div>
+    </section>`;
+  }
 
   function prevMeta() {
     const p = st.d.prevPlan; if (!p) return '';
@@ -172,6 +196,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
             </div></div>
           <span class="cs-kind" id="cs-kind"></span>
         </section>
+        ${st.isNew ? newProfileHtml() : ''}
         <div class="cs-cols">
           <section class="cs-card">
             <div class="cs-card-h"><h4>지난 계획 이행도</h4>${prevMeta()}</div>
@@ -231,6 +256,13 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
 
     const onClick = async (e) => {
       const t = e.target.closest('button'); if (!t) return;
+      if (t.dataset.pf) {
+        const L = st.profile[t.dataset.pf], v = t.dataset.v;
+        st.profile[t.dataset.pf] = L.includes(v) ? L.filter((x) => x !== v) : [...L, v];
+        return t.classList.toggle('on');
+      }
+      if (t.id === 'np-add') { st.profile.habits.push(''); return keepScroll(drawConsult); }
+      if (t.dataset.habitDel != null) { st.profile.habits.splice(Number(t.dataset.habitDel), 1); return keepScroll(drawConsult); }
       if (t.id === 'prev-add') {
         st.prevItems.push({ subject: '수학', subject_detail: null, title: '', final_rate: null, final_note: '', source: '추가' });
         return keepScroll(drawConsult);
@@ -256,6 +288,10 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     $('.cp-body', body).addEventListener('click', onClick);
     $('.cp-foot', body).addEventListener('click', onClick);
     $('#cs-sum', body).addEventListener('input', (e) => { st.summary = e.target.value; });
+    $('#np', body)?.addEventListener('input', (e) => {
+      if (e.target.id === 'np-goal') st.profile.goal = e.target.value;
+      if (e.target.dataset.habit != null) st.profile.habits[Number(e.target.dataset.habit)] = e.target.value;
+    });
   }
 
 
@@ -307,7 +343,15 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         if (error) throw error;
         it.id = data.id;
       }
-      const coachingId = await saveConsult({
+      let profile = null;
+      if (st.isNew) {
+        const P = st.profile;
+        profile = { goal: P.goal.trim() || null, strong_subjects: P.strong, weak_subjects: P.weak, habits: P.habits.map((h) => h.trim()).filter(Boolean) };
+        const { error } = await sb.from('students').update(profile).eq('id', stu.id);
+        if (error) throw error;
+        Object.assign(stu, profile);
+      }
+      const coachingId = await saveConsult({ profile,
         student: stu, scheduled, heldOn: st.heldOn, absent: st.absent, isNew: st.isNew, isLeaving: st.isLeaving,
         summary: st.summary.trim(), checkItems: st.checkItems,
         prevPlan: st.d.prevPlan, prevItems: prevItems.filter((i) => i.id), newPlan: st.d.newPlan,

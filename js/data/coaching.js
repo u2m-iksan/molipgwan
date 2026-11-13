@@ -140,6 +140,7 @@ export async function saveConsult(s, me) {
     coaching_id: coaching.id, student_id: sid,
     period_start: s.prevPlan?.start_date || null, period_end: s.absent ? s.scheduled : s.heldOn,
     is_absent: s.absent, rates, next_plan, check_items: s.checkItems, author: me,
+    ...(s.isNew ? { stats: { is_new: true, profile: s.profile || {} } } : {}),
   }, { onConflict: 'coaching_id' }));
 
   return coaching.id;

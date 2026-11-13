@@ -11,10 +11,20 @@ const empty = (m) => `<div class="ep-empty">${m}</div>`;
 const dur = (sec) => { const m = Math.round(sec / 60); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분`; };
 const md = (d) => short(d).replace(/\(.\)/, '');
 
+function goalHtml(stu) {
+  const tags = (arr, cls) => (arr || []).map((x) => `<span class="ep-tag ${cls}">${esc(x)}</span>`).join('');
+  const habits = (stu.habits || []).filter(Boolean);
+  if (!stu.goal && !stu.strong_subjects?.length && !stu.weak_subjects?.length && !habits.length) return empty('신규생 상담에서 입력합니다.');
+  return `${stu.goal ? `<p class="ep-goal">${esc(stu.goal)}</p>` : ''}
+    ${stu.strong_subjects?.length || stu.weak_subjects?.length ? `<div class="ep-tags">${tags(stu.strong_subjects, 'st')}${tags(stu.weak_subjects, 'wk')}</div>` : ''}
+    ${habits.length ? `<ol class="ep-habits">${habits.map((h) => `<li>${esc(h)}</li>`).join('')}</ol>` : ''}`;
+}
+
 export async function refPanel(el, stu, { onClose } = {}) {
   el.innerHTML = `
     <div class="ep-head"><h4>상담 참고사항</h4><button type="button" class="icon-btn sm ep-x" aria-label="접기">${X}</button></div>
     <div class="ep-body">
+      <section class="ep-sec"><h5>학생 목표</h5>${goalHtml(stu)}</section>
       <section class="ep-sec" data-s="rate"><h5>계획 이행도</h5>${empty('불러오는 중')}</section>
       <section class="ep-sec" data-s="time"><h5>과목별 순공시간</h5>${empty('불러오는 중')}</section>
       <section class="ep-sec" data-s="exam"><h5>최근 중간고사</h5>${empty('불러오는 중')}</section>

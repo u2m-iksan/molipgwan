@@ -48,6 +48,7 @@ function ring(avg) {
 
 /* ---------- 보고서 ---------- */
 export function reportCard(r, student) {
+  if (r.stats?.is_new) return newReportCard(r, student);
   const rates = (r.rates || []).filter((x) => x.rate != null);
   const avg = rates.length ? Math.round(rates.reduce((a, x) => a + x.rate, 0) / rates.length) : null;
   const done = rates.filter((x) => x.rate >= 90).length, low = rates.filter((x) => x.rate < 50).length;
@@ -89,6 +90,35 @@ export function reportCard(r, student) {
         <h4>총평</h4>
         <p class="wr-sum">${esc(r.summary)}</p>
       </section>` : ''}
+    </main>
+  </article>`;
+}
+
+/* ---------- 신규생 상담 보고서 ---------- */
+function newReportCard(r, student) {
+  const P = r.stats.profile || {};
+  const plan = r.next_plan || [];
+  const fb = (r.subject_feedback || []).filter((x) => x.text);
+  const habits = (P.habits || []).filter(Boolean);
+  const tags = (arr, cls) => (arr || []).map((x) => `<span class="wr-tag ${cls}">${esc(x)}</span>`).join('');
+  return `<article class="wr">
+    <aside class="wr-side">
+      <span class="wr-logo">U2M</span>
+      <h3 class="wr-name">${esc(student.name)}<span>${student.grade ? `${esc(student.grade)} · ` : ''}신규 상담</span></h3>
+      <div class="wr-welcome"><b>몰입관에 오신 것을 환영합니다.</b><small>첫 상담에서 목표와 다음 주 계획을 함께 세웠습니다.</small></div>
+      ${P.strong_subjects?.length ? `<p class="wr-side-h">자신 있는 과목</p><div class="wr-tags">${tags(P.strong_subjects, 'st')}</div>` : ''}
+      ${P.weak_subjects?.length ? `<p class="wr-side-h">보완할 과목</p><div class="wr-tags">${tags(P.weak_subjects, 'wk')}</div>` : ''}
+    </aside>
+    <main class="wr-main">
+      <div class="wr-mh"><h2>신규생 상담 보고서</h2><span>상담일 ${dot(r.period_end)}</span></div>
+      ${P.goal ? `<section class="wr-sec"><h4>학생 목표</h4><p class="wr-goal">${esc(P.goal)}</p></section>` : ''}
+      ${habits.length ? `<section class="wr-sec"><h4>몰입관에서 만들 공부 습관</h4>
+        <ol class="wr-habits">${habits.map((h, i) => `<li><b>${i + 1}</b><span>${esc(h)}</span></li>`).join('')}</ol></section>` : ''}
+      ${plan.length ? `<section class="wr-sec"><h4>다음 주 계획</h4>
+        <ul class="wr-fb">${plan.map((x) => `<li><b>${esc(x.subject)}${x.detail ? `<small>${esc(x.detail)}</small>` : ''}</b><span>${esc(x.title)}</span></li>`).join('')}</ul></section>` : ''}
+      ${fb.length ? `<section class="wr-sec"><h4>과목별 상담 내용</h4>
+        <ul class="wr-fb">${fb.map((x) => `<li><b>${esc(x.subject)}</b><span>${esc(x.text)}</span></li>`).join('')}</ul></section>` : ''}
+      ${r.summary ? `<section class="wr-sec"><h4>총평</h4><p class="wr-sum">${esc(r.summary)}</p></section>` : ''}
     </main>
   </article>`;
 }

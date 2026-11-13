@@ -40,7 +40,7 @@ export async function renderParentHome({ students, onLogout }) {
         <div class="msg-main">
           <div class="msg-from">몰입관<span>${when}</span></div>
           <button type="button" class="msg-bubble" data-i="${i}">
-            <p class="msg-text">${esc(cur.name)} 학생 주간 보고서${got.length ? `<span class="msg-badges">${got.map((k) => `<i title="${esc(BADGES[k].title)}">${BADGES[k].icon}</i>`).join('')}<em>배지 ${got.length}개 획득</em></span>` : ''}</p>
+            <p class="msg-text">${esc(cur.name)} 학생 ${r.stats?.is_new ? '신규생 상담 보고서' : '주간 보고서'}${got.length ? `<span class="msg-badges">${got.map((k) => `<i title="${esc(BADGES[k].title)}">${BADGES[k].icon}</i>`).join('')}<em>배지 ${got.length}개 획득</em></span>` : ''}</p>
             <div class="msg-thumb"><div class="msg-thumb-in"></div>
               <span class="msg-zoom" aria-label="크게 보기"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20M8 10.5h5M10.5 8v5"/></svg></span></div>
           </button>

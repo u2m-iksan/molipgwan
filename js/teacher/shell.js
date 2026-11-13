@@ -4,6 +4,7 @@ import { renderStudents } from './students.js';
 import { renderCoaching } from './coaching.js';
 import { renderConsultPage } from './consult-page.js';
 import { openBoard } from './board.js';
+import { openLive } from './live.js';
 import { renderExams } from './exams.js';
 import { renderOverview } from './overview.js';
 
@@ -34,6 +35,7 @@ export function renderTeacher({ me, onLogout }) {
         </nav>
         <div class="spacer"></div>
         <button type="button" class="t-board" id="board" aria-label="전자칠판" title="전자칠판"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8 20h8M12 16.5V20"/></svg></button>
+        <button type="button" class="t-board" id="live" aria-label="현황판" title="현황판"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg></button>
         <span class="chip t-me">${esc(me.name)} 선생님</span>
         <button type="button" class="chip muted" id="lo">로그아웃</button>
       </div></header>
@@ -41,6 +43,7 @@ export function renderTeacher({ me, onLogout }) {
     </div>`);
 
   $('#board').addEventListener('click', () => openBoard());
+  $('#live').addEventListener('click', () => openLive());
   $('#lo').addEventListener('click', () => { window.removeEventListener('hashchange', show); onLogout(); });
 
   function show() {

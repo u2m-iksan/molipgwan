@@ -280,3 +280,29 @@ export function noticeText(student, report) {
   }
   return `[몰입관] ${student.name} 학생 ${d} 상담 결과가 등록되었습니다. 앱에서 확인해 주세요.\n${APP_URL}`;
 }
+
+/* ---------- 주간 계획 탭: 재원생 전체의 진행 중 계획 ---------- */
+// { students, plans: Map(sid → plan), items: Map(planId → [item]), progress: Map(itemId → [{on_date,pct}]), sched: [학원 일정], coach: Map(sid → 코칭 일정) }
+export async function loadAllPlans() {
+  const [students, plans, sched] = await Promise.all([
+    sb.from('students').select('id,name,grade,seat_no,status').eq('status', '재원').then(check),
+    sb.from('plans').select('id,student_id,start_date,due_date,author_role,status').neq('status', '마감').then(check),
+    sb.from('schedules').select('*').in('category', ['학원', '코칭']).then(check),
+  ]);
+  const t = today();
+  const live = sched.filter((r) => r.valid_from <= addDays(t, 7) && (!r.valid_to || r.valid_to >= t));
+  const ids = plans.map((p) => p.id);
+  const items = ids.length ? check(await sb.from('plan_items').select('*').in('plan_id', ids)) : [];
+  const prog = items.length ? check(await sb.from('plan_progress').select('item_id,on_date,pct').in('item_id', items.map((i) => i.id))) : [];
+  prog.sort((a, b) => (a.on_date < b.on_date ? -1 : 1));
+  const group = (rows, key) => { const m = new Map(); for (const r of rows) { if (!m.has(r[key])) m.set(r[key], []); m.get(r[key]).push(r); } return m; };
+  const planBy = new Map();
+  for (const p of plans) { const cur = planBy.get(p.student_id); if (!cur || p.start_date > cur.start_date) planBy.set(p.student_id, p); }
+  const itemsBy = group(items, 'plan_id');
+  for (const a of itemsBy.values()) a.sort(byOrder);
+  return {
+    students, plans: planBy, items: itemsBy, progress: group(prog, 'item_id'),
+    sched: live.filter((r) => r.category === '학원'),
+    coach: new Map(live.filter((r) => r.category === '코칭').map((r) => [r.student_id, r])),
+  };
+}

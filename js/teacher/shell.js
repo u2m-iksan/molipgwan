@@ -28,7 +28,7 @@ export function renderTeacher({ me, onLogout }) {
           ${TABS.map((t) => `<a href="#/${t.id}" class="t-tab" data-tab="${t.id}">${t.label}</a>`).join('')}
         </nav>
         <div class="spacer"></div>
-        <span class="chip">${esc(me.name)} 선생님</span>
+        <span class="chip t-me">${esc(me.name)} 선생님</span>
         <button type="button" class="chip muted" id="lo">로그아웃</button>
       </div></header>
       <main class="page" id="t-body"></main>

@@ -68,17 +68,17 @@ export async function renderStudents(body) {
     }
     $('#tbl').innerHTML = `
       <table class="tbl">
-        <thead><tr><th>자리</th><th>이름</th><th>학년</th><th>학교</th><th>학부모 번호</th><th>로그인 번호</th><th>학생 번호</th><th>특성</th><th>상태</th></tr></thead>
+        <thead><tr><th>자리</th><th>이름</th><th>학년</th><th class="m-hide">학교</th><th class="m-hide">학부모 번호</th><th>로그인</th><th class="m-hide">학생 번호</th><th class="m-hide">특성</th><th>상태</th></tr></thead>
         <tbody>${rows.map((s) => `
           <tr data-id="${esc(s.id)}" tabindex="0">
             <td><span class="seat${s.seat_no ? '' : ' none'}">${esc(s.seat_no || '-')}</span></td>
             <td><b>${esc(s.name)}</b>${s.siblings.length ? ` <span class="tag" title="형제: ${esc(s.siblings.join(', '))}">형제 ${s.siblings.length}</span>` : ''}</td>
             <td>${esc(s.grade)}</td>
-            <td>${esc(s.school || '')}</td>
-            <td>${esc(s.parent_phone)}</td>
+            <td class="m-hide">${esc(s.school || '')}</td>
+            <td class="m-hide">${esc(s.parent_phone)}</td>
             <td><span class="code">${esc(s.login_code)}</span></td>
-            <td class="sub">${esc(s.student_phone || '')}</td>
-            <td class="sub">${esc((s.traits || []).join(', '))}</td>
+            <td class="sub m-hide">${esc(s.student_phone || '')}</td>
+            <td class="sub m-hide">${esc((s.traits || []).join(', '))}</td>
             <td><span class="pill ${STATUS_PILL[s.status]}">${esc(s.status)}</span></td>
           </tr>`).join('')}
         </tbody>

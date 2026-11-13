@@ -43,7 +43,7 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
           <button type="button" class="icon-btn sm" id="wkNext" aria-label="다음 주">${CHEV_R}</button>
           <div class="wk-legend">${['학교', '학원', '기타', '코칭'].map((c) => `<span class="lg lg-${c}">${c}</span>`).join('')}</div>
         </div>
-        ${weekGrid(rows, mon, t)}
+        <div class="wk-scroll">${weekGrid(rows, mon, t)}</div>
       </section>
 
       <div class="sched-cols">

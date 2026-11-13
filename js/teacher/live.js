@@ -86,8 +86,10 @@ export async function openLive() {
     const al = sat ? satAlert(s, rows, data.sched, nowMin) : null;
     let k, label, sub = '';
     if (s.status === '휴원') return { k: 'ret', label: `복귀 예정 ${Number(s.return_on.slice(5, 7))}/${Number(s.return_on.slice(8))}`, sub: '', todaySec: 0 };
-    if (active && !active.paused_at) { k = 'on'; label = `${active.subject} 몰입 중`; sub = clockSec(elapsed(active, at)); }
-    else if (active) { k = 'rest'; label = '휴식 중'; sub = `${active.subject} ${clockSec(elapsed(active, at))}`; }
+    // 토요일: 등원(복귀) 상태면 몰입 중
+    if (sat && (att?.kind === '등원' || att?.kind === '복귀')) { k = 'on'; label = active && !active.paused_at ? `${active.subject} 몰입 중` : '몰입 중'; sub = active ? clockSec(elapsed(active, at)) : ''; }
+    else if (!sat && active && !active.paused_at) { k = 'on'; label = `${active.subject} 몰입 중`; sub = clockSec(elapsed(active, at)); }
+    else if (!sat && active) { k = 'rest'; label = '휴식 중'; sub = `${active.subject} ${clockSec(elapsed(active, at))}`; }
     else if (sat && att?.kind === '외출') { k = al?.kind === 'late' ? 'none' : 'out'; label = `외출${att.reason ? ' · ' + att.reason : ''}`; sub = al?.text || ''; }
     else if (sat && att?.kind === '하원') { k = 'off'; label = '하원'; }
     else if (blk) { k = blk.category === '학원' ? 'acad' : 'school'; label = `${blk.category === '학원' ? (blk.title || '학원') : '학교'} ~${hm(blk.end_time)}`; }

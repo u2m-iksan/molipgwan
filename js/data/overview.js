@@ -42,7 +42,11 @@ const elapsed = (s, at) => {
   return Math.max(0, Math.floor((end - new Date(s.started_at).getTime()) / 1000) - (s.pause_seconds || 0));
 };
 
-// 학생별 상태: { color, reasons[], todaySec, active, att }
+// 몰입 중 판정: 평일은 스톱워치 진행 중 / 토요일은 등원(복귀 포함) 상태면 몰입 중
+export const satIn = (att) => !!att && (att.kind === '등원' || att.kind === '복귀');
+export const isImmersed = (date, active, att) => (isoDow(date) === 6 ? satIn(att) : !!active && !active.paused_at);
+
+// 학생별 상태: { color, reasons[], todaySec, active, att, on }
 export function judge(d, at = Date.now()) {
   const planBy = new Map(d.plans.map((p) => [p.student_id, p]));
   return d.students.map((s) => {
@@ -75,6 +79,6 @@ export function judge(d, at = Date.now()) {
     }
     if (reasons.length) color = 'red';
     else if (plan && winSec < ORANGE_SEC) { color = 'orange'; reasons.push('최근 2일 순공 2시간 미만'); }
-    return { ...s, color, reasons, winSec, todaySec, active, att, attRows: rows, alert, plan };
+    return { ...s, color, reasons, winSec, todaySec, active, att, attRows: rows, alert, plan, on: isImmersed(d.t, active, att) };
   });
 }

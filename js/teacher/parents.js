@@ -9,6 +9,7 @@ import { loadStudents } from '../data/students.js';
 import { loadInbox, purgeOld, KEEP_DAYS } from '../data/chat.js';
 import { mountReport, badgesOf } from '../views/report-card.js';
 import { mountThread } from '../views/chat-thread.js';
+import { mountSend } from './send-report.js';
 
 const md = (d) => short(d).replace(/\(.\)/, '');
 const dow = (d) => DOW[(new Date(d + 'T00:00:00Z').getUTCDay() || 7)];
@@ -141,6 +142,7 @@ export async function renderParents(body, { me, onUnread } = {}) {
           <div><dt>학부모</dt><dd>${x.r.published_at ? (x.r.read_at ? `<span class="rp-read">읽음 <small>${stamp(x.r.read_at)}</small></span>` : '<span class="rp-unread">안 읽음</span>') : '<span class="sub">공개 전</span>'}</dd></div>
           ${badges.length ? `<div><dt>배지</dt><dd>${badges.map((b) => `<span class="rp-bd">${esc(b)}</span>`).join('')}</dd></div>` : ''}
         </dl>
+        <div class="pg-send" id="pg-send"></div>
         <div class="pg-prev"><div class="pg-prev-h"><span>미리보기</span><button type="button" class="btn btn-sm btn-gray" id="pg-big">${EXPAND}크게 보기</button></div>
           <div class="pg-paper" id="pg-paper"></div></div>`;
     } else {
@@ -153,6 +155,7 @@ export async function renderParents(body, { me, onUnread } = {}) {
     el.innerHTML = `${head}<div class="pg-body">${main}</div>${x.r && consult ? `<div class="pg-foot">${consult}</div>` : ''}`;
     if (x.r) {
       mountReport($('#pg-paper', el), x.r, x.s);
+      mountSend($('#pg-send', el), { report: x.r, student: x.s, compact: true, onChange: () => { build(); drawTiles(); drawList(); drawReport(); } });
       $('#pg-big', el).addEventListener('click', () => {
         const m = sheet(`<div class="modal modal-lg" role="dialog" aria-label="보고서">
           <div class="drawer-head"><h3>${esc(x.s.name)} <span class="h-sub">${md(x.on)} 보고서</span></h3><button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>

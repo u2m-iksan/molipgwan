@@ -675,3 +675,86 @@ button:disabled{cursor:default}
 .card.pg-col{padding:0}
 .card.pg-list{padding:14px 12px 0}
 .pg-list .search{max-width:none;width:100%}
+
+/* =============================================================
+   전체 현황 학생 카드 (새 디자인): 이름 · 지금 상태 / 오늘 순공(크게) / 점검 항목 / (토) 출결
+   ============================================================= */
+.ov-cards{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.ov-card.oc{position:relative;display:flex;flex-direction:column;gap:0;padding:16px 18px 14px;min-height:0;background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.ov-card.oc.red,.ov-card.oc.orange{background:#fff;border-color:var(--line)}
+.ov-card.oc::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;background:transparent}
+.ov-card.oc.red::before{background:var(--red)}
+.ov-card.oc.orange::before{background:var(--orange)}
+.oc-h{display:flex;align-items:center;gap:8px;min-width:0}
+.oc-name{font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.oc-grade{font-size:13px;color:var(--sub);flex:none}
+.oc-st{margin-left:auto;flex:none;display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:12px;font-size:12px;font-weight:700;white-space:nowrap}
+.oc-st.on{background:#E7F7EE;color:#0E9F55}
+.oc-st.on i{width:6px;height:6px;border-radius:3px;background:currentColor;animation:ovPulse 1.6s ease-in-out infinite}
+.oc-st.pause{background:#F2F4F6;color:var(--sub)}
+.oc-time{display:flex;align-items:baseline;justify-content:space-between;margin:14px 0 12px;font-feature-settings:"tnum"}
+.oc-time span{font-size:12.5px;color:var(--faint);font-weight:600}
+.oc-time b{font-size:20px;font-weight:800;letter-spacing:-.2px}
+.oc-iss{list-style:none;display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid var(--line)}
+.oc-iss li{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;line-height:1.35}
+.oc-iss li::before{content:"";width:6px;height:6px;border-radius:3px;flex:none;background:var(--faint)}
+.oc-iss li.red{color:#D92D3A}.oc-iss li.red::before{background:var(--red)}
+.oc-iss li.orange{color:#B86E00}.oc-iss li.orange::before{background:var(--orange)}
+.oc-ok{padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--faint)}
+.oc-att{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:12.5px;color:var(--faint);font-weight:600}
+.oc-att .pill{margin:0}
+.ov-card.oc:hover{border-color:#DDE1E6}
+@media (max-width:640px){
+  .ov-cards{grid-template-columns:minmax(0,1fr)}
+  .ov-card.oc{padding:14px 16px 12px}
+}
+
+/* =============================================================
+   상담 단계 표시 (아래 버튼 줄 왼쪽) · 전송 칸
+   ============================================================= */
+.cs-steps-slot{display:flex;align-items:center;min-width:0}
+.cs-steps{list-style:none;display:flex;align-items:center;gap:4px}
+.cs-steps .sep{width:16px;height:1.5px;background:#DDE1E6;border-radius:1px;flex:none}
+.cs-steps button{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 10px 0 6px;border-radius:17px;color:var(--faint);font-size:13px;font-weight:700;white-space:nowrap}
+.cs-steps button:hover{background:#F2F4F6;color:var(--sub)}
+.cs-steps i{width:22px;height:22px;border-radius:11px;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:800;background:#EEF1F4;color:var(--faint);transition:background-color .25s,color .25s}
+.cs-steps small{font-size:11px;font-weight:600;color:var(--faint);margin-left:4px}
+.cs-steps .done button{color:var(--sub)}
+.cs-steps .done i{background:#E7F7EE;color:#0E9F55}
+.cs-steps .cur button{color:var(--text);background:#F2F4F6}
+.cs-steps .cur i{background:var(--blue,#3182F6);color:#fff}
+@media (max-width:900px){
+  .cs-steps li:not(.cur) span{display:none}
+  .cs-steps button{padding:0 6px}
+  .cs-steps .sep{width:8px}
+}
+@media (max-width:480px){ .cs-steps-slot{order:-1;flex:0 0 100%;justify-content:center;margin-bottom:6px} .cp-foot{flex-wrap:wrap} }
+
+/* 전송 칸 */
+.sd-wrap{min-width:0}
+.sd-title{font-size:18px;font-weight:800;margin-bottom:4px}
+.sd-sub{font-size:13.5px;color:var(--sub);margin-bottom:18px;line-height:1.5}
+.sd{display:flex;flex-direction:column;gap:14px}
+.sd-flow{list-style:none;display:flex;flex-direction:column;gap:0;padding:4px 0}
+.sd-flow li{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:14px;font-weight:600;color:var(--faint);position:relative}
+.sd-flow li+li::before{content:"";position:absolute;left:11px;top:-6px;height:12px;width:1.5px;background:#E5E8EB}
+.sd-flow i{width:24px;height:24px;border-radius:12px;display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:800;background:#EEF1F4;color:var(--faint);flex:none}
+.sd-flow span{display:flex;align-items:baseline;gap:8px}
+.sd-flow small{font-size:12px;font-weight:500;color:var(--faint);font-feature-settings:"tnum"}
+.sd-flow li.done{color:var(--sub)}.sd-flow li.done i{background:#E7F7EE;color:#0E9F55}
+.sd-flow li.cur{color:var(--text)}.sd-flow li.cur i{background:var(--blue,#3182F6);color:#fff}
+.sd-msg{padding:14px 16px;border-radius:14px;background:#F6F7F9}
+.sd-msg-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.sd-msg-h span{font-size:12.5px;font-weight:700;color:var(--sub)}
+.sd-msg p{font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-all}
+.sd-read{font-size:13px;color:var(--sub)}
+.sd-read b{color:#B86E00}.sd-read b.ok{color:#0E9F55}
+.sd-acts{display:flex;gap:8px;flex-wrap:wrap}
+.sd-acts .btn{flex:1;min-width:140px;height:44px}
+.sd-hint{font-size:12.5px;color:var(--faint);line-height:1.5}
+.sd .err:empty{display:none}
+.sd.compact .sd-flow{display:none}
+.sd.compact .sd-acts .btn{height:40px}
+.pg-send{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.pg-send .sd-hint{display:none}
+.sd.compact .sd-read{display:none}

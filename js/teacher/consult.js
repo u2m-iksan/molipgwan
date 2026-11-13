@@ -13,6 +13,7 @@ import {
 } from '../data/coaching.js';
 import { mountReport, autoBadges, badgesOf, BADGE_ORDER } from '../views/report-card.js';
 import { openReportViewer } from '../views/report-viewer.js';
+import { mountSend } from './send-report.js';
 
 
 async function copy(text) {
@@ -24,6 +25,7 @@ async function copy(text) {
 }
 
 const SIDE_KEY = 'molip-ref-side';
+const PEN_S = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
 const PANEL_IC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M9.5 4.5v15"/></svg>';
 
 export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
@@ -41,7 +43,6 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         <div class="cp-tools">
           <button type="button" class="btn btn-gray btn-sm cp-ref${sideOpen ? ' on' : ''}" id="cp-toggle" aria-pressed="${sideOpen}">${PANEL_IC}참고사항</button>
           <a class="btn btn-gray btn-sm" href="#/students?open=${esc(stu.id)}">일정</a>
-          <div class="seg" id="cs-tabs"><button type="button" data-v="c" class="on">상담</button><button type="button" data-v="r">보고</button></div>
         </div>
       </header>
       <div class="cp-wrap${sideOpen ? ' side-open' : ''}" id="cp-wrap">
@@ -49,6 +50,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         <div class="cp-main">
           <div class="pane" id="p-c"><div class="cp-body"><div class="empty">불러오는 중</div></div></div>
           <div class="pane" id="p-r" hidden></div>
+          <div class="pane" id="p-s" hidden></div>
         </div>
       </div>
     </div>`;
@@ -71,14 +73,14 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   const st = {
     d: null, me: null,
     heldOn: today(), absent: false, isNew: false, isLeaving: false,
-    prevItems: [], newItems: [], removedIds: [], summary: '', checkItems: [],
+    prevItems: [], newItems: [], removedIds: [], removedPrevIds: [], summary: '', checkItems: [],
     carry: null, report: null, coachingId: null,
     profile: { goal: stu.goal || '', strong: [...(stu.strong_subjects || [])], weak: [...(stu.weak_subjects || [])], habits: stu.habits?.length ? [...stu.habits] : [''] },
   };
 
   /* ---------- 작성 중 내용 임시저장 (이 기기) — 다른 화면으로 가거나 창을 닫아도 유실 안 됨 ---------- */
   const DKEY = `molip-draft:${stu.id}:${scheduled}`;
-  const DFIELDS = ['heldOn', 'absent', 'isNew', 'isLeaving', 'summary', 'checkItems', 'profile', 'prevItems', 'newItems', 'removedIds'];
+  const DFIELDS = ['heldOn', 'absent', 'isNew', 'isLeaving', 'summary', 'checkItems', 'profile', 'prevItems', 'newItems', 'removedIds', 'removedPrevIds'];
   let dTimer = 0, dReady = false;
   const readDraft = () => { try { return JSON.parse(localStorage.getItem(DKEY) || 'null'); } catch { return null; } };
   const clearDraft = () => { clearTimeout(dTimer); try { localStorage.removeItem(DKEY); } catch { /* 무시 */ } };
@@ -98,16 +100,30 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   panel.addEventListener('input', (e) => { if (e.target.closest('#p-c')) queueDraft(); });
   panel.addEventListener('click', (e) => { if (e.target.closest('#p-c button:not(#cs-save):not([href])')) setTimeout(queueDraft, 0); });
 
-  const tabs = $('#cs-tabs', panel);
-  function showTab(v) {
-    if (v === 'r' && !st.report) return toast('상담을 먼저 저장하세요');
-    $$('button', tabs).forEach((b) => b.classList.toggle('on', b.dataset.v === v));
+  /* ---------- 단계: ① 상담 → ② 프롬프트 · 보고 저장 → ③ 전송(선택) ---------- */
+  st.tab = 'c';
+  const STEPS = [['c', '상담'], ['r', '프롬프트 · 저장'], ['s', '전송', '선택']];
+  const stepDone = (k) => (k === 'c' ? !!st.coachingId
+    : k === 'r' ? !!(st.report && (st.report.summary || (st.report.subject_feedback || []).length || st.report.published_at))
+      : !!st.report?.sent_at);
+  const stepsHtml = () => `<ol class="cs-steps" aria-label="상담 단계">${STEPS.map(([k, label, opt], i) => `
+    <li class="${st.tab === k ? 'cur' : ''}${stepDone(k) ? ' done' : ''}"><button type="button" data-step="${k}"${st.tab === k ? ' aria-current="step"' : ''}>
+      <i>${stepDone(k) && st.tab !== k ? '✓' : i + 1}</i><span>${label}${opt ? `<small>${opt}</small>` : ''}</span></button></li>`).join('<li class="sep" aria-hidden="true"></li>')}</ol>`;
+  function paintSteps() { $$('.cs-steps-slot', panel).forEach((x) => { x.innerHTML = stepsHtml(); }); }
+  async function showTab(v) {
+    if (v === st.tab) return;
+    if ((v === 'r' || v === 's') && !st.report) return toast('1단계 상담을 먼저 저장하세요');
+    if (st.tab === 'r' && st.flushReport) await st.flushReport();
+    st.tab = v;
     $('#p-c', panel).hidden = v !== 'c';
     $('#p-r', panel).hidden = v !== 'r';
+    $('#p-s', panel).hidden = v !== 's';
     if (v === 'r' && !st.rDrawn) { drawReport(); st.rDrawn = true; }
+    if (v === 's') drawSend();
+    paintSteps();
     window.scrollTo(0, 0);
   }
-  tabs.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) showTab(b.dataset.v); });
+  panel.addEventListener('click', (e) => { const b = e.target.closest('.cs-steps [data-step]'); if (b) showTab(b.dataset.step); });
 
   /* ---------- 불러오기 ---------- */
   (async () => {
@@ -207,11 +223,13 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         const h = i.id ? st.d.progress.get(i.id) || [] : [];
         return `<div class="cs-item" data-k="${k}">
           <div class="cs-item-top">
-            ${i.id ? `<span class="cs-sub">${subLabel(i)}</span><span class="cs-title">${esc(i.title)}</span>`
+            ${i.id && !i._editing ? `<span class="cs-sub">${subLabel(i)}</span><span class="cs-title">${esc(i.title)}</span>`
               : `<div class="input sm cs-subsel"><select data-f="subject">${subOpts(i.subject)}</select></div>
+                 ${i.id ? `<div class="input sm cs-detail"><input data-f="subject_detail" value="${esc(i.subject_detail || '')}" placeholder="세부 과목"></div>` : ''}
                  <div class="input sm grow"><input data-f="title" value="${esc(i.title)}" placeholder="${prevPlan ? '추가 항목' : '지난 계획 분량'}"></div>`}
             <div class="input sm rate"><input data-f="final_rate" inputmode="numeric" maxlength="3" value="${i.final_rate ?? ''}" placeholder="-"><em>%</em></div>
-            ${i.id ? '' : `<button type="button" class="icon-btn sm" data-del-prev="${k}" aria-label="삭제">${X}</button>`}
+            ${i.id && !i._editing ? `<button type="button" class="icon-btn sm" data-edit-prev="${k}" aria-label="지난 계획 수정" title="지난 계획 수정">${PEN_S}</button>` : ''}
+            ${!i.id || i._editing ? `<button type="button" class="icon-btn sm" data-del-prev="${k}" aria-label="삭제">${X}</button>` : ''}
           </div>
           ${i.academy && st.d.prevPlan ? acHist(i, h) : h.length ? segBar(h) : (i.id ? '<div class="cs-hist none">진행률 입력 없음</div>' : '')}
           ${i.academy ? `<div class="ac-fb">
@@ -277,9 +295,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
           <textarea class="textarea" id="cs-sum" rows="4" aria-label="총평" placeholder="상담 내용, 학생 상태, 지도 방향">${esc(st.summary)}</textarea>
         </section>
       </div>
-      <div class="cp-foot"><span class="save-st" id="cs-draft"></span><p class="err" id="cs-err" role="alert"></p><div class="spacer"></div>
+      <div class="cp-foot"><div class="cs-steps-slot">${stepsHtml()}</div><span class="save-st" id="cs-draft"></span><p class="err" id="cs-err" role="alert"></p><div class="spacer"></div>
         <a href="#/coaching" class="btn btn-gray btn-sm">목록</a>
-        <button type="button" class="btn btn-primary btn-sm" id="cs-save">저장 · 보고 작성</button></div>`;
+        <button type="button" class="btn btn-primary btn-sm" id="cs-save">${st.coachingId ? '저장 · 다음' : '상담 저장 · 다음'}</button></div>`;
     paintKind();
     wireConsult(body);
   }
@@ -344,7 +362,21 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         popIn($$('#prev-list .cs-item', panel).pop());
         return;
       }
-      if (t.dataset.delPrev != null) { const k = Number(t.dataset.delPrev); fadeOut(t.closest('.cs-item')).then(() => { st.prevItems.splice(k, 1); keepScroll(drawConsult); queueDraft(); }); return; }
+      if (t.dataset.editPrev != null) {
+        const it = st.prevItems[Number(t.dataset.editPrev)]; it._editing = true; it._edited = true;
+        keepScroll(drawConsult); queueDraft();
+        $(`#prev-list [data-k="${t.dataset.editPrev}"] [data-f=title]`, panel)?.focus({ preventScroll: true });
+        return;
+      }
+      if (t.dataset.delPrev != null) {
+        const k = Number(t.dataset.delPrev);
+        fadeOut(t.closest('.cs-item')).then(() => {
+          const [it] = st.prevItems.splice(k, 1);
+          if (it?.id) st.removedPrevIds = [...(st.removedPrevIds || []), it.id];
+          keepScroll(drawConsult); queueDraft();
+        });
+        return;
+      }
       if (t.dataset.quick != null) {
         const s = Number(t.dataset.quick) >= 0 ? st.d.subjects[Number(t.dataset.quick)] : { subject: '국어', subject_detail: null };
         st.newItems.push({ subject: s.subject, subject_detail: s.subject_detail, title: '', detail: '', source: '계획', academy: !!st.acHas?.(s) });
@@ -452,10 +484,11 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         student: stu, scheduled, heldOn: st.heldOn, absent: st.absent, isNew: st.isNew, isLeaving: st.isLeaving,
         summary: st.summary.trim(), checkItems: st.checkItems,
         prevPlan: st.isNew ? null : st.d.prevPlan, prevItems: st.isNew ? [] : prevItems.filter((i) => i.id), newPlan: st.d.newPlan,
-        newItems, removedIds: st.removedIds, subjects: st.d.subjects,
+        newItems, removedIds: st.removedIds, removedPrevIds: st.isNew ? [] : st.removedPrevIds, subjects: st.d.subjects,
       }, st.me);
       st.d = await loadConsult(stu.id, scheduled);
-      st.coachingId = coachingId; st.report = st.d.report; st.removedIds = []; st.rDrawn = false;
+      st.coachingId = coachingId; st.report = st.d.report; st.removedIds = []; st.removedPrevIds = []; st.rDrawn = false;
+      st.prevItems.forEach((i) => { delete i._editing; delete i._edited; });
       st.newItems = st.d.newItems.map((i) => ({ ...i }));
       clearDraft();
       onSaved?.();
@@ -464,8 +497,27 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       showTab('r');
     } catch (e) {
       err.textContent = '저장 실패: ' + e.message;
-      btn.disabled = false; btn.textContent = '저장 · 보고 작성';
+      btn.disabled = false; btn.textContent = st.coachingId ? '저장 · 다음' : '상담 저장 · 다음';
     }
+  }
+
+  /* ---------- ③ 전송 (선택) ---------- */
+  function drawSend() {
+    const pane = $('#p-s', panel), r = st.report;
+    pane.innerHTML = `
+      <div class="cp-body">
+        <div class="rp-cols">
+          <div class="sd-wrap"><h3 class="sd-title">학부모에게 전송</h3>
+            <p class="sd-sub">지금 보내도 되고, 나중에 <a href="#/parents?sid=${esc(stu.id)}" class="link-s">학부모 안내</a> 탭에서 보내도 됩니다.</p>
+            <div id="sd-box"></div></div>
+          <div class="rp-preview"><div class="rp-pv-h"><p class="lbl">학부모 화면</p><button type="button" class="link-s" id="sd-big">크게 보기</button></div><div id="sd-card"></div></div>
+        </div>
+      </div>
+      <div class="cp-foot"><div class="cs-steps-slot">${stepsHtml()}</div><div class="spacer"></div>
+        <a href="#/coaching" class="btn btn-gray btn-sm">코칭으로</a></div>`;
+    mountReport($('#sd-card', pane), r, stu);
+    $('#sd-big', pane).addEventListener('click', () => openReportViewer(r, stu));
+    mountSend($('#sd-box', pane), { report: r, student: stu, onChange: () => { onSaved?.(); paintSteps(); } });
   }
 
   /* ---------- ② 보고 ---------- */
@@ -482,12 +534,12 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       <div class="cp-body">
         <div class="rp-cols">
           <div class="rp-edit">
-            <div class="rp-step"><span class="num">1</span><div class="grow"><b>프롬프트 복사</b><p class="sub-s">${isNew ? 'GPT에 붙여넣으면 신규생 총평이 정돈됩니다.' : 'GPT에 붙여넣으면 과목별 피드백과 총평이 정돈됩니다.'}</p></div>
+            <div class="rp-step"><span class="num">가</span><div class="grow"><b>프롬프트 복사</b><p class="sub-s">${isNew ? 'GPT에 붙여넣으면 신규생 총평이 정돈됩니다.' : 'GPT에 붙여넣으면 과목별 피드백과 총평이 정돈됩니다.'}</p></div>
               <button type="button" class="btn btn-gray btn-sm" id="rp-copy">복사</button></div>
-            <div class="rp-step col"><div class="rp-step-h"><span class="num">2</span><b>GPT 결과 붙여넣기</b></div>
+            <div class="rp-step col"><div class="rp-step-h"><span class="num">나</span><b>GPT 결과 붙여넣기</b></div>
               <textarea class="textarea mono" id="rp-paste" rows="4" placeholder="[국어] …&#10;[총평] …"></textarea>
               <p class="hint" id="rp-parsed"></p></div>
-            <div class="rp-step col"><div class="rp-step-h"><span class="num">3</span><b>확인 · 수정</b></div>
+            <div class="rp-step col"><div class="rp-step-h"><span class="num">다</span><b>확인 · 수정</b></div>
               ${[...subs, ...extra.map((x) => x.subject)].map((s) => `
                 <div class="field"><label>${esc(s)}<span class="opt">2문장 이내</span></label>
                   <textarea class="textarea" rows="2" data-fb="${esc(s)}">${esc(fbOf(s))}</textarea></div>`).join('')}
@@ -502,9 +554,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         </div>
       </div>
       <div class="cp-foot">
-        <span id="rp-state"></span><span class="save-st" id="rp-auto"></span><p class="err" id="rp-err" role="alert"></p><div class="spacer"></div>
+        <div class="cs-steps-slot">${stepsHtml()}</div><span class="save-st" id="rp-auto"></span><p class="err" id="rp-err" role="alert"></p><div class="spacer"></div>
         <button type="button" class="btn btn-gray btn-sm" id="rp-save">저장</button>
-        <button type="button" class="btn btn-primary btn-sm" id="rp-pub"></button>
+        <button type="button" class="btn btn-primary btn-sm" id="rp-next">저장 · 다음</button>
       </div>`;
 
     const collect = () => {
@@ -514,12 +566,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     };
     const preview = () => mountReport($('#rp-card', pane), { ...r, ...collect() }, stu);
     $('#rp-big', pane).addEventListener('click', () => openReportViewer({ ...r, ...collect() }, stu));
-    const paintState = () => {
-      const s = $('#rp-state', pane), p = $('#rp-pub', pane);
-      s.innerHTML = r.sent_at ? `<span class="pill pill-green">전송 완료</span>${r.read_at ? ' <span class="pill pill-blue">학부모 읽음</span>' : ''}`
-        : r.published_at ? '<span class="pill pill-blue">공개됨 · 미전송</span>' : '<span class="pill pill-gray">작성 중</span>';
-      p.textContent = r.sent_at ? '안내 문자 다시 복사' : r.published_at ? '전송 완료' : '공개 · 안내 문자 복사';
-    };
+    const paintState = () => paintSteps();
     const paintBadges = () => {
       $$('#rp-badge button', pane).forEach((x) => x.classList.toggle('on', badges.includes(x.dataset.v)));
       const auto = r.stats ? autoBadges(r.rates, r.stats) : [];
@@ -581,19 +628,17 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       clearTimeout(aTimer);
       aTimer = setTimeout(async () => { (await persist()) ? ss.saved('자동 저장됨') : ss.failed(); }, 1400);
     }
-    $('#rp-pub', pane).addEventListener('click', async () => {
+    $('#rp-next', pane).addEventListener('click', async (e) => {
       clearTimeout(aTimer);
-      if (r.published_at && !r.sent_at) {
-        if (await persist({ sent_at: new Date().toISOString() })) toast('전송 완료로 표시했습니다');
-        return;
-      }
-      if (!r.published_at) {
-        const c = collect();
-        if (!c.summary && !c.subject_feedback.length && !r.is_absent) return ($('#rp-err', pane).textContent = '피드백이나 총평을 입력하세요.');
-        if (!(await persist({ published_at: new Date().toISOString() }))) return;
-      }
-      toast((await copy(noticeText(stu, r))) ? '공개했습니다 · 안내 문자를 복사했습니다' : '공개했습니다');
+      const c = collect();
+      if (!c.summary && !c.subject_feedback.length && !r.is_absent) return ($('#rp-err', pane).textContent = '피드백이나 총평을 입력하세요.');
+      e.currentTarget.disabled = true;
+      const ok = await persist();
+      e.currentTarget.disabled = false;
+      if (ok) { ss.saved(); showTab('s'); }
     });
+    // 다른 단계로 갈 때 작성 중인 내용 저장 (공개 전만 — 공개 후에는 직접 저장)
+    st.flushReport = async () => { clearTimeout(aTimer); if (!r.published_at) await persist(); };
   }
 
 }

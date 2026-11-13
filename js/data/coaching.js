@@ -87,8 +87,15 @@ export async function saveConsult(s, me) {
 
   // 1) 지난 계획: 최종 이행률 기록, 마감 (결석이면 마감하지 않음 → 계획이 다음 상담까지 이어짐)
   for (const it of s.prevItems) {
-    check(await sb.from('plan_items').update({ final_rate: it.final_rate ?? null, final_note: it.final_note || null, ...(it.academy ? { academy_progress: it.academy_progress?.trim() || null } : {}) }).eq('id', it.id));
+    check(await sb.from('plan_items').update({
+      final_rate: it.final_rate ?? null, final_note: it.final_note || null,
+      ...(it.academy ? { academy_progress: it.academy_progress?.trim() || null } : {}),
+      // 상담 때 지난 계획 내용을 고친 경우 (과목 · 세부 과목 · 분량)
+      ...(it._edited ? { subject: it.subject, subject_detail: (it.subject_detail || '').trim() || null, title: (it.title || '').trim() || '(내용 없음)' } : {}),
+    }).eq('id', it.id));
   }
+  // 상담 때 지운 지난 계획 항목
+  if (s.removedPrevIds?.length) check(await sb.from('plan_items').delete().in('id', s.removedPrevIds));
   if (s.prevPlan && !s.absent && s.prevPlan.status !== '마감') {
     check(await sb.from('plans').update({ status: '마감', closed_at: new Date().toISOString() }).eq('id', s.prevPlan.id));
   }

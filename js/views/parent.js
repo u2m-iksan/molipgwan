@@ -3,7 +3,7 @@
 //  [리포트 확인하기] → 학습 문의 채팅방(보고서도 말풍선으로, 선생님과 실제 대화 · 읽음 · 1개월 보관)
 import { mount, $, $$, esc, BRAND } from '../ui.js';
 import { sb } from '../sb.js';
-import { short, today, mondayOf, DOW, hm } from '../date.js';
+import { short, today, mondayOf, DOW, hm, isoDow } from '../date.js';
 import { mountThread } from './chat-thread.js';
 import { segBar } from './progress-bar.js';
 import { academyStat } from '../data/academy.js';
@@ -34,6 +34,14 @@ export async function renderParentHome({ students, onLogout }) {
       if (error) throw error;
       st.live = new Map((data || []).map((r) => [r.student_id, r]));
     } catch { st.live = new Map(); }
+    // 토요일은 등원(복귀) 상태 = 몰입 중
+    st.att = new Map();
+    if (isoDow(today()) === 6) {
+      try {
+        const { data } = await sb.from('attendance').select('student_id,kind,at').in('student_id', students.map((s) => s.id)).eq('on_date', today()).order('at');
+        (data || []).forEach((r) => st.att.set(r.student_id, r));
+      } catch { /* 없음 */ }
+    }
   }
   async function loadSched(s) {
     if (st.sched.has(s.id)) return st.sched.get(s.id);
@@ -52,10 +60,12 @@ export async function renderParentHome({ students, onLogout }) {
   /* ---------- 메인 ---------- */
   const statusHtml = (s) => {
     const a = st.live.get(s.id);
-    const on = a && !a.paused_at;
+    const sat = isoDow(today()) === 6, at = st.att?.get(s.id);
+    const satOn = sat && !!at && (at.kind === '등원' || at.kind === '복귀');
+    const on = sat ? satOn : a && !a.paused_at;
     return `<button type="button" class="pa-kid${on ? ' on' : ''}${students[st.cur] === s ? ' cur' : ''}" data-k="${students.indexOf(s)}">
       <div class="pa-kid-h"><b>${esc(s.name)}</b><span>${esc(s.grade || '')}</span></div>
-      <div class="pa-st"><i></i>${on ? `${esc(a.subject)} 몰입 중` : a ? '잠시 휴식 중' : '몰입 중 아님'}</div>
+      <div class="pa-st"><i></i>${on ? (a && !a.paused_at ? `${esc(a.subject)} 몰입 중` : '몰입 중') : sat ? (at?.kind === '외출' ? '외출 중' : at?.kind === '하원' ? '하원' : '몰입 중 아님') : a ? '잠시 휴식 중' : '몰입 중 아님'}</div>
     </button>`;
   };
   async function drawHome() {

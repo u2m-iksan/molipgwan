@@ -113,7 +113,7 @@ export async function renderOverview(body, { me } = {}) {
     // 몰입 중 / 그 외로 나누고, 각각 빨강 → 주황 → 초록 → 자리순
     const RANK = { red: 0, orange: 1, green: 2 };
     const sort = (a) => a.sort((x, y) => (RANK[x.color] - RANK[y.color]) || bySeat(x, y));
-    const isOn = (s) => s.active && !s.active.paused_at;
+    const isOn = (s) => s.on;
     const groups = [['몰입 중', sort(list.filter(isOn)), 'on'], ['몰입 중 아님', sort(list.filter((s) => !isOn(s))), 'off']];
     grid.innerHTML = groups.filter(([, a]) => a.length).map(([t, a, k]) => `
       <section class="ov-sec ${k}"><h3>${k === 'on' ? '<i></i>' : ''}${t}<span>${a.length}</span></h3>
@@ -126,20 +126,22 @@ export async function renderOverview(body, { me } = {}) {
   }
 
   function card(s) {
-    const on = s.active && !s.active.paused_at;
-    const pill = !s.att ? '<span class="pill pill-red">미등원</span>'
+    const on = s.on, run = s.active && !s.active.paused_at;
+    const t = (iso) => new Date(new Date(iso).getTime() + 9 * 3600e3).toISOString().slice(11, 16);
+    // 오른쪽 위: 지금 상태 하나만
+    const state = on ? `<span class="oc-st on"><i></i>${run ? `${esc(s.active.subject)} 몰입 중` : '몰입 중'}</span>`
+      : !sat && s.active ? '<span class="oc-st pause">일시정지</span>' : '';
+    // 토요일 출결 (눌러서 수정)
+    const attPill = !s.att ? '<span class="pill pill-red">미등원</span>'
       : s.att.kind === '외출' ? `<span class="pill pill-orange">외출${s.att.reason ? ' · ' + esc(s.att.reason) : ''}</span>`
-        : s.att.kind === '하원' ? '<span class="pill pill-gray">하원</span>' : '<span class="pill pill-green">등원</span>';
-    const att = sat ? `<span class="ov-att" data-att="${esc(s.id)}" role="button" tabindex="0" title="출결 수정">${pill}</span>` : '';
-    const al = s.alert?.text ? `<div class="ov-alert ${s.alert.kind}">${esc(s.alert.text)}</div>` : '';
-    return `<button type="button" class="ov-card ${s.color}" data-id="${esc(s.id)}">
-      <div class="ov-top"><span class="seat${s.seat_no ? '' : ' none'}">${esc(s.seat_no || '-')}</span>
-        <b class="ov-name">${esc(s.name)}</b><span class="ov-grade">${esc(s.grade)}</span><i class="ov-dot ${s.color}" title="${COLOR[s.color]}"></i></div>
-      ${al}<div class="ov-why">${s.reasons.length ? s.reasons.map((r) => `<span>${esc(r)}</span>`).join('') : '<span class="ok">정상</span>'}</div>
-      <div class="ov-foot">
-        ${on ? `<span class="ov-on"><i></i>${esc(s.active.subject)} 몰입 중</span>` : s.active ? '<span class="ov-pause">일시정지</span>' : ''}
-        <span class="ov-today">오늘 ${s.todaySec ? hm(s.todaySec) : '-'}</span>${att}
-      </div>
+        : s.att.kind === '하원' ? `<span class="pill pill-gray">하원 ${t(s.att.at)}</span>` : `<span class="pill pill-green">${esc(s.att.kind)} ${t(s.att.at)}</span>`;
+    const issues = [...(s.alert?.text ? [[s.alert.kind === 'late' ? 'red' : 'orange', s.alert.text]] : []), ...s.reasons.map((r) => [s.color, r])];
+    return `<button type="button" class="ov-card oc ${s.color}" data-id="${esc(s.id)}">
+      <div class="oc-h"><span class="seat${s.seat_no ? '' : ' none'}">${esc(s.seat_no || '-')}</span>
+        <b class="oc-name">${esc(s.name)}</b><span class="oc-grade">${esc(s.grade)}</span>${state}</div>
+      <div class="oc-time"><span>오늘 순공</span><b>${s.todaySec ? hm(s.todaySec) : '-'}</b></div>
+      ${issues.length ? `<ul class="oc-iss">${issues.map(([c, x]) => `<li class="${c}">${esc(x)}</li>`).join('')}</ul>` : '<div class="oc-ok">특이사항 없음</div>'}
+      ${sat ? `<div class="oc-att"><span>출결</span><span class="ov-att" data-att="${esc(s.id)}" role="button" tabindex="0" title="출결 수정">${attPill}</span></div>` : ''}
     </button>`;
   }
 

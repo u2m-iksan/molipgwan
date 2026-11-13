@@ -473,3 +473,4 @@ html,body{touch-action:manipulation}
 .sa-pg{position:relative}
 .sa-pg>button{position:relative;z-index:1;background:none!important;box-shadow:none!important;transition:color .2s}
 .sa-pg-ind{position:absolute;left:0;top:4px;bottom:4px;border-radius:9px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);will-change:transform}
+button:disabled{cursor:default}

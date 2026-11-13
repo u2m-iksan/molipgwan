@@ -462,3 +462,10 @@ html,body{touch-action:manipulation}
   .tbl.cardify td:has(> .btn:only-child)>.btn{height:32px;padding:0 12px}
   .tbl.cardify tr:has(td > .btn:only-child) td:nth-child(2){padding-right:64px}
 }
+.sw-subs button:disabled:not(.on){opacity:.42}
+/* 학생 계획 세우기: 줄 상자 대신 구분선 */
+.sp-list{gap:0}
+.sp-row{background:none;border:0;border-radius:0;padding:14px 0}
+.sp-row+.sp-row{border-top:1px solid var(--line)}
+.sp-row .input{background:var(--field-bg)}
+.sp-row .input:focus-within{background:#fff}

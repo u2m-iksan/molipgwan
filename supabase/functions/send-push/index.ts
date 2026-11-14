@@ -21,12 +21,15 @@ const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 async function vapid() {
-  const { data } = await sb.from("push_config").select("value").eq("key", "vapid").maybeSingle();
+  const { data, error } = await sb.from("push_config").select("value").eq("key", "vapid").maybeSingle();
+  if (error) throw new Error(`push_config 읽기 실패: ${error.message} (SQL 21 실행 · 권한 확인)`);
   if (data?.value?.publicKey) return data.value as { publicKey: string; privateKey: string };
   const keys = webpush.generateVAPIDKeys();
-  await sb.from("push_config").upsert({ key: "vapid", value: keys });
-  const { data: again } = await sb.from("push_config").select("value").eq("key", "vapid").single();
-  return again!.value as { publicKey: string; privateKey: string };
+  const { error: e2 } = await sb.from("push_config").upsert({ key: "vapid", value: keys });
+  if (e2) throw new Error(`push_config 저장 실패: ${e2.message}`);
+  const { data: again, error: e3 } = await sb.from("push_config").select("value").eq("key", "vapid").single();
+  if (e3 || !again) throw new Error(`push_config 다시 읽기 실패: ${e3?.message || '없음'}`);
+  return again.value as { publicKey: string; privateKey: string };
 }
 
 Deno.serve(async (req) => {

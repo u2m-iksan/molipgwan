@@ -47,7 +47,11 @@ Deno.serve(async (req) => {
     let sent = 0;
     for (const it of items || []) {
       let subs: { endpoint: string; p256dh: string; auth: string }[] = [];
-      if (it.to_teachers) {
+      if (it.student_id) {
+        // 학생 본인 기기 (등원 · 공부 시간 알림)
+        const { data } = await sb.from("push_subscriptions").select("endpoint,p256dh,auth").eq("student_id", it.student_id);
+        subs = data || [];
+      } else if (it.to_teachers) {
         const { data } = await sb.from("push_subscriptions").select("endpoint,p256dh,auth").like("email", "t-%");
         subs = data || [];
       } else if (it.family_id) {

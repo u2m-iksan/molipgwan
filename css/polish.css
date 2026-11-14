@@ -1109,3 +1109,4 @@ button:disabled{cursor:default}
 .set-col .grade-flow{grid-template-columns:repeat(3,minmax(0,1fr))}
 .set-col .grade-flow>div{white-space:nowrap;padding:12px}
 .k-row .btn{height:auto;min-height:0;padding:0 20px}
+#sa-push-w:not(:empty),#sa-push-m:not(:empty){margin:0}

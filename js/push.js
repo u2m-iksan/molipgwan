@@ -26,7 +26,8 @@ export async function pushState() {
   return sub ? 'on' : 'off';
 }
 
-export async function enablePush(email) {
+// studentId: 학생 기기 (학생 번호 계정은 형제가 같이 쓰므로 누구 기기인지 같이 저장)
+export async function enablePush(email, studentId = null) {
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') throw new Error('알림이 허용되지 않았습니다. 기기 설정에서 허용해 주세요.');
   // 공개 키: DB에 있으면 그걸, 없으면 함수가 처음 만들면서 돌려줌
@@ -41,7 +42,7 @@ export async function enablePush(email) {
   let sub = await reg.pushManager.getSubscription();
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
   const j = sub.toJSON();
-  const { error } = await sb.from('push_subscriptions').upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, email });
+  const { error } = await sb.from('push_subscriptions').upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, email, ...(studentId ? { student_id: studentId } : {}) });
   if (error) throw error;
 }
 

@@ -13,7 +13,7 @@
   --ease-out:cubic-bezier(.22,1,.36,1);     /* 등장: 길게 미끄러지며 멈춤 */
   --t-fast:.15s; --t:.22s; --t-slow:.34s;
   /* 입력창: 기본은 차분하게, 누를 때만 선명하게 */
-  --field-bg:#F4F5F7; --field-hover:#EDEFF2; --field-line:transparent;
+  --field-bg:#F0F2F5; --field-hover:#EAEDF1; --field-line:#E6E9ED;
   --ring:0 0 0 3px rgba(49,130,246,.16);
   /* 그림자 */
   --lift:0 6px 20px rgba(0,27,55,.08);
@@ -828,3 +828,49 @@ button:disabled{cursor:default}
   .cs-card{padding:16px}
 }
 @media (max-width:480px){ .cs-steps-slot{margin-bottom:4px} }
+
+/* 시간표: 지금 시각 파란 줄 */
+.wk-now{position:absolute;left:0;right:0;height:2px;margin-top:-1px;background:var(--blue,#3182F6);z-index:4;pointer-events:none;border-radius:1px;box-shadow:0 0 0 1px rgba(255,255,255,.7)}
+.wk-now::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--blue,#3182F6);box-shadow:0 0 0 2px #fff}
+.wk-body{position:relative}
+/* 학생 폰 상단: 외출 중일 때도 한 줄 */
+@media (max-width:480px){
+  .att-x{display:none}
+  .sa #att{display:flex;align-items:center;gap:6px;min-width:0}
+  .sa .att-state{overflow:hidden;text-overflow:ellipsis}
+  .sa .top .chip:not(.lo-btn){max-width:84px;overflow:hidden;text-overflow:ellipsis}
+}
+/* 현황 카드: 같은 줄 카드 높이 같게 · 칸 위치 고정 (머리줄 / 순공 / 점검 / 출결은 맨 아래) */
+.ov-cards{align-items:stretch}
+.ov-card.oc{height:100%;justify-content:flex-start}
+.oc-h{height:22px}
+.oc-h .seat{flex:none;width:30px;min-width:30px;padding:0}
+.oc-time{height:22px;align-items:center}
+.oc-iss,.oc-ok{flex:1 0 auto}
+.oc-att{margin-top:auto;padding-top:9px}
+@media (max-width:640px){
+  .oc-st.on{width:20px;height:20px;padding:0;justify-content:center}
+  .oc-st.on span{display:none}
+  .oc-st.on i{display:block;width:8px;height:8px;border-radius:4px}
+}
+
+/* ---------- 배경 · 내용 칸 · 입력칸 구분 강화 (배경색은 그대로) ----------
+   입력칸: 연회색 + 얇은 선 → 흰 카드 안에서도, 연회색 배경과도 뚜렷하게
+   내용 칸(카드): 흰색 + 선 + 아주 옅은 그림자 → 페이지 배경과 분리 */
+.t-app .card,.t-app .cs-card,.t-app .rp-step,.t-app .rp-preview,.t-app .cs-kind-bar,.t-app .cp-side{box-shadow:0 1px 2px rgba(0,12,30,.04),0 2px 8px rgba(0,12,30,.03);border-color:#E6E9ED}
+.input,.textarea{border:1px solid var(--field-line)}
+.input:focus-within,.textarea:focus{border-color:var(--blue,#3182F6)}
+.search{border:1px solid var(--field-line)}
+
+/* ---------- 상담 1단계 배치 정리 (기능 그대로) ---------- */
+.cs-card-h .cs-carry{margin-left:auto;font-size:13px;font-weight:700;white-space:nowrap}
+.cs-quick{gap:6px}
+.cs-quick .chip-t{height:32px}
+.input.rate{flex:0 0 72px;width:72px;height:36px}
+.cs-item-top{min-height:36px}
+.cs-item-top .icon-btn.sm{color:var(--faint)}
+.cs-item-top .icon-btn.sm:hover{color:var(--text)}
+.cs-hist.none{margin:2px 0 0}
+.cs-item>.input,.cs-item>.ac-fb{margin-top:8px}
+.cs-cols>.cs-card{display:flex;flex-direction:column}
+.cs-info{align-items:center}

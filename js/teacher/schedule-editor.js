@@ -241,6 +241,16 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
 /* ---------- 주간 시간표 (월~일 × 08~23시) ----------
    opt.fitH: 본문 높이(px)를 지정하면 그 높이에 맞춤
    opt.squeezeSchool: 학교 있는 주중은 학교 시간을 줄이고 오후·저녁을 크게 (주말은 고르게, 시간 눈금 따로) */
+// 지금 시각(분, 한국 시간)
+const nowMin = () => { const k = new Date(Date.now() + 9 * 3600e3); return k.getUTCHours() * 60 + k.getUTCMinutes(); };
+// 1분마다 파란 줄 위치만 옮김 (시간표를 다시 그리지 않음)
+setInterval(() => {
+  document.querySelectorAll('.wk-now').forEach((el) => {
+    const top = Number(el.dataset.y0) + (nowMin() - Number(el.dataset.m0)) * Number(el.dataset.rate);
+    el.style.top = `${Math.min(Number(el.dataset.max), Math.max(0, top))}px`;
+  });
+}, 60000);
+
 export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
   const RANGE = DAY_END - DAY_START;
   const termAt = opt.termAt || rows.termAt;
@@ -310,9 +320,18 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
         title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">
         <b>${esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title)}</b>${h >= 40 ? `<span>${hm(it.start_time)}~<wbr>${hm(it.end_time)}</span>` : ''}</div>`;
     }).join('');
+    // 지금 시각 파란 줄 (오늘 칸, 시간표 범위 안일 때)
+    let now = '';
+    if (opt.nowLine && date === t) {
+      const m = nowMin();
+      if (m >= DAY_START && m <= DAY_END) {
+        const y0 = S.y(m), rate = (S.y(Math.min(DAY_END, m + 30)) - y0) / Math.max(1, Math.min(DAY_END, m + 30) - m);
+        now = `<i class="wk-now" style="top:${y0}px" data-m0="${m}" data-y0="${y0}" data-rate="${rate}" data-max="${H}" aria-hidden="true"></i>`;
+      }
+    }
     return `<div class="wk-col${date === t ? ' today-col' : ''}${d === 6 && !split ? ' wk-wkend' : ''}">
       <div class="wk-day">${DOW[d]}<span>${Number(date.slice(8))}</span></div>
-      <div class="wk-body" style="height:${H}px">${lines(S)}${blocks}</div></div>`;
+      <div class="wk-body" style="height:${H}px">${lines(S)}${blocks}${now}</div></div>`;
   };
 
   return `<div class="wk-grid${split ? ' split' : ''}">

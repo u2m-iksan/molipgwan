@@ -61,8 +61,9 @@ ${SUM}
     const last = st.att[st.att.length - 1];
     const tm = last ? new Date(last.at).toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false }) : '';
     if (!s) { el.innerHTML = isSaturday() ? '<button type="button" class="att-btn need" id="att-in">등원 체크</button>' : ''; }
-    else if (s === '하원') el.innerHTML = `<span class="att-state">${last.auto ? '자동 하원' : '하원'} ${tm}</span>`;
-    else if (s === '외출') el.innerHTML = `<span class="att-state out">외출 중 · ${esc(last.reason || '')}${last.expect_back ? ` · ${hm(last.expect_back)} 복귀` : ''}</span>
+    else if (s === '하원') el.innerHTML = `<span class="att-state">${last.auto ? '자동 하원' : '하원'} ${tm}</span>
+      <button type="button" class="att-btn" id="att-in">다시 등원</button>`;
+    else if (s === '외출') el.innerHTML = `<span class="att-state out" title="${esc(`외출 · ${last.reason || ''}${last.expect_back ? ` · ${hm(last.expect_back)} 복귀 예정` : ''}`)}">외출<span class="att-x"> 중 · ${esc(last.reason || '')}</span>${last.expect_back ? ` · ${hm(last.expect_back)}<span class="att-x"> 복귀</span>` : ''}</span>
       <button type="button" class="att-btn" data-k="복귀">복귀</button><button type="button" class="att-btn" data-k="하원">하원</button>`;
     else el.innerHTML = `<span class="att-state in">등원 ${tm}</span>
       <button type="button" class="att-btn" data-k="외출">외출</button><button type="button" class="att-btn" data-k="하원">하원</button>`;
@@ -146,7 +147,7 @@ ${SUM}
         if (key === lastKey && el.querySelector('.wk-grid')) return;   // 크기 그대로면 다시 그리지 않음
         lastKey = key;
         // 학교 있는 주중은 학교 시간을 줄이고 오후·저녁을 크게 (주말·학교 없는 주는 고르게)
-        const paint = (h) => { el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주${rows.termAt?.(today()) === '방학' ? ' · 방학' : ''}</span><button type="button" class="link-s sa-edit" id="tt-edit">학원 일정</button></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true })}`; };
+        const paint = (h) => { el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주${rows.termAt?.(today()) === '방학' ? ' · 방학' : ''}</span><button type="button" class="link-s sa-edit" id="tt-edit">학원 일정</button></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true, nowLine: true })}`; };
         const min = innerWidth <= 820 ? 200 : 330;
         let h = Math.max(min, el.clientHeight - 100);
         paint(h);

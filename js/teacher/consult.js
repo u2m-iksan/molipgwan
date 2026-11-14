@@ -247,7 +247,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     return `
       <div class="cs-quick">${mine.map((s, k) => `<button type="button" class="chip-t" data-quick="${k}">+ ${esc(s.subject)}${s.subject_detail ? ' ' + esc(s.subject_detail) : ''}</button>`).join('')}
         <button type="button" class="chip-t" data-quick="-1">+ 과목</button>
-        ${st.d.prevPlan || st.carry ? '<button type="button" class="chip-t carry" id="carry-btn">지난 계획에서 가져오기</button>' : ''}</div>
+</div>
       <div id="carry"></div>
       <div class="cs-list" id="next-list">${st.newItems.map((i, k) => `
         <div class="cs-item" data-k="${k}">
@@ -286,7 +286,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
             ${prevHtml()}
           </section>`}
           <section class="cs-card">
-            <div class="cs-card-h"><h4>다음 계획</h4>${st.d.newPlan?.author_role === '학생' ? '<span class="pill pill-gray">학생 작성</span>' : ''}</div>
+            <div class="cs-card-h"><h4>다음 계획</h4>${st.d.newPlan?.author_role === '학생' ? '<span class="pill pill-gray">학생 작성</span>' : ''}
+              ${!(st.absent && !st.d.newPlan) && (st.d.prevPlan || st.carry) ? '<button type="button" class="link-s cs-carry" id="carry-btn">지난 계획에서 가져오기</button>' : ''}</div>
             ${nextHtml()}
           </section>
         </div>
@@ -445,8 +446,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     const err = $('#cs-err', panel); err.textContent = '';
     const prevItems = st.prevItems.filter((i) => i.id || i.title.trim());
     const newItems = st.newItems.map((i) => (i.academy && !i.title.trim() ? { ...i, title: '학원 숙제' } : i)).filter((i) => i.title.trim()).map((i) => ({ ...i, academy: !!i.academy && !!st.acHas?.(i) }));
-    if (st.newItems.some((i) => !i.title.trim() && (i.detail || '').trim())) return (err.textContent = '분량이 비어 있는 계획이 있습니다.');
-    if (!st.absent && !newItems.length && !st.isLeaving) return (err.textContent = '다음 계획을 하나 이상 입력하세요.');
+    if (st.newItems.some((i) => !i.title.trim() && (i.detail || '').trim())) { toast('분량이 비어 있는 계획이 있습니다', 'bad'); return (err.textContent = '분량이 비어 있는 계획이 있습니다.'); }
+    if (!st.absent && !newItems.length && !st.isLeaving) { toast('다음 계획을 하나 이상 입력하세요', 'bad'); return (err.textContent = '다음 계획을 하나 이상 입력하세요.'); }
 
     btn.disabled = true; btn.textContent = '저장 중';
     try {
@@ -496,7 +497,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       drawConsult();
       showTab('r');
     } catch (e) {
-      err.textContent = '저장 실패: ' + e.message;
+      err.textContent = '저장 실패: ' + e.message; toast('저장 실패: ' + e.message, 'bad'); console.error(e);
       btn.disabled = false; btn.textContent = st.coachingId ? '저장 · 다음' : '상담 저장 · 다음';
     }
   }
@@ -618,7 +619,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         const saved = await saveReport(st.coachingId, { ...collect(), ...extraPatch });
         Object.assign(r, saved); paintState(); onSaved?.();
         return true;
-      } catch (e) { err.textContent = '저장 실패: ' + e.message; return false; }
+      } catch (e) { err.textContent = '저장 실패: ' + e.message; toast('저장 실패: ' + e.message, 'bad'); console.error(e); return false; }
     };
     $('#rp-save', pane).addEventListener('click', async () => { clearTimeout(aTimer); if (await persist()) { toast('저장되었습니다'); ss.saved(); } });
     // 공개 전에는 입력을 멈추면 자동 저장 (공개 후에는 학부모 화면이 바뀌므로 직접 저장)
@@ -631,7 +632,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     $('#rp-next', pane).addEventListener('click', async (e) => {
       clearTimeout(aTimer);
       const c = collect();
-      if (!c.summary && !c.subject_feedback.length && !r.is_absent) return ($('#rp-err', pane).textContent = '피드백이나 총평을 입력하세요.');
+      if (!c.summary && !c.subject_feedback.length && !r.is_absent) { toast('피드백이나 총평을 입력하세요', 'bad'); return ($('#rp-err', pane).textContent = '피드백이나 총평을 입력하세요.'); }
       e.currentTarget.disabled = true;
       const ok = await persist();
       e.currentTarget.disabled = false;

@@ -90,7 +90,7 @@ export async function renderParentHome({ students, onLogout }) {
       if (cb && c) { cb.hidden = false; cb.innerHTML = `<span>정기 상담</span><b>매주 ${DOW[c.weekday]}요일 ${hm(c.start_time)}</b>`; }
       // 한 화면에 들어오게: 화면 높이에 맞춤
       const h = Math.round(Math.min(460, Math.max(320, innerHeight * 0.5)));
-      g.innerHTML = weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true });
+      g.innerHTML = weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true, nowLine: true });
     } catch (e) { const g = $('#pa-grid'); if (g) g.innerHTML = `<div class="pa-empty">불러오기 실패: ${esc(e.message)}</div>`; }
   }
 

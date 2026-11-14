@@ -129,7 +129,7 @@ export async function renderOverview(body, { me } = {}) {
     const on = s.on, run = s.active && !s.active.paused_at;
     const t = (iso) => new Date(new Date(iso).getTime() + 9 * 3600e3).toISOString().slice(11, 16);
     // 오른쪽 위: 지금 상태 하나만
-    const state = on ? `<span class="oc-st on"><i></i>${run ? `${esc(s.active.subject)} 몰입 중` : '몰입 중'}</span>`
+    const state = on ? `<span class="oc-st on" title="${run ? `${esc(s.active.subject)} 몰입 중` : '몰입 중'}"><i></i><span>${run ? `${esc(s.active.subject)} 몰입 중` : '몰입 중'}</span></span>`
       : !sat && s.active ? '<span class="oc-st pause">일시정지</span>' : '';
     // 토요일 출결 (눌러서 수정)
     const attPill = !s.att ? '<span class="pill pill-red">미등원</span>'

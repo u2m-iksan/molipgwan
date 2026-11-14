@@ -88,8 +88,8 @@ export async function openLive() {
     let k, label, sub = '';
     if (s.status === '휴원') return { k: 'ret', label: `복귀 예정 ${Number(s.return_on.slice(5, 7))}/${Number(s.return_on.slice(8))}`, sub: '', todaySec: 0 };
     // 토요일: 등원(복귀) 상태면 몰입 중
-    // 토요일: 일정 중이면(외출 안 눌렀어도) '외출 · 학원명' — 스톱워치 돌리는 중이면 몰입 중
-    if (sat && nb && (!att || att.kind === '등원' || att.kind === '복귀') && !(active && !active.paused_at)) { k = 'out'; label = `외출 · ${nb.name}`; sub = nb.moving ? '이동 중' : `~${toTime(nb.end)}`; }
+    // 토요일: 출결 기록이 없고 일정 중이면 '외출 · 학원명' — 학생이 등원을 눌렀으면 학생 입력 우선(몰입 중)
+    if (sat && nb && !att && !(active && !active.paused_at)) { k = 'out'; label = `외출 · ${nb.name}`; sub = nb.moving ? '이동 중' : `~${toTime(nb.end)}`; }
     else if (sat && (att?.kind === '등원' || att?.kind === '복귀')) { k = 'on'; label = active && !active.paused_at ? `${active.subject} 몰입 중` : '몰입 중'; sub = active ? clockSec(elapsed(active, at)) : ''; }
     else if (!sat && active && !active.paused_at) { k = 'on'; label = `${active.subject} 몰입 중`; sub = clockSec(elapsed(active, at)); }
     else if (!sat && active) { k = 'rest'; label = '휴식 중'; sub = `${active.subject} ${clockSec(elapsed(active, at))}`; }

@@ -82,7 +82,8 @@ export function judge(d, at = Date.now()) {
     }
     if (reasons.length) color = 'red';
     else if (plan && winSec < ORANGE_SEC) { color = 'orange'; reasons.push('최근 2일 순공 2시간 미만'); }
-    const autoOut = !!blk && (!att || att.kind === '등원' || att.kind === '복귀') && !(active && !active.paused_at);
+    // 학생 입력 우선: 등원·외출·복귀·하원 기록이 하나라도 있으면 그대로, 기록이 없을 때만 일정으로 '외출'
+    const autoOut = !!blk && !att && !(active && !active.paused_at);
     return { ...s, color, reasons, winSec, todaySec, active, att, attRows: rows, alert, plan, blk, autoOut, on: autoOut ? false : isImmersed(d.t, active, att) };
   });
 }

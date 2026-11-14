@@ -1,5 +1,5 @@
 // 로그인: ① 역할 고르기 → ② 학생·학부모는 4자리 키패드 / 선생님은 아이디·비밀번호
-import { mount, $, $$, BRAND, ICON, flash, wait } from '../ui.js';
+import { mount, $, $$, BRAND, ICON, flash, wait, busyOverlay } from '../ui.js';
 import { signInFamily, signInTeacher, lockedFor } from '../auth.js';
 
 const ROLE_LABEL = { student: '학생', parent: '학부모', teacher: '선생님' };
@@ -76,13 +76,16 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
     busy = true;
     await wait(150);                      // 마지막 점이 채워지는 걸 보여준 뒤
     dots.classList.add('wait');
+    const ov = busyOverlay('로그인 중');   // 늦어져도 가운데 크게 로딩 → 체크 → 다음 화면
     const r = await signInFamily(code);
     busy = false;
     if (r.ok) {
       dots.classList.remove('wait'); dots.classList.add('ok');
-      cleanup(); await wait(260);
+      cleanup();
+      await ov.done('로그인 완료', role === 'parent' ? '자녀 화면으로 이동합니다' : '오늘도 몰입해 볼까요?');
       return onDone();
     }
+    await ov.close();
     if (r.locked) return fail('로그인이 10분간 제한되었습니다.');
     fail('번호가 일치하지 않습니다.');
   }
@@ -134,9 +137,11 @@ export function renderTeacherLogin({ onDone, onBack }) {
     const m = lockedFor();
     if (m) { err.textContent = `로그인이 제한되었습니다. ${m}분 후 다시 시도하세요.`; return; }
     go.disabled = true; err.textContent = '';
+    const ov = busyOverlay('로그인 중');
     const r = await signInTeacher(id, pw);
     go.disabled = false;
-    if (r.ok) return onDone();
+    if (r.ok) { await ov.done('로그인 완료'); return onDone(); }
+    await ov.close();
     err.textContent = r.locked ? '로그인이 10분간 제한되었습니다.' : '아이디 또는 비밀번호가 일치하지 않습니다.';
     $('#tpw').value = ''; $('#tpw').focus();
   });

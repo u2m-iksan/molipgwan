@@ -12,6 +12,7 @@ import { loadParentUnread, purgeOld, getKakao } from '../data/chat.js';
 import { openHistory } from './history.js';
 import { weekGrid } from '../teacher/schedule-editor.js';
 import { loadStudentSchedules, loadVacations, withTerm } from '../data/schedules.js';
+import { nowBlock } from '../data/att-rules.js';
 
 const BACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 const md = (d) => short(d).replace(/\(.\)/, '');
@@ -41,6 +42,7 @@ export async function renderParentHome({ students, onLogout }) {
       try {
         const { data } = await sb.from('attendance').select('student_id,kind,at').in('student_id', students.map((s) => s.id)).eq('on_date', today()).order('at');
         (data || []).forEach((r) => st.att.set(r.student_id, r));
+        await Promise.all(students.map((k) => loadSched(k).catch(() => [])));   // 지금 학원·학교 일정인지
       } catch { /* 없음 */ }
     }
   }
@@ -62,11 +64,16 @@ export async function renderParentHome({ students, onLogout }) {
   const statusHtml = (s) => {
     const a = st.live.get(s.id);
     const sat = isoDow(today()) === 6, at = st.att?.get(s.id);
-    const satOn = sat && !!at && (at.kind === '등원' || at.kind === '복귀');
+    // 토요일: 지금 일정 중(끝 + 이동 시간 포함)이면 '외출 · 학원명' — 선생님 현황판과 같은 기준
+    const t0 = today(), n = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const todayRows = sat ? (st.sched.get(s.id) || []).filter((r) => r.weekday === 6 && r.valid_from <= t0 && (!r.valid_to || r.valid_to >= t0)) : [];
+    const nb = sat ? nowBlock(s, todayRows, n.getHours() * 60 + n.getMinutes()) : null;
+    const autoOut = !!nb && !at && !(a && !a.paused_at);   // 학생이 등원 등을 눌렀으면 학생 입력 우선
+    const satOn = sat && !autoOut && !!at && (at.kind === '등원' || at.kind === '복귀');
     const on = sat ? satOn : a && !a.paused_at;
     return `<button type="button" class="pa-kid${on ? ' on' : ''}${students[st.cur] === s ? ' cur' : ''}" data-k="${students.indexOf(s)}">
       <div class="pa-kid-h"><b>${esc(s.name)}</b><span>${esc(s.grade || '')}</span></div>
-      <div class="pa-st"><i></i>${on ? (a && !a.paused_at ? `${esc(a.subject)} 몰입 중` : '몰입 중') : sat ? (at?.kind === '외출' ? '외출 중' : at?.kind === '하원' ? '하원' : '몰입 중 아님') : a ? '잠시 휴식 중' : '몰입 중 아님'}</div>
+      <div class="pa-st"><i></i>${on ? (a && !a.paused_at ? `${esc(a.subject)} 몰입 중` : '몰입 중') : sat ? (autoOut ? `외출 · ${esc(nb.name)}` : at?.kind === '외출' ? '외출 중' : at?.kind === '하원' ? '하원' : '몰입 중 아님') : a ? '잠시 휴식 중' : '몰입 중 아님'}</div>
     </button>`;
   };
   async function drawHome() {

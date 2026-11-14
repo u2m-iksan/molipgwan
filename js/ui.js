@@ -385,3 +385,48 @@ function dragToClose(wrap) {
     });
   }
 })();
+
+/* 완료 모달: 화면 가운데에 부드럽게 떠서 체크가 그려지고 잠깐 뒤 사라짐 (상담 단계 저장 등)
+   celebrate('상담 저장 완료', '2단계 · 프롬프트로 넘어갑니다') → 사라질 때 resolve */
+export function celebrate(title, sub = '', ms = 1150) {
+  document.querySelectorAll('.cel').forEach((o) => o.remove());
+  const w = document.createElement('div');
+  w.className = 'cel';
+  w.setAttribute('role', 'status');
+  w.innerHTML = `<div class="cel-card">
+      <svg class="cel-ic" viewBox="0 0 52 52" aria-hidden="true"><circle class="cel-c" cx="26" cy="26" r="23"/><path class="cel-p" d="M15 27l7.5 7.5L38 19"/></svg>
+      <b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}</div>`;
+  document.body.appendChild(w);
+  requestAnimationFrame(() => w.classList.add('show'));
+  return new Promise((res) => {
+    let done = false;
+    const close = () => { if (done) return; done = true; w.classList.remove('show'); w.classList.add('hide'); setTimeout(() => { w.remove(); res(); }, 260); };
+    w.addEventListener('click', close);
+    setTimeout(close, ms);
+  });
+}
+
+/* 기다리는 동안 큰 로딩 → 끝나면 그 자리에서 체크로 바뀜 (로그인 등)
+   const o = busyOverlay('로그인 중'); … await o.done('로그인 완료'); / o.close() (실패) */
+export function busyOverlay(text = '잠시만요') {
+  document.querySelectorAll('.cel').forEach((x) => x.remove());
+  const w = document.createElement('div');
+  w.className = 'cel busy';
+  w.setAttribute('role', 'status');
+  w.innerHTML = `<div class="cel-card">
+      <svg class="cel-ic" viewBox="0 0 52 52" aria-hidden="true"><circle class="cel-spin" cx="26" cy="26" r="23"/><circle class="cel-c" cx="26" cy="26" r="23"/><path class="cel-p" d="M15 27l7.5 7.5L38 19"/></svg>
+      <b>${esc(text)}</b><span hidden></span></div>`;
+  document.body.appendChild(w);
+  requestAnimationFrame(() => w.classList.add('in'));
+  const remove = (ms) => new Promise((res) => { w.classList.remove('in', 'show'); w.classList.add('hide'); setTimeout(() => { w.remove(); res(); }, ms); });
+  return {
+    done(title, sub = '', ms = 900) {
+      w.classList.remove('busy');
+      $('b', w).textContent = title;
+      const s = $('span', w); if (sub) { s.textContent = sub; s.hidden = false; }
+      w.classList.add('show');
+      return new Promise((res) => setTimeout(() => remove(240).then(res), ms));
+    },
+    close: () => remove(200),
+  };
+}

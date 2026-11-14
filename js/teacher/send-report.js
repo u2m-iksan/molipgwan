@@ -1,6 +1,6 @@
 // 보고서 전송 (3단계 · 선택): 공개 → 안내 문자 복사 → 전송 완료 표시
 //  상담 화면 3단계와 학부모 안내 탭(보고서 칸)에서 같이 씀
-import { $, esc, toast, flashDone } from '../ui.js';
+import { $, esc, toast, flashDone, celebrate } from '../ui.js';
 import { saveReport, noticeText } from '../data/coaching.js';
 
 const kst = (iso) => new Date(new Date(iso).getTime() + 9 * 3600e3).toISOString();
@@ -53,13 +53,13 @@ export function mountSend(el, { report, student, getReport, beforePublish, onCha
       try {
         const patch = { ...(beforePublish ? beforePublish() : {}), published_at: new Date().toISOString() };
         Object.assign(r, await saveReport(r.coaching_id, patch));
-        toast('공개했습니다 · 이제 안내 문자를 복사해 보내세요');
+        celebrate('공개 완료', '학부모 앱에 보고서가 열렸어요 · 이제 안내 문자를 보내세요');
         draw(); onChange?.(r);
       } catch (x) { err.textContent = '공개 실패: ' + x.message; btn.disabled = false; }
     });
     $('#sd-sent', el)?.addEventListener('click', async (e) => {
       const btn = e.currentTarget; btn.disabled = true;
-      try { Object.assign(r, await saveReport(r.coaching_id, { sent_at: new Date().toISOString() })); toast('전송 완료로 표시했습니다'); draw(); onChange?.(r); }
+      try { Object.assign(r, await saveReport(r.coaching_id, { sent_at: new Date().toISOString() })); celebrate('전송 완료', '이번 주 보고 끝!'); draw(); onChange?.(r); }
       catch (x) { $('#sd-err', el).textContent = '저장 실패: ' + x.message; btn.disabled = false; }
     });
   }

@@ -6,6 +6,7 @@ import { loadStudents } from '../data/students.js';
 import { loadWeekCoachings, loadOpenPlans, scheduledOn } from '../data/coaching.js';
 import { getCoachConfig, saveCoachConfig, slotTimes, loadCoachingSlots, loadAllFixedSchedules } from '../data/schedules.js';
 
+const SEEN = new Set();
 export async function renderCoaching(body) {
   const thisMon = mondayOf(today());
   const WEEKS = 4;   // 이번 주 포함 4주까지 넘겨 보기
@@ -71,7 +72,10 @@ export async function renderCoaching(body) {
     const dn = st.done.get(s.id);
     // 결석 · 2단계까지 완료(초록 ●) · 1단계만(주황 ▲)
     const state = dn ? (dn.kind === '결석' ? ' absent' : dn.reported ? ' done' : ' half') : '';
-    return `<button type="button" class="stu${big ? ' big' : ''}${c ? ' warn' : ''}${state}" data-sid="${esc(s.id)}"
+    // 체크는 처음 생길 때만 톡 튀게 (1분마다 다시 그려도 그대로)
+    const ck = dn ? `${s.id}:${st.mon}:${state}` : '';
+    const old = ck && SEEN.has(ck); if (ck) SEEN.add(ck);
+    return `<button type="button" class="stu${big ? ' big' : ''}${c ? ' warn' : ''}${state}${old ? ' ck-old' : ''}" data-sid="${esc(s.id)}"
       title="${esc(`${s.name} ${s.grade}`)}${c ? esc(` · ${c.title} ${hm(c.start_time)}~${hm(c.end_time)}와 겹침`) : ''}">
       ${dn ? `<span class="ok-ic" aria-label="${dn.kind === '결석' ? '결석' : dn.reported ? '상담 완료' : '1단계만 저장'}">${dn.kind === '결석' ? '결' : dn.reported ? '✓' : '!'}</span>` : ''}${s.seat_no ? `<i>${esc(s.seat_no)}</i>` : ''}<span class="nm">${esc(s.name)}</span><small>${esc(s.grade)}</small></button>`;
   };

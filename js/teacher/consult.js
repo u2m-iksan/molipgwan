@@ -1,5 +1,5 @@
 // 상담 화면 (전체 페이지 #/consult?sid=…&on=…): ① 상담 (지난 계획 이행도 → 다음 계획 → 총평) ② 보고 (GPT 정돈 → 학부모 카드 공개)
-import { $, $$, esc, toast, sheet, X, flashDone, saveState, fadeOut, popIn } from '../ui.js';
+import { $, $$, esc, toast, sheet, X, flashDone, saveState, fadeOut, popIn, celebrate } from '../ui.js';
 import { today, short, addDays } from '../date.js';
 import { refPanel } from './ref-panel.js';
 import { segBar } from '../views/progress-bar.js';
@@ -130,20 +130,29 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   const stepDone = (k) => (k === 'c' ? !!st.coachingId
     : k === 'r' ? !!(st.report && (st.report.summary || (st.report.subject_feedback || []).length || st.report.published_at))
       : !!st.report?.sent_at);
+  const ckSeen = new Set();   // 이미 보여 준 단계 체크 (다시 그려도 안 튀게)
   const stepsHtml = () => `<ol class="cs-steps" aria-label="상담 단계">${STEPS.map(([k, label, opt], i) => `
-    <li class="${st.tab === k ? 'cur' : ''}${stepDone(k) ? ' done' : ''}"><button type="button" data-step="${k}"${st.tab === k ? ' aria-current="step"' : ''}>
+    <li class="${st.tab === k ? 'cur' : ''}${stepDone(k) ? ' done' : ''}${stepDone(k) && ckSeen.has(k) ? ' ck-old' : ''}"><button type="button" data-step="${k}"${st.tab === k ? ' aria-current="step"' : ''}>
       <i>${stepDone(k) && st.tab !== k ? '✓' : i + 1}</i><span>${label}${opt ? `<small>${opt}</small>` : ''}</span></button></li>`).join('<li class="sep" aria-hidden="true"></li>')}</ol>`;
-  function paintSteps() { $$('.cs-steps-slot', panel).forEach((x) => { x.innerHTML = stepsHtml(); }); }
+  function paintSteps() {
+    const h = stepsHtml();
+    $$('.cs-steps-slot', panel).forEach((x) => { x.innerHTML = h; });
+    STEPS.forEach(([k]) => { if (stepDone(k) && st.tab !== k) ckSeen.add(k); else if (!stepDone(k)) ckSeen.delete(k); });
+  }
   async function showTab(v) {
     if (v === st.tab) return;
     if ((v === 'r' || v === 's') && !st.report) return toast('1단계 상담을 먼저 저장하세요');
     if (st.tab === 'r' && st.flushReport) await st.flushReport();
+    const ORD = { c: 0, r: 1, s: 2 }, fwd = ORD[v] > ORD[st.tab];
     st.tab = v;
     $('#p-c', panel).hidden = v !== 'c';
     $('#p-r', panel).hidden = v !== 'r';
     $('#p-s', panel).hidden = v !== 's';
     if (v === 'r' && !st.rDrawn) { drawReport(); st.rDrawn = true; }
     if (v === 's') drawSend();
+    // 단계 넘어갈 때 부드럽게: 앞으로는 오른쪽에서, 뒤로는 왼쪽에서
+    const pn = $('#p-' + v, panel);
+    pn.classList.remove('in-fwd', 'in-back'); void pn.offsetWidth; pn.classList.add(fwd ? 'in-fwd' : 'in-back');
     paintSteps();
     window.scrollTo(0, 0);
   }
@@ -530,9 +539,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       st.newItems = st.d.newItems.map((i) => ({ ...i }));
       clearDraft();
       onSaved?.();
-      toast('상담이 저장되었습니다');
       drawConsult();
       showTab('r');
+      celebrate('상담 저장 완료', '2단계 · 프롬프트와 보고서를 정리해요');
     } catch (e) {
       err.textContent = '저장 실패: ' + e.message; toast('저장 실패: ' + e.message, 'bad'); console.error(e);
       btn.disabled = false; btn.textContent = st.coachingId ? '저장 · 다음' : '상담 저장 · 다음';
@@ -674,7 +683,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       btn.disabled = true;
       const ok = await persist();
       btn.disabled = false;
-      if (ok) { ss.saved(); showTab('s'); }
+      if (ok) { ss.saved(); showTab('s'); celebrate('보고서 저장 완료', '3단계 · 전송은 지금 해도, 나중에 해도 돼요'); }
     });
     // 다른 단계로 갈 때 작성 중인 내용 저장 (공개 전만 — 공개 후에는 직접 저장)
     st.flushReport = async () => {

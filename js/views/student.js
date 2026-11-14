@@ -9,7 +9,7 @@ import { segBar } from './progress-bar.js';
 import { openStopwatch, clock } from './stopwatch.js';
 import { openSelfPlan } from './self-plan.js';
 import { purgeOld } from '../data/chat.js';
-import { mountPushCard } from './push-card.js';
+import { pushGate } from './push-gate.js';
 import { heartbeat } from '../device.js';
 import { sb } from '../sb.js';
 import { lastDays } from '../data/overview.js';
@@ -35,7 +35,6 @@ export async function renderStudentHome({ student, onLogout }) {
     <div class="sa-mtop">
       <button type="button" class="sa-today" id="today"><span class="sa-today-l"><i></i>오늘 공부시간</span><b id="today-t">0분</b><em>›</em></button>
       <div id="nag-m"></div>
-      <div id="sa-push-m"></div>
       <div class="sa-sum" id="sum">
 ${SUM}
       </div>
@@ -46,7 +45,6 @@ ${SUM}
       <div class="sa-col">
         <button type="button" class="sa-today sa-today-w" id="today2"><span class="sa-today-l"><i></i>오늘 공부시간</span><b id="today2-t">0분</b><em>›</em></button>
         <div class="sa-sum sa-sum-w">${SUM}</div>
-        <div id="sa-push-w"></div>
         <section class="card sa-plan" id="plan"><div class="empty">불러오는 중</div></section>
       </div>
     </main>
@@ -73,7 +71,7 @@ ${SUM}
     try {
       await purgeOld();   // 토요일 20:00 자동 하원 등 정리 (앱 열 때 1번)
       // 알림 받기 (등원 시간 · 공부 1시간마다) — SQL 23
-      mountPushCard($('#sa-push-m'), 'student', student.id); mountPushCard($('#sa-push-w'), 'student', student.id);
+      pushGate(student.id);   // 알림 안 켜져 있으면 켤 때까지 팝업 (강제)
       st.att = await loadAttendance(student.id);
       if (await autoCheckout(student.id, st.att)) st.att = await loadAttendance(student.id);
     } catch { st.att = []; }

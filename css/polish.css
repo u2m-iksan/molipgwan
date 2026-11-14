@@ -1020,3 +1020,10 @@ button:disabled{cursor:default}
 .err.ok-msg{color:var(--blue,#3182F6);font-weight:700}
 @media (prefers-reduced-motion:reduce){.dots-ck circle{transform:none;animation:none!important}.dots-ck path{stroke-dashoffset:0;animation:none!important}}
 .auth .err.ok-msg::before{display:none}.auth .err.ok-msg{color:var(--blue,#3182F6)}
+
+/* ---------- 토요일 외출: 주황 + 어디 · 복귀 예정 ---------- */
+.pill small{font-size:.92em;font-weight:600;opacity:.85;margin-left:3px}
+.pa-kid.out .pa-st{color:var(--orange)}
+.pa-kid.out .pa-st i{background:#F08A00}
+.pa-kid.out{border-color:#F6D3A6}
+.pa-back{margin-top:4px;padding-left:17px;font-size:12.5px;font-weight:600;color:var(--sub);font-feature-settings:"tnum"}

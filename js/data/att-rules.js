@@ -50,3 +50,16 @@ export function satAlert(student, rows, todaySched, nowMin) {
   if (inRow) { const late = minOf(inRow.at) - exp; if (late > 0) return { kind: 'lateIn', text: `지각 등원 ${mm(late)}`, exp }; }
   return { kind: null, text: '', exp };
 }
+
+// 토요일 외출 정보 (선생님·학부모 공용): 어디(학원명 · 식사 · 기타) + 복귀 예정 시각
+//  att = 마지막 출결 기록. 기록이 없고 일정 중이면 일정 기준(끝 + 이동 시간), 외출 기록이면 학생이 고른 사유·복귀 예정
+//  → { name, back: 'HH:MM' | '', moving } | null
+export function outInfo(student, att, todaySched, nowMin) {
+  const nb = nowBlock(student, todaySched, nowMin);
+  const backOf = (b) => toTime(b.end + (b.r.category === '학교' ? SCHOOL_MOVE_MIN : MOVE_MIN));
+  if (!att) return nb ? { name: nb.name, back: backOf(nb), moving: nb.moving } : null;
+  if (att.kind !== '외출') return null;
+  const name = att.reason === '학원' ? (nb && nb.r.category === '학원' ? nb.name : '학원') : att.reason || '외출';
+  const back = att.expect_back ? hm(att.expect_back) : nb ? backOf(nb) : '';
+  return { name, back, moving: false };
+}

@@ -166,9 +166,9 @@ export async function renderOverview(body, { me } = {}) {
     const state = on ? `<span class="oc-st on" title="${run ? `${esc(s.active.subject)} 몰입 중` : '몰입 중'}"><i></i><span>${run ? `${esc(s.active.subject)} 몰입 중` : '몰입 중'}</span></span>`
       : !sat && s.active ? '<span class="oc-st pause">일시정지</span>' : '';
     // 토요일 출결 (눌러서 수정)
-    const attPill = s.autoOut ? `<span class="pill pill-orange" title="일정 시간이라 자동 표시">외출 · ${esc(s.blk.name)}${s.blk.moving ? ' (이동)' : ''}</span>`
+    // 외출: 어디 + 복귀 예정 (짧게 한 줄)
+    const attPill = s.out ? `<span class="pill pill-orange"${s.autoOut ? ' title="일정 시간이라 자동 표시"' : ''}>외출 · ${esc(s.out.name)}${s.out.back ? ` <small>~${s.out.back}</small>` : ''}</span>`
       : !s.att ? (s.alert?.kind === 'late' ? '<span class="pill pill-red">미등원</span>' : `<span class="pill pill-gray">${s.alert?.exp != null ? `${String(Math.floor(s.alert.exp / 60)).padStart(2, '0')}:${String(s.alert.exp % 60).padStart(2, '0')} 등원 예정` : '등원 전'}</span>`)
-      : s.att.kind === '외출' ? `<span class="pill pill-orange">외출${s.att.reason ? ' · ' + esc(s.att.reason) : ''}</span>`
         : s.att.kind === '하원' ? `<span class="pill pill-gray">하원 ${t(s.att.at)}</span>` : `<span class="pill pill-green">${esc(s.att.kind)} ${t(s.att.at)}</span>`;
     const issues = [...(s.alert?.text && s.alert.kind !== 'sched' && s.alert.kind !== 'expect' ? [[s.alert.kind === 'late' ? 'red' : 'orange', s.alert.text]] : []), ...s.reasons.map((r) => [s.color, r])];
     return `<button type="button" class="ov-card oc ${s.color}" data-id="${esc(s.id)}">

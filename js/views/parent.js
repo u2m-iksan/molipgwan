@@ -12,7 +12,7 @@ import { loadParentUnread, purgeOld, getKakao } from '../data/chat.js';
 import { openHistory } from './history.js';
 import { weekGrid } from '../teacher/schedule-editor.js';
 import { loadStudentSchedules, loadVacations, withTerm } from '../data/schedules.js';
-import { nowBlock } from '../data/att-rules.js';
+import { nowBlock, outInfo } from '../data/att-rules.js';
 
 const BACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 const md = (d) => short(d).replace(/\(.\)/, '');
@@ -40,7 +40,7 @@ export async function renderParentHome({ students, onLogout }) {
     st.att = new Map();
     if (isoDow(today()) === 6) {
       try {
-        const { data } = await sb.from('attendance').select('student_id,kind,at').in('student_id', students.map((s) => s.id)).eq('on_date', today()).order('at');
+        const { data } = await sb.from('attendance').select('student_id,kind,at,reason,expect_back').in('student_id', students.map((s) => s.id)).eq('on_date', today()).order('at');
         (data || []).forEach((r) => st.att.set(r.student_id, r));
         await Promise.all(students.map((k) => loadSched(k).catch(() => [])));   // 지금 학원·학교 일정인지
       } catch { /* 없음 */ }
@@ -71,9 +71,12 @@ export async function renderParentHome({ students, onLogout }) {
     const autoOut = !!nb && !at && !(a && !a.paused_at);   // 학생이 등원 등을 눌렀으면 학생 입력 우선
     const satOn = sat && !autoOut && !!at && (at.kind === '등원' || at.kind === '복귀');
     const on = sat ? satOn : a && !a.paused_at;
-    return `<button type="button" class="pa-kid${on ? ' on' : ''}${students[st.cur] === s ? ' cur' : ''}" data-k="${students.indexOf(s)}">
+    // 토요일 외출(주황): 어디(학원명 · 식사 · 기타) + 복귀 예정
+    const out = sat && !on && (autoOut || at?.kind === '외출') ? outInfo(s, autoOut ? null : at, todayRows, n.getHours() * 60 + n.getMinutes()) : null;
+    return `<button type="button" class="pa-kid${on ? ' on' : ''}${out ? ' out' : ''}${students[st.cur] === s ? ' cur' : ''}" data-k="${students.indexOf(s)}">
       <div class="pa-kid-h"><b>${esc(s.name)}</b><span>${esc(s.grade || '')}</span></div>
-      <div class="pa-st"><i></i>${on ? (a && !a.paused_at ? `${esc(a.subject)} 몰입 중` : '몰입 중') : sat ? (autoOut ? `외출 · ${esc(nb.name)}` : at?.kind === '외출' ? '외출 중' : at?.kind === '하원' ? '하원' : '몰입 중 아님') : a ? '잠시 휴식 중' : '몰입 중 아님'}</div>
+      <div class="pa-st"><i></i>${on ? (a && !a.paused_at ? `${esc(a.subject)} 몰입 중` : '몰입 중') : out ? `외출 · ${esc(out.name)}` : sat ? (at?.kind === '하원' ? '하원' : '몰입 중 아님') : a ? '잠시 휴식 중' : '몰입 중 아님'}</div>
+      ${out ? `<div class="pa-back">${out.moving ? '이동 중 · ' : ''}${out.back ? `${out.back} 복귀 예정` : '복귀 시간 미정'}</div>` : ''}
     </button>`;
   };
   async function drawHome() {

@@ -7,7 +7,7 @@ import { $, esc } from '../ui.js';
 import { sb } from '../sb.js';
 import { DOW, today, mondayOf, isoDow, toMin, toTime, hm } from '../date.js';
 import { settleStale } from '../data/student.js';
-import { satAlert, nowBlock } from '../data/att-rules.js';
+import { satAlert, nowBlock, outInfo } from '../data/att-rules.js';
 import { loadVacations, isVacation, termOk } from '../data/schedules.js';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -89,11 +89,11 @@ export async function openLive() {
     if (s.status === '휴원') return { k: 'ret', label: `복귀 예정 ${Number(s.return_on.slice(5, 7))}/${Number(s.return_on.slice(8))}`, sub: '', todaySec: 0 };
     // 토요일: 등원(복귀) 상태면 몰입 중
     // 토요일: 출결 기록이 없고 일정 중이면 '외출 · 학원명' — 학생이 등원을 눌렀으면 학생 입력 우선(몰입 중)
-    if (sat && nb && !att && !(active && !active.paused_at)) { k = 'out'; label = `외출 · ${nb.name}`; sub = nb.moving ? '이동 중' : `~${toTime(nb.end)}`; }
+    if (sat && nb && !att && !(active && !active.paused_at)) { const o = outInfo(s, null, data.sched, nowMin); k = 'out'; label = `외출 · ${o.name}`; sub = `${o.moving ? '이동 중 · ' : ''}${o.back} 복귀 예정`; }
     else if (sat && (att?.kind === '등원' || att?.kind === '복귀')) { k = 'on'; label = active && !active.paused_at ? `${active.subject} 몰입 중` : '몰입 중'; sub = active ? clockSec(elapsed(active, at)) : ''; }
     else if (!sat && active && !active.paused_at) { k = 'on'; label = `${active.subject} 몰입 중`; sub = clockSec(elapsed(active, at)); }
     else if (!sat && active) { k = 'rest'; label = '휴식 중'; sub = `${active.subject} ${clockSec(elapsed(active, at))}`; }
-    else if (sat && att?.kind === '외출') { k = al?.kind === 'late' ? 'none' : 'out'; label = `외출${att.reason ? ' · ' + att.reason : ''}`; sub = al?.text || ''; }
+    else if (sat && att?.kind === '외출') { const o = outInfo(s, att, data.sched, nowMin); k = al?.kind === 'late' ? 'none' : 'out'; label = `외출 · ${o.name}`; sub = al?.kind === 'late' ? al.text : o.back ? `${o.back} 복귀 예정` : ''; }
     else if (sat && att?.kind === '하원') { k = 'off'; label = '하원'; }
     else if (blk) { k = blk.category === '학원' ? 'acad' : 'school'; label = `${blk.category === '학원' ? (blk.title || '학원') : '학교'} ~${hm(blk.end_time)}`; }
     else if (sat && !att) { k = al?.kind === 'late' ? 'none' : 'idle'; label = al?.kind === 'late' ? al.text : al?.text || '미등원'; }

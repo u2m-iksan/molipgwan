@@ -1057,3 +1057,9 @@ button:disabled{cursor:default}
 .sa-item:not(.ac){cursor:pointer}
 .sa-item:not(.ac) .sa-pick{cursor:default}
 .sa-ac-d{align-items:center;text-align:center}
+
+/* ---------- 이행도 관리: 가로로 먼저 꽉 채우기 (좁은 카드 여러 칸) · 같은 줄은 같은 높이 ---------- */
+.pl-day-list{grid-template-columns:repeat(auto-fill,minmax(340px,1fr));align-items:stretch}
+.pl-day-list .pl-card{height:100%;box-sizing:border-box}
+@media (max-width:820px){.pl-day-list{grid-template-columns:1fr}}
+.pl-list{align-items:stretch}.pl-day{min-width:0}

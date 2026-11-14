@@ -78,13 +78,15 @@ export async function renderPlans(body) {
 
   function card(r) {
     const { s, plan } = r;
+    // 머리줄: 왼쪽(자리·이름·학년·기간·코칭·표시)은 길면 줄바꿈 · 오른쪽 위 평균 이행도는 항상 고정
     const head = `<div class="pl-h">
-        ${s.seat_no ? `<span class="pl-seat">${esc(s.seat_no)}</span>` : ''}<b class="pl-name">${esc(s.name)}</b><span class="pl-g">${esc(s.grade || '')}</span>
-        ${plan ? `<span class="pl-per">${md(plan.start_date)} – ${plan.due_date ? md(plan.due_date) : ''}</span>${plan.author_role === '학생' ? '<span class="pill pill-gray">학생 작성</span>' : ''}` : ''}
-        <span class="spacer"></span>
-        ${r.coach ? `<span class="pl-coach">코칭 ${DOW[r.coach.weekday]} ${hm(r.coach.start_time)}</span>` : ''}
-        ${r.state === 'none' ? '<span class="pill pill-red">계획 없음</span>' : r.state === 'over' ? '<span class="pill pill-red">기간 지남</span>' : ''}
-        ${r.miss ? `<span class="pill pill-red">진행률 ${r.miss}일 미입력</span>` : ''}
+        <div class="pl-hl">
+          ${s.seat_no ? `<span class="pl-seat">${esc(s.seat_no)}</span>` : ''}<b class="pl-name">${esc(s.name)}</b><span class="pl-g">${esc(s.grade || '')}</span>
+          ${plan ? `<span class="pl-per">${md(plan.start_date)} – ${plan.due_date ? md(plan.due_date) : ''}</span>${plan.author_role === '학생' ? '<span class="pill pill-gray">학생 작성</span>' : ''}` : ''}
+          ${r.coach ? `<span class="pl-coach">코칭 ${DOW[r.coach.weekday]} ${hm(r.coach.start_time)}</span>` : ''}
+          ${r.state === 'none' ? '<span class="pill pill-red">계획 없음</span>' : r.state === 'over' ? '<span class="pill pill-red">기간 지남</span>' : ''}
+          ${r.miss ? `<span class="pill pill-red">진행률 ${r.miss}일 미입력</span>` : ''}
+        </div>
         ${r.avg != null && r.state !== 'none' ? `<b class="pl-avg cu ${tone(r.avg)}">${r.avg}<i>%</i></b>` : ''}
       </div>`;
     if (!plan) return `<section class="card pl-card none red">${head}</section>`;

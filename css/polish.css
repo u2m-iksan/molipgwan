@@ -1063,3 +1063,11 @@ button:disabled{cursor:default}
 .pl-day-list .pl-card{height:100%;box-sizing:border-box}
 @media (max-width:820px){.pl-day-list{grid-template-columns:1fr}}
 .pl-list{align-items:stretch}.pl-day{min-width:0}
+
+/* ---------- 이행도 카드 머리줄: 평균 이행도는 항상 오른쪽 위 고정 ---------- */
+.pl-h{flex-wrap:nowrap!important;align-items:flex-start;gap:12px}
+.pl-hl{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-height:32px}
+.pl-hl>*{white-space:nowrap}
+.pl-hl .pl-per{margin-left:0}
+.pl-h>.pl-avg{flex:none;margin-left:auto;line-height:32px}
+@media (max-width:820px){.pl-hl .pl-per{order:0;flex-basis:auto}}

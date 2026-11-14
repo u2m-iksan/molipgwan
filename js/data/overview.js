@@ -6,7 +6,7 @@
 import { sb } from '../sb.js';
 import { today, addDays, isoDow } from '../date.js';
 import { settleStale } from './student.js';
-import { satAlert } from './att-rules.js';
+import { satAlert, nowBlock } from './att-rules.js';
 import { loadVacations, isVacation, termOk } from './schedules.js';
 
 const check = (r) => { if (r.error) throw r.error; return r.data || []; };
@@ -60,7 +60,10 @@ export function judge(d, at = Date.now()) {
     const rows = d.att.filter((a) => a.student_id === s.id);
     const att = rows.length ? rows[rows.length - 1] : null;
     const n = new Date(new Date(at).toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-    const alert = isoDow(d.t) === 6 ? satAlert(s, rows, d.sched, n.getHours() * 60 + n.getMinutes()) : null;
+    const nowMin = n.getHours() * 60 + n.getMinutes();
+    const alert = isoDow(d.t) === 6 ? satAlert(s, rows, d.sched, nowMin) : null;
+    // 토요일: 지금 학원·학교·기타 일정 중(끝 + 이동 시간 포함)이면 출결 칸에 '외출 · 학원명' (외출을 안 눌렀어도)
+    const blk = isoDow(d.t) === 6 ? nowBlock(s, d.sched, nowMin) : null;
 
     const reasons = [];
     let color = 'green';
@@ -79,6 +82,7 @@ export function judge(d, at = Date.now()) {
     }
     if (reasons.length) color = 'red';
     else if (plan && winSec < ORANGE_SEC) { color = 'orange'; reasons.push('최근 2일 순공 2시간 미만'); }
-    return { ...s, color, reasons, winSec, todaySec, active, att, attRows: rows, alert, plan, on: isImmersed(d.t, active, att) };
+    const autoOut = !!blk && (!att || att.kind === '등원' || att.kind === '복귀') && !(active && !active.paused_at);
+    return { ...s, color, reasons, winSec, todaySec, active, att, attRows: rows, alert, plan, blk, autoOut, on: autoOut ? false : isImmersed(d.t, active, att) };
   });
 }

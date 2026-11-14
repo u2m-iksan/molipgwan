@@ -5,9 +5,9 @@
 //  빨강·주황·초록 판정은 학생들이 보는 화면이라 표시하지 않음
 import { $, esc } from '../ui.js';
 import { sb } from '../sb.js';
-import { DOW, today, mondayOf, isoDow, toMin, hm } from '../date.js';
+import { DOW, today, mondayOf, isoDow, toMin, toTime, hm } from '../date.js';
 import { settleStale } from '../data/student.js';
-import { satAlert } from '../data/att-rules.js';
+import { satAlert, nowBlock } from '../data/att-rules.js';
 import { loadVacations, isVacation, termOk } from '../data/schedules.js';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -82,12 +82,15 @@ export async function openLive() {
     const rows = data.att.filter((a) => a.student_id === s.id);
     const att = rows[rows.length - 1];
     const sat = isoDow(data.t) === 6;
-    const blk = data.sched.find((r) => r.student_id === s.id && ['학원', '학교'].includes(r.category) && toMin(r.start_time) <= nowMin && nowMin < toMin(r.end_time));
+    const blk = data.sched.find((r) => r.student_id === s.id && ['학원', '학교', '기타'].includes(r.category) && toMin(r.start_time) <= nowMin && nowMin < toMin(r.end_time));
+    const nb = sat ? nowBlock(s, data.sched, nowMin) : null;   // 토: 일정 끝 + 이동 시간까지
     const al = sat ? satAlert(s, rows, data.sched, nowMin) : null;
     let k, label, sub = '';
     if (s.status === '휴원') return { k: 'ret', label: `복귀 예정 ${Number(s.return_on.slice(5, 7))}/${Number(s.return_on.slice(8))}`, sub: '', todaySec: 0 };
     // 토요일: 등원(복귀) 상태면 몰입 중
-    if (sat && (att?.kind === '등원' || att?.kind === '복귀')) { k = 'on'; label = active && !active.paused_at ? `${active.subject} 몰입 중` : '몰입 중'; sub = active ? clockSec(elapsed(active, at)) : ''; }
+    // 토요일: 일정 중이면(외출 안 눌렀어도) '외출 · 학원명' — 스톱워치 돌리는 중이면 몰입 중
+    if (sat && nb && (!att || att.kind === '등원' || att.kind === '복귀') && !(active && !active.paused_at)) { k = 'out'; label = `외출 · ${nb.name}`; sub = nb.moving ? '이동 중' : `~${toTime(nb.end)}`; }
+    else if (sat && (att?.kind === '등원' || att?.kind === '복귀')) { k = 'on'; label = active && !active.paused_at ? `${active.subject} 몰입 중` : '몰입 중'; sub = active ? clockSec(elapsed(active, at)) : ''; }
     else if (!sat && active && !active.paused_at) { k = 'on'; label = `${active.subject} 몰입 중`; sub = clockSec(elapsed(active, at)); }
     else if (!sat && active) { k = 'rest'; label = '휴식 중'; sub = `${active.subject} ${clockSec(elapsed(active, at))}`; }
     else if (sat && att?.kind === '외출') { k = al?.kind === 'late' ? 'none' : 'out'; label = `외출${att.reason ? ' · ' + att.reason : ''}`; sub = al?.text || ''; }

@@ -18,12 +18,16 @@ const b64 = (s) => {
 };
 
 // 'unsupported' | 'ios-install'(홈 화면 추가 필요) | 'denied' | 'off' | 'on'
-export async function pushState() {
+//  한 기기에서 여러 계정(학부모 + 자녀 등)이 각각 켤 수 있음 → 이 계정 · 이 학생으로 등록돼 있는지까지 확인
+export async function pushState(studentId = null) {
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return isIOS() && !standalone() ? 'ios-install' : 'unsupported';
   if (Notification.permission === 'denied') return 'denied';
   const reg = await navigator.serviceWorker.getRegistration();
   const sub = await reg?.pushManager.getSubscription();
-  return sub ? 'on' : 'off';
+  if (!sub) return 'off';
+  const { data } = await sb.from('push_subscriptions').select('endpoint').eq('endpoint', sub.endpoint).eq('student_key', studentId || '').limit(1);
+  if (data) return data.length ? 'on' : 'off';
+  return 'on';   // SQL 24 전
 }
 
 // studentId: 학생 기기 (학생 번호 계정은 형제가 같이 쓰므로 누구 기기인지 같이 저장)
@@ -42,16 +46,20 @@ export async function enablePush(email, studentId = null) {
   let sub = await reg.pushManager.getSubscription();
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });
   const j = sub.toJSON();
-  const { error } = await sb.from('push_subscriptions').upsert({ endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, email, ...(studentId ? { student_id: studentId } : {}) });
+  const row = { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, email, ...(studentId ? { student_id: studentId } : {}) };
+  let { error } = await sb.from('push_subscriptions').upsert({ ...row, student_key: studentId || '' }, { onConflict: 'endpoint,email,student_key' });
+  if (error && /student_key|on conflict|ON CONFLICT/i.test(error.message || '')) ({ error } = await sb.from('push_subscriptions').upsert(row));   // SQL 24 전
   if (error) throw error;
 }
 
-export async function disablePush() {
-  const reg = await navigator.serviceWorker.getRegistration();
+// 이 계정 것만 끄기 (studentId 주면 그 학생 것만) — 같은 기기의 다른 계정 알림은 그대로
+export async function disablePush(studentId) {
+  const reg = await navigator.serviceWorker?.getRegistration();
   const sub = await reg?.pushManager.getSubscription();
   if (!sub) return;
-  await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-  await sub.unsubscribe();
+  let q = sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);   // 내 계정 줄만 지워짐 (권한)
+  if (studentId !== undefined) q = q.eq('student_key', studentId || '');
+  await q;
 }
 
 // 알림을 눌러 이미 열린 앱으로 왔을 때 그 화면으로

@@ -21,7 +21,7 @@ export async function mountPushCard(el, who, studentId = null) {
   const { error } = await sb.rpc('parent_mode');
   if (error) { el.innerHTML = ''; el.closest('.set-sec')?.remove(); return; }
   const draw = async () => {
-    const s = await pushState().catch(() => 'unsupported');
+    const s = await pushState(studentId).catch(() => 'unsupported');
     if (who !== 'teacher' && (s === 'on' || s === 'unsupported' || s === 'denied' || localStorage.getItem(HIDE_KEY + (studentId || '')))) { el.innerHTML = ''; return; }
     const msg = s === 'ios-install' ? '아이폰은 공유 버튼 → <b>홈 화면에 추가</b> 후 그 아이콘으로 열면 알림을 받을 수 있어요'
       : s === 'denied' ? '알림이 차단돼 있어요. 기기 설정에서 이 앱의 알림을 허용해 주세요'
@@ -40,7 +40,7 @@ export async function mountPushCard(el, who, studentId = null) {
       b.disabled = true;
       try {
         if (v === 'on') { await enablePush(email, studentId); toast('알림을 켰어요'); }
-        else { await disablePush(); toast('알림을 껐어요'); }
+        else { await disablePush(studentId); toast('알림을 껐어요'); }
       } catch (x) { toast(x.message, 'bad'); }
       draw();
     }));

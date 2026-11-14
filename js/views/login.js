@@ -148,7 +148,6 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
   function makePin(c, fam, errMsg) {
     step({ title: '학부모 비밀번호 만들기', desc: '처음 한 번만 · 자녀와 다른 숫자 6자리', len: 6, err: errMsg,
       onComplete: async (pin) => {
-        if (/^(\d)\1{5}$/.test(pin) || '0123456789'.includes(pin) || '9876543210'.includes(pin)) return fail('너무 쉬운 번호예요. 다른 숫자로 해 주세요.');
         await wait(150);
         step({ title: '한 번 더 입력', desc: '방금 만든 비밀번호 6자리', len: 6,
           onComplete: async (pin2) => {

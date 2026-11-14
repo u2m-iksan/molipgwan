@@ -25,17 +25,22 @@ function check(res) {
 // 반환: [{ id, name, grade, school, status, traits, trait_note, avoid_subject, family_id,
 //          parent_phone, login_code, student_phone, siblings: [이름…] }]
 export async function loadStudents() {
-  const [students, fams, sps] = await Promise.all([
+  const [students, fams, sps, pas] = await Promise.all([
     sb.from('students').select('*').order('name').then(check),
     sb.from('family_private').select('family_id,parent_phone,login_code').then(check),
     sb.from('student_private').select('student_id,student_phone').then(check),
+    // 학부모 비밀번호 (SQL 21 · 22) — 없으면 빈 목록
+    sb.from('parent_accounts').select('*').then((r) => (r.error ? null : r.data || [])),
   ]);
+  const paBy = pas ? new Map(pas.map((x) => [x.family_id, x])) : null;
   const famBy = new Map(fams.map((f) => [f.family_id, f]));
   const spBy = new Map(sps.map((p) => [p.student_id, p.student_phone]));
   return students.map((s) => ({
     ...s,
     parent_phone: famBy.get(s.family_id)?.parent_phone || '',
     login_code: famBy.get(s.family_id)?.login_code || '',
+    // parent_pin: null(기능 없음) · ''(아직 안 만듦) · '모름'(예전에 만듦) · 6자리
+    parent_pin: !paBy ? null : !paBy.has(s.family_id) ? '' : paBy.get(s.family_id).pin || '모름',
     student_phone: spBy.get(s.id) || '',
     siblings: students.filter((o) => o.family_id === s.family_id && o.id !== s.id).map((o) => o.name),
   }));

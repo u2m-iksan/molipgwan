@@ -69,7 +69,7 @@ export async function renderStudents(body) {
     }
     $('#tbl').innerHTML = `
       <table class="tbl">
-        <thead><tr><th>자리</th><th>이름</th><th>학년</th><th class="m-hide">학교</th><th class="m-hide">학부모 번호</th><th>로그인</th><th class="m-hide">학생 번호</th><th class="m-hide">특성</th><th>상태</th></tr></thead>
+        <thead><tr><th>자리</th><th>이름</th><th>학년</th><th class="m-hide">학교</th><th class="m-hide">학부모 번호</th><th>로그인</th>${state.list.some((x) => x.parent_pin != null) ? '<th>학부모 비번</th>' : ''}<th class="m-hide">학생 번호</th><th class="m-hide">특성</th><th>상태</th></tr></thead>
         <tbody>${rows.map((s) => `
           <tr data-id="${esc(s.id)}" tabindex="0">
             <td><span class="seat${s.seat_no ? '' : ' none'}">${esc(s.seat_no || '-')}</span></td>
@@ -78,6 +78,7 @@ export async function renderStudents(body) {
             <td class="m-hide">${esc(s.school || '')}</td>
             <td class="m-hide">${esc(s.parent_phone)}</td>
             <td><span class="code">${esc(s.login_code)}</span></td>
+            ${s.parent_pin != null ? `<td>${s.parent_pin ? `<span class="code${/^\d+$/.test(s.parent_pin) ? '' : ' none'}">${esc(s.parent_pin)}</span>` : '<span class="sub">아직 없음</span>'}</td>` : ''}
             <td class="sub m-hide">${esc(s.student_phone || '')}</td>
             <td class="sub m-hide">${esc((s.traits || []).join(', '))}</td>
             <td><span class="pill ${STATUS_PILL[s.status]}">${esc(s.status)}</span></td>
@@ -207,11 +208,12 @@ export async function renderStudents(body) {
     // 학부모 비밀번호 (SQL 21): 만들었는지 · 잊었을 때 초기화 (두 번 눌러 확인)
     const ppin = $('#f-ppin', panel);
     if (ppin) (async () => {
-      const { data, error } = await sb.from('parent_accounts').select('created_at').eq('family_id', stu.family_id).maybeSingle();
+      const { data, error } = await sb.from('parent_accounts').select('created_at').eq('family_id', stu.family_id).maybeSingle();   // 있는지만
       if (error) return;   // SQL 21 전
       ppin.hidden = false;
       if (!data) { ppin.innerHTML = '학부모 비밀번호 <b>아직 안 만듦</b> · 학부모가 처음 로그인할 때 직접 만듭니다'; return; }
-      ppin.innerHTML = `학부모 비밀번호 <b>설정됨</b> <button type="button" class="link-s" id="f-ppin-reset">초기화</button>`;
+      const pinTxt = stu.parent_pin && /^\d+$/.test(stu.parent_pin) ? stu.parent_pin : '설정됨';
+      ppin.innerHTML = `학부모 비밀번호 <b>${esc(pinTxt)}</b> <button type="button" class="link-s" id="f-ppin-reset">초기화</button>`;
       let armed = false;
       $('#f-ppin-reset', panel).addEventListener('click', async (e) => {
         const b = e.currentTarget;

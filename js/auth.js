@@ -62,7 +62,9 @@ export async function createParent(code, fid, pin) {
   let { data, error } = await sb.auth.signUp({ email, password });
   if (error && /already|registered|exists/i.test(error.message || '')) ({ data, error } = await sb.auth.signInWithPassword({ email, password }));
   if (error || !data?.session) return { ok: false, error: error || new Error('계정을 만들지 못했습니다.') };
-  const { error: e2 } = await sb.rpc('claim_parent', { code, fid });
+  // 비밀번호도 같이 저장 → 선생님이 학생 목록에서 볼 수 있음 (SQL 22 · 전이면 예전 함수로)
+  let { error: e2 } = await sb.rpc('claim_parent', { code, fid, pin });
+  if (e2 && (e2.code === 'PGRST202' || /claim_parent/.test(e2.message || ''))) ({ error: e2 } = await sb.rpc('claim_parent', { code, fid }));
   if (e2) { await sb.auth.signOut(); return { ok: false, error: e2 }; }
   clearFails();
   return { ok: true };

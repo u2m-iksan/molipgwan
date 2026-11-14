@@ -1095,3 +1095,4 @@ button:disabled{cursor:default}
 .push-tx small{font-size:12.5px;line-height:1.45;color:var(--sub);word-break:keep-all}
 .push-x{flex:none;width:28px;height:28px;border-radius:50%;color:var(--faint);font-size:18px;line-height:1}
 #pa-push:not(:empty){margin-bottom:12px}
+.code.none{color:var(--faint);font-weight:500;letter-spacing:0}

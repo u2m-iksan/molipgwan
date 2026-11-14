@@ -1056,3 +1056,4 @@ button:disabled{cursor:default}
 /* 계획 항목: 제목·그래프 어디를 눌러도 펼침 */
 .sa-item:not(.ac){cursor:pointer}
 .sa-item:not(.ac) .sa-pick{cursor:default}
+.sa-ac-d{align-items:center;text-align:center}

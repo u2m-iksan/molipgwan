@@ -540,8 +540,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       clearDraft();
       onSaved?.();
       drawConsult();
+      await celebrate('', '', 950);   // 체크만 → 사라지면 다음 단계
       showTab('r');
-      celebrate('상담 저장 완료', '2단계 · 프롬프트와 보고서를 정리해요');
     } catch (e) {
       err.textContent = '저장 실패: ' + e.message; toast('저장 실패: ' + e.message, 'bad'); console.error(e);
       btn.disabled = false; btn.textContent = st.coachingId ? '저장 · 다음' : '상담 저장 · 다음';
@@ -683,7 +683,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       btn.disabled = true;
       const ok = await persist();
       btn.disabled = false;
-      if (ok) { ss.saved(); showTab('s'); celebrate('보고서 저장 완료', '3단계 · 전송은 지금 해도, 나중에 해도 돼요'); }
+      if (ok) { ss.saved(); await celebrate('', '', 950); showTab('s'); }
     });
     // 다른 단계로 갈 때 작성 중인 내용 저장 (공개 전만 — 공개 후에는 직접 저장)
     st.flushReport = async () => {

@@ -393,9 +393,10 @@ export function celebrate(title, sub = '', ms = 1150) {
   const w = document.createElement('div');
   w.className = 'cel';
   w.setAttribute('role', 'status');
-  w.innerHTML = `<div class="cel-card">
+  w.setAttribute('aria-label', title || '완료');
+  w.innerHTML = `<div class="cel-card${title ? '' : ' only'}">
       <svg class="cel-ic" viewBox="0 0 52 52" aria-hidden="true"><circle class="cel-c" cx="26" cy="26" r="23"/><path class="cel-p" d="M15 27l7.5 7.5L38 19"/></svg>
-      <b>${esc(title)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}</div>`;
+      ${title ? `<b>${esc(title)}</b>` : ''}${sub ? `<span>${esc(sub)}</span>` : ''}</div>`;
   document.body.appendChild(w);
   requestAnimationFrame(() => w.classList.add('show'));
   return new Promise((res) => {

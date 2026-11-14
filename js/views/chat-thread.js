@@ -56,7 +56,7 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
             ${mine ? `<button type="button" class="ct-more" data-rm="${i}" aria-label="보고서 메뉴">⋯</button>` : ''}</div></div>`;
       }
       const m = it.m, mine = m.sender === me;
-      const who = m.sender === 'teacher' ? (m.author ? `${esc(m.author)} 선생님` : '선생님') : '학부모';
+      const who = m.sender === 'teacher' ? '몰입관' : '학부모';   // 선생님 이름은 안 보임 · 항상 몰입관
       return `${sep}<div class="ct-row ${mine ? 'mine' : ''}${m.pending ? ' pending' : ''}" data-id="${m.pending ? 'tmp' : `m${esc(m.id)}`}">
         ${mine ? '' : `<div class="ct-av ${m.sender === 'parent' ? 'par' : ''}">${m.sender === 'parent' ? '부모' : 'U2M'}</div>`}
         <div class="ct-col">${mine ? '' : `<span class="ct-from">${who}</span>`}

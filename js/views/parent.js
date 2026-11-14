@@ -78,7 +78,7 @@ export async function renderParentHome({ students, onLogout }) {
     return `<button type="button" class="pa-kid${on ? ' on' : ''}${out ? ' out' : ''}${students[st.cur] === s ? ' cur' : ''}" data-k="${students.indexOf(s)}">
       <div class="pa-kid-h"><b>${esc(s.name)}</b><span>${esc(s.grade || '')}</span></div>
       <div class="pa-st"><i></i>${on ? (a && !a.paused_at ? `${esc(a.subject)} 몰입 중` : '몰입 중') : out ? `외출 · ${esc(out.name)}` : closed ? '하원' : sat ? (at?.kind === '하원' ? '하원' : '몰입 중 아님') : a ? '잠시 휴식 중' : '몰입 중 아님'}</div>
-      ${out ? `<div class="pa-back">${out.moving ? '이동 중 · ' : ''}${out.back ? `${out.back} 복귀 예정` : '복귀 시간 미정'}</div>` : ''}
+      ${out ? `<div class="pa-ret">${out.moving ? '이동 중 · ' : ''}${out.back ? `${out.back} 복귀 예정` : '복귀 시간 미정'}</div>` : ''}
     </button>`;
   };
   async function drawHome() {

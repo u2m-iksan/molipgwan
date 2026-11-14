@@ -53,13 +53,13 @@ export function mountSend(el, { report, student, getReport, beforePublish, onCha
       try {
         const patch = { ...(beforePublish ? beforePublish() : {}), published_at: new Date().toISOString() };
         Object.assign(r, await saveReport(r.coaching_id, patch));
-        celebrate('공개 완료', '학부모 앱에 보고서가 열렸어요 · 이제 안내 문자를 보내세요');
+        celebrate('', '', 950);
         draw(); onChange?.(r);
       } catch (x) { err.textContent = '공개 실패: ' + x.message; btn.disabled = false; }
     });
     $('#sd-sent', el)?.addEventListener('click', async (e) => {
       const btn = e.currentTarget; btn.disabled = true;
-      try { Object.assign(r, await saveReport(r.coaching_id, { sent_at: new Date().toISOString() })); celebrate('전송 완료', '이번 주 보고 끝!'); draw(); onChange?.(r); }
+      try { Object.assign(r, await saveReport(r.coaching_id, { sent_at: new Date().toISOString() })); celebrate('', '', 950); draw(); onChange?.(r); }
       catch (x) { $('#sd-err', el).textContent = '저장 실패: ' + x.message; btn.disabled = false; }
     });
   }

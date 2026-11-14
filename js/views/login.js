@@ -75,8 +75,8 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
     if (m) return fail(`로그인이 제한되었습니다. ${m}분 후 다시 시도하세요.`);
     busy = true;
     await wait(150);                      // 마지막 점이 채워지는 걸 보여준 뒤
-    dots.classList.add('wait');           // 점 4개가 물결치며 로딩 (최소 1초 · 늦어져도 계속)
-    const [r] = await Promise.all([signInFamily(code), wait(1000)]);
+    dots.classList.add('wait');           // 점 4개가 물결치며 로딩 (최소 0.7초 · 늦어져도 계속)
+    const [r] = await Promise.all([signInFamily(code), wait(700)]);
     busy = false;
     if (r.ok) {
       cleanup();
@@ -100,9 +100,9 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
     await Promise.all(moves);
     dots.classList.add('merged');
     dots.insertAdjacentHTML('beforeend', `<span class="dots-ck" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="30"/><path d="M19 33l9 9 17-18"/></svg></span>`);
-    err.classList.remove('show'); err.classList.add('ok-msg'); err.textContent = msg;
-    requestAnimationFrame(() => { dots.classList.add('grow'); err.classList.add('show'); });
-    await wait(still ? 300 : 1900);         // 원 커짐(0.4초) → 체크 그림(0.4초) → 잠깐 보여 줌
+    err.textContent = '';
+    requestAnimationFrame(() => dots.classList.add('grow'));
+    await wait(still ? 300 : 1180);         // 원 커짐 → 체크 그림(~0.8초) → 0.4초 뒤 바로 다음 화면
   }
 
   function press(k) {

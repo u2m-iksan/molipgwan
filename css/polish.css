@@ -1139,3 +1139,8 @@ button:disabled{cursor:default}
 .pg-steps{margin:4px 0 0;padding:12px 14px 12px 32px;width:100%;box-sizing:border-box;border-radius:14px;background:var(--field-bg,#F0F2F5);text-align:left;font-size:14px;line-height:1.7}
 .pg-btn{width:100%;height:52px;font-size:16px;margin-top:6px}
 .pg-help{margin:2px 0 0;font-size:12px;color:var(--faint)}
+/* 앱 안 브라우저 안내 */
+.iag{display:flex;flex-direction:column;gap:12px;text-align:center}
+.iag .pg-steps{margin:0}
+.iag-btn{width:100%;height:50px;display:grid;place-items:center;font-size:16px;text-decoration:none}
+.iag .desc{word-break:keep-all}

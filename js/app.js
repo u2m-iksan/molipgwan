@@ -9,6 +9,7 @@ import { renderUnknown } from './views/home.js';
 import { renderStudentHome } from './views/student.js';
 import { renderParentHome } from './views/parent.js';
 import { renderTeacher } from './teacher/shell.js';
+import { inAppGate } from './views/inapp-gate.js';
 
 async function logout() {
   await signOut();
@@ -84,4 +85,4 @@ async function route() {
   });
 }
 
-route();
+if (!inAppGate()) route();   // 카톡 등 앱 안 브라우저면 크롬 · 사파리로 열게

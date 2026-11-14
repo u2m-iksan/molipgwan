@@ -1,5 +1,5 @@
 // 로그인 · 로그아웃 · "누구세요?" 프로필 기억
-import { sb, teacherEmail, familyEmail, familyPassword, isTeacherEmail, isFamilyEmail } from './sb.js';
+import { sb, teacherEmail, familyEmail, familyPassword, isTeacherEmail, isFamilyEmail, parentEmail, parentPassword } from './sb.js';
 
 const PROFILE_KEY = 'molip-profile';   // { role, email, pick }
 const LOCK_KEY = 'molip-lock';         // { fails, until }
@@ -40,6 +40,34 @@ export async function signInFamily(code) {
   return { ok: true };
 }
 
+/* ---------- 학부모 (SQL 21): 4자리 → 가족 → 학부모 비밀번호 6자리 ---------- */
+// null = SQL 21 전(예전 방식으로) · [] = 없는 번호 · [{ family_id, kids, has_pin }]
+export async function parentLookup(code) {
+  if (lockedFor()) return { locked: true };
+  const { data, error } = await sb.rpc('parent_lookup', { code });
+  if (error) return error.code === 'PGRST202' || /parent_lookup/.test(error.message || '') ? null : { error };
+  if (!data?.length) addFail();
+  return data || [];
+}
+export async function signInParent(code, fid, pin) {
+  if (lockedFor()) return { ok: false, locked: true };
+  const { error } = await sb.auth.signInWithPassword({ email: parentEmail(code, fid), password: parentPassword(pin) });
+  if (error) { addFail(); return { ok: false, error }; }
+  clearFails();
+  return { ok: true };
+}
+// 처음: 학부모 계정 만들고 그 가족에 연결
+export async function createParent(code, fid, pin) {
+  const email = parentEmail(code, fid), password = parentPassword(pin);
+  let { data, error } = await sb.auth.signUp({ email, password });
+  if (error && /already|registered|exists/i.test(error.message || '')) ({ data, error } = await sb.auth.signInWithPassword({ email, password }));
+  if (error || !data?.session) return { ok: false, error: error || new Error('계정을 만들지 못했습니다.') };
+  const { error: e2 } = await sb.rpc('claim_parent', { code, fid });
+  if (e2) { await sb.auth.signOut(); return { ok: false, error: e2 }; }
+  clearFails();
+  return { ok: true };
+}
+
 export async function signInTeacher(id, password) {
   if (lockedFor()) return { ok: false, locked: true };
   const { error } = await sb.auth.signInWithPassword({ email: teacherEmail(id), password });
@@ -50,6 +78,7 @@ export async function signInTeacher(id, password) {
 
 export async function signOut() {
   forgetPick();
+  try { const { disablePush } = await import('./push.js'); await disablePush(); } catch { /* 없음 */ }
   await sb.auth.signOut();
 }
 

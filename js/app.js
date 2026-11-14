@@ -2,6 +2,7 @@
 //   로그아웃 상태: 역할 고르기 → (학생·학부모) 4자리 / (선생님) 아이디·비밀번호
 //   가족 로그인 후: 학생 → 이름 고르기(1명이면 바로) / 학부모 → 번호 겹칠 때만 가족 고르기
 import { whoAmI, signOut, setRole, getRole, savedPick, savePick } from './auth.js';
+import { sb, isParentEmail } from './sb.js';
 import { renderRole, renderFamilyLogin, renderTeacherLogin } from './views/login.js';
 import { renderWho } from './views/who.js';
 import { renderUnknown } from './views/home.js';
@@ -47,9 +48,14 @@ async function route() {
   if (me.role === 'teacher') return renderTeacher({ me, onLogout: logout });
   if (me.role !== 'family') return renderUnknown({ onLogout: logout });
 
-  const role = getRole();
-  if (role !== 'student' && role !== 'parent') return logout();   // 역할 정보가 없으면 처음부터
   const { email, students } = me;
+  // 학부모 계정(p…)은 항상 학부모 화면 · 학생 번호 계정으로 학부모 화면은 SQL 21 이후엔 다시 로그인(비밀번호 분리)
+  let role = isParentEmail(email) ? 'parent' : getRole();
+  if (role === 'parent' && !isParentEmail(email)) {
+    const { error } = await sb.rpc('parent_mode');
+    if (!error) return logout();
+  }
+  if (role !== 'student' && role !== 'parent') return logout();   // 역할 정보가 없으면 처음부터
   const pick = savedPick(email);
   const choose = (id) => { savePick(email, id); route(); };
 

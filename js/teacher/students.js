@@ -1,4 +1,5 @@
 // 선생님 · 학생 관리: 목록 / 등록·수정(오른쪽 패널) / 기존 시트에서 가져오기
+import { sb } from '../sb.js';
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import {
   GRADES, STATUSES, SUBJECTS, TRAITS, digits, fmtPhone, validPhone,
@@ -112,7 +113,8 @@ export async function renderStudents(body) {
           <div class="field"><span class="lbl">학년</span><div class="seg seg-wide" id="f-grade">${GRADES.map((g) => `<button type="button" data-v="${g}">${g}</button>`).join('')}</div></div>
           <div class="field"><label for="f-school">학교</label><div class="input"><input id="f-school" value="${esc(f.school || '')}" autocomplete="off"></div></div>
           <div class="field"><label for="f-pp">학부모 휴대폰</label><div class="input"><input id="f-pp" inputmode="numeric" value="${esc(f.parent_phone)}" autocomplete="off" placeholder="010-0000-0000"></div>
-            <p class="hint" id="f-pp-hint"></p></div>
+            <p class="hint" id="f-pp-hint"></p>
+            ${stu ? '<p class="hint ppin" id="f-ppin" hidden></p>' : ''}</div>
           <div class="field"><label for="f-sp">학생 휴대폰 <span class="opt">선택</span></label><div class="input"><input id="f-sp" inputmode="numeric" value="${esc(f.student_phone || '')}" autocomplete="off"></div></div>
           <div class="field"><span class="lbl">상태</span><div class="seg seg-wide" id="f-status">${STATUSES.map((s) => `<button type="button" data-v="${s}">${s}</button>`).join('')}</div></div>
           <div class="field" id="f-ret-wrap"><label for="f-ret">복귀 예정일 <span class="opt">휴원</span></label><div class="input"><input id="f-ret" type="date" value="${esc(f.return_on || '')}"></div></div>
@@ -201,6 +203,26 @@ export async function renderStudents(body) {
     autoFormat(pp); autoFormat($('#f-sp', panel));
     pp.addEventListener('input', phoneHint);
     phoneHint();
+
+    // 학부모 비밀번호 (SQL 21): 만들었는지 · 잊었을 때 초기화 (두 번 눌러 확인)
+    const ppin = $('#f-ppin', panel);
+    if (ppin) (async () => {
+      const { data, error } = await sb.from('parent_accounts').select('created_at').eq('family_id', stu.family_id).maybeSingle();
+      if (error) return;   // SQL 21 전
+      ppin.hidden = false;
+      if (!data) { ppin.innerHTML = '학부모 비밀번호 <b>아직 안 만듦</b> · 학부모가 처음 로그인할 때 직접 만듭니다'; return; }
+      ppin.innerHTML = `학부모 비밀번호 <b>설정됨</b> <button type="button" class="link-s" id="f-ppin-reset">초기화</button>`;
+      let armed = false;
+      $('#f-ppin-reset', panel).addEventListener('click', async (e) => {
+        const b = e.currentTarget;
+        if (!armed) { armed = true; b.textContent = '한 번 더 누르면 초기화'; setTimeout(() => { armed = false; b.textContent = '초기화'; }, 3000); return; }
+        b.disabled = true;
+        const { error: e2 } = await sb.rpc('reset_parent', { fid: stu.family_id });
+        if (e2) { b.disabled = false; return toast('초기화 실패: ' + e2.message, 'bad'); }
+        toast('초기화했습니다 · 다음 로그인 때 새 비밀번호를 만듭니다');
+        ppin.innerHTML = '학부모 비밀번호 <b>아직 안 만듦</b> · 학부모가 처음 로그인할 때 직접 만듭니다';
+      });
+    })();
 
     // 자리번호 중복 안내 (재원 학생 기준)
     const seat = $('#f-seat', panel), seatHint = $('#f-seat-hint', panel);

@@ -10,6 +10,7 @@ import { academyStat } from '../data/academy.js';
 import { loadOpenPlan } from '../data/student.js';
 import { loadParentUnread, purgeOld, getKakao } from '../data/chat.js';
 import { openHistory } from './history.js';
+import { mountPushCard } from './push-card.js';
 import { weekGrid } from '../teacher/schedule-editor.js';
 import { loadStudentSchedules, loadVacations, withTerm } from '../data/schedules.js';
 import { nowBlock, outInfo, isClosedNow } from '../data/att-rules.js';
@@ -85,6 +86,7 @@ export async function renderParentHome({ students, onLogout }) {
     st.view = 'home';
     root.innerHTML = `
       <section class="pa-kids2">${students.map(statusHtml).join('')}</section>
+      <div id="pa-push"></div>
       <button type="button" class="pa-rep" id="pa-rep"><div><b>리포트 확인하기</b><span>주간 보고서 · 학습 문의 채팅</span></div><i class="pa-n" id="pa-rep-n" hidden></i><em>›</em></button>
       <section class="card pa-plan" id="pa-plan"><div class="pa-tt-h"><h3>${students.length > 1 ? `${esc(kid().name)} ` : ''}이번 주 계획</h3><span id="pa-plan-p"></span></div><div class="pa-empty">불러오는 중</div></section>
       <button type="button" class="pa-histbar" id="pa-hist"><span>지난 계획 기록</span><small>최근 8주 이행도</small><em aria-hidden="true">›</em></button>
@@ -93,6 +95,7 @@ export async function renderParentHome({ students, onLogout }) {
         <div id="pa-grid"><div class="pa-empty">불러오는 중</div></div></section>`;
     $('#pa-rep').addEventListener('click', drawChat);
     $('#pa-hist').addEventListener('click', () => openHistory(kid()));
+    mountPushCard($('#pa-push'), 'parent');
     paintUnread(); drawPlan();
     $$('.pa-kid', root).forEach((b) => b.addEventListener('click', () => { st.cur = Number(b.dataset.k); drawHome(); }));
     try {
@@ -153,6 +156,10 @@ export async function renderParentHome({ students, onLogout }) {
   const firstNew = students.findIndex((x) => st.unread.get(x.id));
   if (firstNew > 0) st.cur = firstNew;
   drawHome();
+  // 알림을 눌러 들어오면(#chat · #report) 바로 리포트 · 채팅 화면
+  const fromPush = () => { if (/^#(chat|report)$/.test(location.hash)) { history.replaceState(null, '', location.pathname + location.search); drawChat(); } };
+  fromPush();
+  addEventListener('hashchange', fromPush);
   // 상태는 1분마다 새로 (메인에 있을 때만 다시 그림)
   const t = setInterval(async () => {
     if (root._view !== token || !document.body.contains(root)) return clearInterval(t);

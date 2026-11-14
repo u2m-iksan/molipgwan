@@ -2,6 +2,7 @@
 //  보관 1개월 (학부모에게는 1개월 지난 메시지·보고서 안 보임, 메시지는 앱 열 때 정리)
 //  읽음: 상대가 방을 열면 read_at
 import { sb } from '../sb.js';
+import { kickPush } from '../push.js';
 
 const check = (r) => { if (r.error) throw r.error; return r.data; };
 export const KEEP_DAYS = 30;
@@ -43,7 +44,9 @@ export async function loadThread(studentId) {
 }
 
 export async function sendMessage(studentId, sender, body, author = null) {
-  return check(await sb.from('messages').insert({ student_id: studentId, sender, body: body.trim(), ...(author ? { author } : {}) }).select('*').single());
+  const row = check(await sb.from('messages').insert({ student_id: studentId, sender, body: body.trim(), ...(author ? { author } : {}) }).select('*').single());
+  kickPush();   // 상대에게 푸시 알림 (SQL 21 · send-push 함수)
+  return row;
 }
 
 // 방을 열었을 때: 상대가 보낸 안 읽은 메시지 읽음 처리

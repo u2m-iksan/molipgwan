@@ -1,5 +1,6 @@
 // 보고서 전송 (3단계 · 선택): 공개 → 안내 문자 복사 → 전송 완료 표시
 //  상담 화면 3단계와 학부모 안내 탭(보고서 칸)에서 같이 씀
+import { kickPush } from '../push.js';
 import { $, esc, toast, flashDone, celebrate } from '../ui.js';
 import { saveReport, noticeText } from '../data/coaching.js';
 
@@ -53,6 +54,7 @@ export function mountSend(el, { report, student, getReport, beforePublish, onCha
       try {
         const patch = { ...(beforePublish ? beforePublish() : {}), published_at: new Date().toISOString() };
         Object.assign(r, await saveReport(r.coaching_id, patch));
+        kickPush();   // 학부모에게 '보고서 올라왔어요' 알림
         celebrate('', '', 950);
         draw(); onChange?.(r);
       } catch (x) { err.textContent = '공개 실패: ' + x.message; btn.disabled = false; }

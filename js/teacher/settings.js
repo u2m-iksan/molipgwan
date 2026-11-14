@@ -1,5 +1,6 @@
 // 선생님 · 설정: 선생님 관리 / 교시 시간표(전자칠판) / 학년 올리기
 //  학교별 학사일정(방학 · 시험 · 휴업, 직접 입력)
+import { mountPushCard } from '../views/push-card.js';
 import { $, $$, esc, toast, X, fadeOut } from '../ui.js';
 import { loadStudents } from '../data/students.js';
 import { getPeriods, savePeriods, DEFAULT_PERIODS } from '../data/schedules.js';
@@ -11,6 +12,7 @@ export async function renderSettings(body, { me } = {}) {
   body.innerHTML = `
     <div class="t-head"><h2>설정</h2></div>
     <div class="set-grid">
+      <section class="card set-sec" id="s-push"><div class="set-h"><h3>이 기기 알림</h3><span>학부모 문의 푸시</span></div><div id="s-push-c"></div></section>
       <section class="card set-sec" id="s-teach"><div class="set-h"><h3>선생님 관리</h3></div><div class="empty">불러오는 중</div></section>
       <section class="card set-sec" id="s-per"><div class="set-h"><h3>교시 시간표</h3><span>전자칠판</span></div><div class="empty">불러오는 중</div></section>
       <section class="card set-sec set-wide" id="s-cal"><div class="set-h"><h3>학교별 학사일정</h3><span>방학 · 시험 · 휴업</span></div><div class="empty">불러오는 중</div></section>
@@ -22,7 +24,7 @@ export async function renderSettings(body, { me } = {}) {
     </div>`;
   let per = [], editing = null;
   const PEN = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
-  drawTeachers(); drawPeriods(); drawGrade(); drawCal();
+  drawTeachers(); drawPeriods(); drawGrade(); drawCal(); mountPushCard($('#s-push-c'), 'teacher');
   getKakao().then((u) => { const i = $('#k-url'); if (i) i.value = u; }).catch(() => {});
   $('#k-save').addEventListener('click', async () => {
     const u = $('#k-url').value.trim();

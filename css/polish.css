@@ -1079,3 +1079,19 @@ button:disabled{cursor:default}
 .pa-kids2:not(:has(.pa-kid:only-child)) .pa-kid:not(.cur):hover{opacity:.75}
 .pa-kids2:not(:has(.pa-kid:only-child)) .pa-kid.cur{box-shadow:0 0 0 3px rgba(49,130,246,.22),0 6px 16px rgba(0,27,55,.08)!important}
 .pa-kids2 .pa-kid{position:relative}
+
+/* ---------- 학부모 로그인: 번호 같은 가족 고르기 ---------- */
+.fam-pick{display:flex;flex-direction:column;gap:8px;margin:8px 0 4px}
+.fam-opt{display:flex;align-items:center;gap:10px;width:100%;padding:16px 18px;border-radius:16px;background:var(--field-bg,#F0F2F5);text-align:left}
+.fam-opt b{flex:1;font-size:16px;font-weight:700;letter-spacing:.02em}
+
+/* ---------- 푸시 알림 카드 ---------- */
+.push-card{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:#fff;border:1px solid var(--line)}
+.push-card.on{background:var(--field-bg,#F0F2F5);border-color:transparent}
+.push-ic{flex:none;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:#EAF2FF;color:var(--blue,#3182F6)}
+.push-ic svg{width:20px;height:20px}
+.push-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.push-tx b{font-size:15px;font-weight:700}
+.push-tx small{font-size:12.5px;line-height:1.45;color:var(--sub);word-break:keep-all}
+.push-x{flex:none;width:28px;height:28px;border-radius:50%;color:var(--faint);font-size:18px;line-height:1}
+#pa-push:not(:empty){margin-bottom:12px}

@@ -1096,3 +1096,16 @@ button:disabled{cursor:default}
 .push-x{flex:none;width:28px;height:28px;border-radius:50%;color:var(--faint);font-size:18px;line-height:1}
 #pa-push:not(:empty){margin-bottom:12px}
 .code.none{color:var(--faint);font-weight:500;letter-spacing:0}
+
+/* ---------- 설정: 두 줄 기둥으로 빈칸 없이 · 알림 카드는 섹션 안에서 평평하게 ---------- */
+.set-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.set-col .set-sec#s-grade{grid-column:auto}
+.set-sec .push-card{border:0;padding:4px 0 0;background:none;border-radius:0}
+.set-sec .push-card.on{background:none}
+.k-row{display:flex;gap:8px;align-items:stretch}
+.k-row .input{flex:1;min-width:0}
+.k-row .btn{flex:none}
+@media (max-width:900px){.set-col{gap:16px}}
+.set-col .grade-flow{grid-template-columns:repeat(3,minmax(0,1fr))}
+.set-col .grade-flow>div{white-space:nowrap;padding:12px}
+.k-row .btn{height:auto;min-height:0;padding:0 20px}

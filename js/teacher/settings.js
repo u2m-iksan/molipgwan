@@ -12,15 +12,19 @@ export async function renderSettings(body, { me } = {}) {
   body.innerHTML = `
     <div class="t-head"><h2>설정</h2></div>
     <div class="set-grid">
-      <section class="card set-sec" id="s-push"><div class="set-h"><h3>이 기기 알림</h3><span>학부모 문의 푸시</span></div><div id="s-push-c"></div></section>
-      <section class="card set-sec" id="s-teach"><div class="set-h"><h3>선생님 관리</h3></div><div class="empty">불러오는 중</div></section>
-      <section class="card set-sec" id="s-per"><div class="set-h"><h3>교시 시간표</h3><span>전자칠판</span></div><div class="empty">불러오는 중</div></section>
+      <div class="set-col">
+        <section class="card set-sec" id="s-teach"><div class="set-h"><h3>선생님 관리</h3></div><div class="empty">불러오는 중</div></section>
+        <section class="card set-sec" id="s-grade"><div class="set-h"><h3>학년 올리기</h3><span>새 학년도 시작 때 1회</span></div></section>
+      </div>
+      <div class="set-col">
+        <section class="card set-sec" id="s-push"><div class="set-h"><h3>이 기기 알림</h3><span>학부모 문의 푸시</span></div><div id="s-push-c"></div></section>
+        <section class="card set-sec" id="s-kakao"><div class="set-h"><h3>카카오톡 채널</h3><span>학습 문의 창에서 운영 문의 안내</span></div>
+          <div class="field"><label for="k-url">채널 주소</label><div class="k-row"><div class="input"><input id="k-url" placeholder="예: https://pf.kakao.com/_xxxx" autocomplete="off"></div>
+          <button type="button" class="btn btn-primary" id="k-save">저장</button></div></div>
+          <p class="sub-s">학부모가 학원비 · 수강 등을 물으면 이 주소로 안내합니다.</p></section>
+        <section class="card set-sec" id="s-per"><div class="set-h"><h3>교시 시간표</h3><span>전자칠판</span></div><div class="empty">불러오는 중</div></section>
+      </div>
       <section class="card set-sec set-wide" id="s-cal"><div class="set-h"><h3>학교별 학사일정</h3><span>방학 · 시험 · 휴업</span></div><div class="empty">불러오는 중</div></section>
-      <section class="card set-sec" id="s-kakao"><div class="set-h"><h3>카카오톡 채널</h3><span>학습 문의 창에서 운영 문의 안내</span></div>
-        <div class="field"><label for="k-url">채널 주소</label><div class="input"><input id="k-url" placeholder="예: https://pf.kakao.com/_xxxx" autocomplete="off"></div></div>
-        <p class="sub-s">학부모가 학원비 · 수강 등을 물으면 이 주소로 안내합니다.</p>
-        <button type="button" class="btn btn-primary btn-sm" id="k-save">저장</button></section>
-      <section class="card set-sec" id="s-grade"><div class="set-h"><h3>학년 올리기</h3><span>새 학년도 시작 때 1회</span></div></section>
     </div>`;
   let per = [], editing = null;
   const PEN = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';

@@ -24,13 +24,13 @@ const CHEV_L = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 
 const CHEV_R = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 const EXPAND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>';
 const STATE = {
-  wait: ['상담 전', 'pill-gray'], miss: ['미상담', 'pill-red'], draft: ['작성 중', 'pill-orange'],
+  wait: ['상담 전', 'pill-gray'], miss: ['미상담', 'pill-red'], draft: ['미전송 · 미공개', 'pill-orange'],
   pub: ['미전송', 'pill-blue'], sent: ['전송 완료', 'pill-green'], none: ['', ''],
 };
 const ORDER = { miss: 0, pub: 1, draft: 2, wait: 3, sent: 4, none: 5 };
 const TILES = [
   ['done', '상담 완료', (x) => !!x.c],
-  ['pub', '미전송', (x) => x.state === 'pub'],
+  ['pub', '미전송', (x) => x.state === 'pub' || x.state === 'draft'],
   ['sent', '전송 완료', (x) => x.state === 'sent'],
 ];
 
@@ -170,7 +170,7 @@ export async function renderParents(body, { me, onUnread } = {}) {
       <div><b>${esc(s.name)} 학부모</b><small>${esc(s.grade || '')}${s.school ? ` · ${esc(s.school)}` : ''}</small></div></div>
       <div class="pg-thread" id="pg-thread"></div>`;
     $('#pg-back').addEventListener('click', () => { body.classList.remove('pg-open'); st.cur = null; drawList(); });
-    mountThread($('#pg-thread'), { student: s, me: 'teacher', meName: me?.name || '', onActivity: async () => { await loadBox(); drawList(); onUnread?.(); } });
+    mountThread($('#pg-thread'), { student: s, me: 'teacher', meName: me?.name || '', onActivity: async () => { await Promise.all([loadBox(), loadWeek()]); onUnread?.(); } });   // 보고서를 채팅에서 내리면 상태·숫자도 바로 바뀜
   }
 
   await Promise.all([loadBox(), loadWeek()]);

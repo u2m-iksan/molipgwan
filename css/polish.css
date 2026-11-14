@@ -1034,3 +1034,5 @@ button:disabled{cursor:default}
 .pa-kids2 .pa-kid.out{border-color:#F4B866;background:#FFF9F0}
 .pa-kids2 .pa-kid.cur{box-shadow:0 4px 14px rgba(0,27,55,.08)}
 .pa-histbar{margin-bottom:16px}
+/* 학부모 자녀 카드: 배경은 흰색 그대로, 테두리 색만 */
+.pa-kids2 .pa-kid,.pa-kids2 .pa-kid.on,.pa-kids2 .pa-kid.out{background:#fff}

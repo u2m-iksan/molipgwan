@@ -75,20 +75,35 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
     if (m) return fail(`로그인이 제한되었습니다. ${m}분 후 다시 시도하세요.`);
     busy = true;
     await wait(150);                      // 마지막 점이 채워지는 걸 보여준 뒤
-    dots.classList.add('wait');
-    const ov = busyOverlay('로그인 중');   // 늦어져도 가운데 크게 로딩 → 체크 → 다음 화면
+    dots.classList.add('wait');           // 점 4개가 물결치며 로딩 (늦어져도 계속)
     const r = await signInFamily(code);
     busy = false;
     if (r.ok) {
-      dots.classList.remove('wait'); dots.classList.add('ok');
       cleanup();
-      await ov.done('로그인 완료', role === 'parent' ? '자녀 화면으로 이동합니다' : '오늘도 몰입해 볼까요?');
+      await mergeToCheck(role === 'parent' ? '로그인 완료 · 자녀 화면으로 이동합니다' : '로그인 완료 · 오늘도 몰입해 볼까요?');
       return onDone();
     }
-    await ov.close();
     if (r.locked) return fail('로그인이 10분간 제한되었습니다.');
     fail('번호가 일치하지 않습니다.');
   }
+  // 로그인 성공: 점 4개가 가운데로 모여 하나가 되고 → 원이 커지고 → 안에 체크가 그려짐
+  async function mergeToCheck(msg) {
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    dots.classList.remove('wait'); dots.classList.add('ok');
+    const box = dots.getBoundingClientRect(), cx = box.left + box.width / 2;
+    const moves = dotEls.map((d) => {
+      const b = d.getBoundingClientRect();
+      return d.animate([{ transform: 'none' }, { transform: `translateX(${cx - (b.left + b.width / 2)}px) scale(1.15)` }],
+        { duration: still ? 1 : 340, easing: 'cubic-bezier(.6,0,.3,1)', fill: 'forwards' }).finished;
+    });
+    await Promise.all(moves);
+    dots.classList.add('merged');
+    dots.insertAdjacentHTML('beforeend', `<span class="dots-ck" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="30"/><path d="M19 33l9 9 17-18"/></svg></span>`);
+    err.classList.remove('show'); err.classList.add('ok-msg'); err.textContent = msg;
+    requestAnimationFrame(() => { dots.classList.add('grow'); err.classList.add('show'); });
+    await wait(still ? 300 : 1900);         // 원 커짐(0.4초) → 체크 그림(0.4초) → 잠깐 보여 줌
+  }
+
   function press(k) {
     if (busy) return;
     flash($(`#keypad [data-k="${k}"]`), 'tap');
@@ -140,7 +155,7 @@ export function renderTeacherLogin({ onDone, onBack }) {
     const ov = busyOverlay('로그인 중');
     const r = await signInTeacher(id, pw);
     go.disabled = false;
-    if (r.ok) { await ov.done('로그인 완료'); return onDone(); }
+    if (r.ok) { await ov.done('로그인 완료', '', 1400); return onDone(); }
     await ov.close();
     err.textContent = r.locked ? '로그인이 10분간 제한되었습니다.' : '아이디 또는 비밀번호가 일치하지 않습니다.';
     $('#tpw').value = ''; $('#tpw').focus();

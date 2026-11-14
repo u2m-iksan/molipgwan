@@ -70,7 +70,7 @@ export async function renderParentHome({ students, onLogout }) {
     const todayRows = (st.sched.get(s.id) || []).filter((r) => r.weekday === isoDow(t0) && r.valid_from <= t0 && (!r.valid_to || r.valid_to >= t0));
     const closed = isClosedNow(isoDow(t0), nowMin);   // 운영 시간 밖(주중 23시~다음 날 6시) → 하원
     const nb = closed ? null : nowBlock(s, todayRows, nowMin);
-    const autoOut = !!nb && (sat ? !at && !(a && !a.paused_at) : !a);
+    const autoOut = !!nb && (sat ? !at : !a);   // 토: 등원 찍어야 몰입 중 · 주중: 스톱워치 켜면 몰입 중
     const satOn = sat && !autoOut && !!at && (at.kind === '등원' || at.kind === '복귀');
     const on = closed ? false : sat ? satOn : a && !a.paused_at;
     // 외출(주황): 어디(학원명 · 학교 · 식사 · 기타) + 복귀 예정

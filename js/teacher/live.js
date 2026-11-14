@@ -90,8 +90,8 @@ export async function openLive() {
     if (s.status !== '휴원' && isClosedNow(isoDow(data.t), nowMin)) return { k: 'off', label: '하원', sub: '', todaySec };
     if (s.status === '휴원') return { k: 'ret', label: `복귀 예정 ${Number(s.return_on.slice(5, 7))}/${Number(s.return_on.slice(8))}`, sub: '', todaySec: 0 };
     // 토요일: 등원(복귀) 상태면 몰입 중
-    // 토요일: 출결 기록이 없고 일정 중이면 '외출 · 학원명' — 학생이 등원을 눌렀으면 학생 입력 우선(몰입 중)
-    if (sat && nb && !att && !(active && !active.paused_at)) { const o = outInfo(s, null, data.sched, nowMin); k = 'out'; label = `외출 · ${o.name}`; sub = `${o.moving ? '이동 중 · ' : ''}${o.back} 복귀 예정`; }
+    // 토요일: 출결 기록이 없고 일정 중이면 '외출 · 학원명' (스톱워치를 켜도) — 등원을 눌렀으면 학생 입력 우선(몰입 중)
+    if (sat && nb && !att) { const o = outInfo(s, null, data.sched, nowMin); k = 'out'; label = `외출 · ${o.name}`; sub = `${o.moving ? '이동 중 · ' : ''}${o.back} 복귀 예정`; }
     else if (sat && (att?.kind === '등원' || att?.kind === '복귀')) { k = 'on'; label = active && !active.paused_at ? `${active.subject} 몰입 중` : '몰입 중'; sub = active ? clockSec(elapsed(active, at)) : ''; }
     else if (!sat && active && !active.paused_at) { k = 'on'; label = `${active.subject} 몰입 중`; sub = clockSec(elapsed(active, at)); }
     else if (!sat && active) { k = 'rest'; label = '휴식 중'; sub = `${active.subject} ${clockSec(elapsed(active, at))}`; }
@@ -116,7 +116,7 @@ export async function openLive() {
       <div class="lv-s ${st.k}">
         <div class="lv-s-h"><b>${esc(s.name)}</b><span>${esc(s.grade)}</span>${s.seat_no ? `<em>${esc(s.seat_no)}</em>` : ''}</div>
         <span class="lv-pill">${st.k === 'on' ? '<i></i>' : ''}${esc(st.label)}</span>
-        <p class="lv-sub">${st.sub ? `<span class="lv-run" data-sid="${esc(s.id)}">${esc(st.sub)}</span>` : ''}<span>오늘 ${st.todaySec ? dur(st.todaySec) : '-'}</span></p>
+        <p class="lv-sub">${st.sub ? (st.k === 'on' || st.k === 'rest' ? `<span class="lv-run" data-sid="${esc(s.id)}">${esc(st.sub)}</span>` : `<span>${esc(st.sub)}</span>`) : ''}<span>오늘 ${st.todaySec ? dur(st.todaySec) : '-'}</span></p>
       </div>`).join('') : '<p class="bd-muted">재원 학생이 없습니다.</p>';
     fit(list.length);
 

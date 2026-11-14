@@ -83,7 +83,7 @@ export function judge(d, at = Date.now()) {
     if (reasons.length) color = 'red';
     else if (plan && winSec < ORANGE_SEC) { color = 'orange'; reasons.push('최근 2일 순공 2시간 미만'); }
     // 학생 입력 우선: 등원·외출·복귀·하원 기록이 하나라도 있으면 그대로, 기록이 없을 때만 일정으로 '외출'
-    const autoOut = !!blk && !att && !(active && !active.paused_at);
+    const autoOut = !!blk && !att;   // 토요일은 등원을 찍어야 몰입 중 (학원에서 스톱워치 켜도 외출)
     const out = isoDow(d.t) === 6 && (autoOut || att?.kind === '외출') ? outInfo(s, autoOut ? null : att, d.sched, nowMin) : null;
     return { ...s, color, reasons, winSec, todaySec, active, att, attRows: rows, alert, plan, blk, autoOut, out, closed: isClosedNow(isoDow(d.t), nowMin), on: autoOut || isClosedNow(isoDow(d.t), nowMin) ? false : isImmersed(d.t, active, att) };
   });

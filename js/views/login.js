@@ -75,8 +75,8 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
     if (m) return fail(`로그인이 제한되었습니다. ${m}분 후 다시 시도하세요.`);
     busy = true;
     await wait(150);                      // 마지막 점이 채워지는 걸 보여준 뒤
-    dots.classList.add('wait');           // 점 4개가 물결치며 로딩 (늦어져도 계속)
-    const r = await signInFamily(code);
+    dots.classList.add('wait');           // 점 4개가 물결치며 로딩 (최소 1초 · 늦어져도 계속)
+    const [r] = await Promise.all([signInFamily(code), wait(1000)]);
     busy = false;
     if (r.ok) {
       cleanup();
@@ -90,11 +90,19 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
   async function mergeToCheck(msg) {
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     dots.classList.remove('wait'); dots.classList.add('ok');
+    // 점들이 가운데를 중심으로 빙글 돌면서(한 바퀴 반) 반지름이 줄어 하나로 모임
     const box = dots.getBoundingClientRect(), cx = box.left + box.width / 2;
+    const N = 24, TURN = Math.PI * 3;
     const moves = dotEls.map((d) => {
-      const b = d.getBoundingClientRect();
-      return d.animate([{ transform: 'none' }, { transform: `translateX(${cx - (b.left + b.width / 2)}px) scale(1.15)` }],
-        { duration: still ? 1 : 340, easing: 'cubic-bezier(.6,0,.3,1)', fill: 'forwards' }).finished;
+      const b = d.getBoundingClientRect(), x0 = b.left + b.width / 2 - cx;   // 가운데 기준 위치
+      const r0 = Math.abs(x0), a0 = x0 < 0 ? Math.PI : 0;
+      const frames = [];
+      for (let k = 0; k <= N; k++) {
+        const t = k / N, e = 1 - Math.pow(1 - t, 2);          // 처음엔 빠르게 돌다가 모일수록 부드럽게
+        const a = a0 + TURN * e, rad = r0 * Math.pow(1 - t, 1.3);
+        frames.push({ transform: `translate(${(Math.cos(a) * rad - x0).toFixed(2)}px, ${(Math.sin(a) * rad).toFixed(2)}px) scale(${(1 + 0.2 * t).toFixed(3)})` });
+      }
+      return d.animate(frames, { duration: still ? 1 : 900, easing: 'linear', fill: 'forwards' }).finished;
     });
     await Promise.all(moves);
     dots.classList.add('merged');

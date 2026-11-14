@@ -6,7 +6,12 @@
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+// 서버 전용 키: 새 방식(sb_secret_…) 먼저, 없으면 예전 service_role — 대시보드가 자동으로 넣어 줌 (직접 넣을 것 없음)
+function secretKey() {
+  try { const k = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}"); if (k.default) return k.default as string; } catch { /* 없음 */ }
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+}
+const sb = createClient(Deno.env.get("SUPABASE_URL")!, secretKey(), { auth: { persistSession: false } });
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

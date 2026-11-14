@@ -63,3 +63,8 @@ export function outInfo(student, att, todaySched, nowMin) {
   const back = att.expect_back ? hm(att.expect_back) : nb ? backOf(nb) : '';
   return { name, back, moving: false };
 }
+
+// 운영 시간 밖 = 하원 표시 (스톱워치 기록은 그대로, '몰입 중'만 안 띄움)
+//  주중(월~금) 23:00 이후 ~ 다음 날 06:00 · 매일 00:00~06:00. 토요일은 20:00 자동 하원(출결 기록)으로 처리
+export const CLOSE_WEEKDAY = 23 * 60, OPEN_MIN = 6 * 60;
+export const isClosedNow = (isoDay, nowMin) => nowMin < OPEN_MIN || (isoDay >= 1 && isoDay <= 5 && nowMin >= CLOSE_WEEKDAY);

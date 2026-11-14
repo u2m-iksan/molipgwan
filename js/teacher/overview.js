@@ -164,7 +164,7 @@ export async function renderOverview(body, { me } = {}) {
     const t = (iso) => new Date(new Date(iso).getTime() + 9 * 3600e3).toISOString().slice(11, 16);
     // 오른쪽 위: 지금 상태 하나만
     const state = on ? `<span class="oc-st on" title="${run ? `${esc(s.active.subject)} 몰입 중` : '몰입 중'}"><i></i><span>${run ? `${esc(s.active.subject)} 몰입 중` : '몰입 중'}</span></span>`
-      : !sat && s.active ? '<span class="oc-st pause">일시정지</span>' : '';
+      : s.closed ? '' : !sat && s.active ? '<span class="oc-st pause">일시정지</span>' : '';
     // 토요일 출결 (눌러서 수정)
     // 외출: 어디 + 복귀 예정 (짧게 한 줄)
     const attPill = s.out ? `<span class="pill pill-orange"${s.autoOut ? ' title="일정 시간이라 자동 표시"' : ''}>외출 · ${esc(s.out.name)}${s.out.back ? ` <small>~${s.out.back}</small>` : ''}</span>`

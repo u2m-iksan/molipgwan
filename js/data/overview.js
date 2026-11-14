@@ -6,7 +6,7 @@
 import { sb } from '../sb.js';
 import { today, addDays, isoDow } from '../date.js';
 import { settleStale } from './student.js';
-import { satAlert, nowBlock, outInfo } from './att-rules.js';
+import { satAlert, nowBlock, outInfo, isClosedNow } from './att-rules.js';
 import { loadVacations, isVacation, termOk } from './schedules.js';
 
 const check = (r) => { if (r.error) throw r.error; return r.data || []; };
@@ -85,6 +85,6 @@ export function judge(d, at = Date.now()) {
     // 학생 입력 우선: 등원·외출·복귀·하원 기록이 하나라도 있으면 그대로, 기록이 없을 때만 일정으로 '외출'
     const autoOut = !!blk && !att && !(active && !active.paused_at);
     const out = isoDow(d.t) === 6 && (autoOut || att?.kind === '외출') ? outInfo(s, autoOut ? null : att, d.sched, nowMin) : null;
-    return { ...s, color, reasons, winSec, todaySec, active, att, attRows: rows, alert, plan, blk, autoOut, out, on: autoOut ? false : isImmersed(d.t, active, att) };
+    return { ...s, color, reasons, winSec, todaySec, active, att, attRows: rows, alert, plan, blk, autoOut, out, closed: isClosedNow(isoDow(d.t), nowMin), on: autoOut || isClosedNow(isoDow(d.t), nowMin) ? false : isImmersed(d.t, active, att) };
   });
 }

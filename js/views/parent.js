@@ -12,7 +12,7 @@ import { loadParentUnread, purgeOld, getKakao } from '../data/chat.js';
 import { openHistory } from './history.js';
 import { weekGrid } from '../teacher/schedule-editor.js';
 import { loadStudentSchedules, loadVacations, withTerm } from '../data/schedules.js';
-import { nowBlock, outInfo } from '../data/att-rules.js';
+import { nowBlock, outInfo, isClosedNow } from '../data/att-rules.js';
 
 const BACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 const md = (d) => short(d).replace(/\(.\)/, '');
@@ -68,15 +68,16 @@ export async function renderParentHome({ students, onLogout }) {
     //  학생 입력 우선: 토요일은 출결 기록, 주중은 스톱워치를 켜 두었으면 그걸 따름
     const t0 = today(), n = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' })), nowMin = n.getHours() * 60 + n.getMinutes();
     const todayRows = (st.sched.get(s.id) || []).filter((r) => r.weekday === isoDow(t0) && r.valid_from <= t0 && (!r.valid_to || r.valid_to >= t0));
-    const nb = nowBlock(s, todayRows, nowMin);
+    const closed = isClosedNow(isoDow(t0), nowMin);   // 운영 시간 밖(주중 23시~다음 날 6시) → 하원
+    const nb = closed ? null : nowBlock(s, todayRows, nowMin);
     const autoOut = !!nb && (sat ? !at && !(a && !a.paused_at) : !a);
     const satOn = sat && !autoOut && !!at && (at.kind === '등원' || at.kind === '복귀');
-    const on = sat ? satOn : a && !a.paused_at;
+    const on = closed ? false : sat ? satOn : a && !a.paused_at;
     // 외출(주황): 어디(학원명 · 학교 · 식사 · 기타) + 복귀 예정
     const out = !on && (autoOut || (sat && at?.kind === '외출')) ? outInfo(s, autoOut ? null : at, todayRows, nowMin) : null;
     return `<button type="button" class="pa-kid${on ? ' on' : ''}${out ? ' out' : ''}${students[st.cur] === s ? ' cur' : ''}" data-k="${students.indexOf(s)}">
       <div class="pa-kid-h"><b>${esc(s.name)}</b><span>${esc(s.grade || '')}</span></div>
-      <div class="pa-st"><i></i>${on ? (a && !a.paused_at ? `${esc(a.subject)} 몰입 중` : '몰입 중') : out ? `외출 · ${esc(out.name)}` : sat ? (at?.kind === '하원' ? '하원' : '몰입 중 아님') : a ? '잠시 휴식 중' : '몰입 중 아님'}</div>
+      <div class="pa-st"><i></i>${on ? (a && !a.paused_at ? `${esc(a.subject)} 몰입 중` : '몰입 중') : out ? `외출 · ${esc(out.name)}` : closed ? '하원' : sat ? (at?.kind === '하원' ? '하원' : '몰입 중 아님') : a ? '잠시 휴식 중' : '몰입 중 아님'}</div>
       ${out ? `<div class="pa-back">${out.moving ? '이동 중 · ' : ''}${out.back ? `${out.back} 복귀 예정` : '복귀 시간 미정'}</div>` : ''}
     </button>`;
   };

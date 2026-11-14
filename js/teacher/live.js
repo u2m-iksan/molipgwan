@@ -7,7 +7,7 @@ import { $, esc } from '../ui.js';
 import { sb } from '../sb.js';
 import { DOW, today, mondayOf, isoDow, toMin, toTime, hm } from '../date.js';
 import { settleStale } from '../data/student.js';
-import { satAlert, nowBlock, outInfo } from '../data/att-rules.js';
+import { satAlert, nowBlock, outInfo, isClosedNow } from '../data/att-rules.js';
 import { loadVacations, isVacation, termOk } from '../data/schedules.js';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -86,6 +86,8 @@ export async function openLive() {
     const nb2 = sat ? null : nowBlock(s, data.sched, nowMin);   // 주중도 같은 기준
     const al = sat ? satAlert(s, rows, data.sched, nowMin) : null;
     let k, label, sub = '';
+    // 운영 시간 밖(주중 23시 이후 ~ 다음 날 6시): 하원 (스톱워치 기록은 그대로)
+    if (s.status !== '휴원' && isClosedNow(isoDow(data.t), nowMin)) return { k: 'off', label: '하원', sub: '', todaySec };
     if (s.status === '휴원') return { k: 'ret', label: `복귀 예정 ${Number(s.return_on.slice(5, 7))}/${Number(s.return_on.slice(8))}`, sub: '', todaySec: 0 };
     // 토요일: 등원(복귀) 상태면 몰입 중
     // 토요일: 출결 기록이 없고 일정 중이면 '외출 · 학원명' — 학생이 등원을 눌렀으면 학생 입력 우선(몰입 중)

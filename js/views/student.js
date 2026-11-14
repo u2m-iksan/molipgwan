@@ -10,6 +10,8 @@ import { openStopwatch, clock } from './stopwatch.js';
 import { openSelfPlan } from './self-plan.js';
 import { purgeOld } from '../data/chat.js';
 import { mountPushCard } from './push-card.js';
+import { heartbeat } from '../device.js';
+import { sb } from '../sb.js';
 import { lastDays } from '../data/overview.js';
 import { openHistory } from './history.js';
 import {
@@ -29,7 +31,7 @@ export async function renderStudentHome({ student, onLogout }) {
     <header class="top"><div class="top-in">${BRAND}<div class="spacer"></div>
       <div class="sa-att" id="att"></div>
       <span class="chip">${esc(student.name)}</span>
-      <button type="button" class="chip muted lo-btn" id="lo" aria-label="로그아웃"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg><span>로그아웃</span></button></div></header>
+      </div></header>
     <div class="sa-mtop">
       <button type="button" class="sa-today" id="today"><span class="sa-today-l"><i></i>오늘 공부시간</span><b id="today-t">0분</b><em>›</em></button>
       <div id="nag-m"></div>
@@ -50,7 +52,19 @@ ${SUM}
     </main>
   </div>`);
   const root = $('#sa'); root._view = token;
-  $('#lo').addEventListener('click', onLogout);
+  // 로그아웃 버튼 없음 — 선생님이 학생 정보 창에서 이 기기를 풀어주면(1분 안) 로그아웃 (SQL 25)
+  const beat = async () => {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session && await heartbeat(session.user.email, student.id)) { toast('선생님이 이 기기를 로그아웃했어요'); onLogout(); return true; }
+    } catch { /* 연결 안 되면 다음에 */ }
+    return false;
+  };
+  beat();
+  const hb = setInterval(async () => {
+    if (root._view !== token || !document.body.contains(root)) return clearInterval(hb);
+    if (await beat()) clearInterval(hb);
+  }, 60000);
 
   const st = { plan: null, items: [], progress: new Map(), att: [], sess: null, open: null };
 

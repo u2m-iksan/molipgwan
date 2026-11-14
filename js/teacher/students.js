@@ -1,5 +1,6 @@
 // 선생님 · 학생 관리: 목록 / 등록·수정(오른쪽 패널) / 기존 시트에서 가져오기
 import { sb } from '../sb.js';
+import { studentDevices, kickDevice } from '../device.js';
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import {
   GRADES, STATUSES, SUBJECTS, TRAITS, digits, fmtPhone, validPhone,
@@ -115,7 +116,8 @@ export async function renderStudents(body) {
           <div class="field"><label for="f-school">학교</label><div class="input"><input id="f-school" value="${esc(f.school || '')}" autocomplete="off"></div></div>
           <div class="field"><label for="f-pp">학부모 휴대폰</label><div class="input"><input id="f-pp" inputmode="numeric" value="${esc(f.parent_phone)}" autocomplete="off" placeholder="010-0000-0000"></div>
             <p class="hint" id="f-pp-hint"></p>
-            ${stu ? '<p class="hint ppin" id="f-ppin" hidden></p>' : ''}</div>
+            ${stu ? '<p class="hint ppin" id="f-ppin" hidden></p>' : ''}
+            ${stu ? '<div class="devs" id="f-devs" hidden></div>' : ''}</div>
           <div class="field"><label for="f-sp">학생 휴대폰 <span class="opt">선택</span></label><div class="input"><input id="f-sp" inputmode="numeric" value="${esc(f.student_phone || '')}" autocomplete="off"></div></div>
           <div class="field"><span class="lbl">상태</span><div class="seg seg-wide" id="f-status">${STATUSES.map((s) => `<button type="button" data-v="${s}">${s}</button>`).join('')}</div></div>
           <div class="field" id="f-ret-wrap"><label for="f-ret">복귀 예정일 <span class="opt">휴원</span></label><div class="input"><input id="f-ret" type="date" value="${esc(f.return_on || '')}"></div></div>
@@ -225,6 +227,26 @@ export async function renderStudents(body) {
         ppin.innerHTML = '학부모 비밀번호 <b>아직 안 만듦</b> · 학부모가 처음 로그인할 때 직접 만듭니다';
       });
     })();
+
+    // 로그인된 학생 기기 (SQL 25): 학생 앱엔 로그아웃이 없으니 여기서 기기별로 풀어줌
+    const devs = $('#f-devs', panel);
+    const ago = (t) => { const m = Math.round((Date.now() - new Date(t)) / 60000); return m < 1 ? '방금' : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.round(m / 60)}시간 전` : `${Math.round(m / 1440)}일 전`; };
+    const drawDevs = async () => {
+      if (!devs) return;
+      const list = await studentDevices(stu.id);
+      if (list === null) return;   // SQL 25 전
+      devs.hidden = false;
+      devs.innerHTML = `<p class="devs-h">로그인된 학생 기기 <b>${list.length}대</b></p>` + (list.length
+        ? `<ul>${list.map((d) => `<li><span>${esc(d.label || '기기')}</span><small>마지막 사용 ${ago(d.last_seen)}</small>
+            ${d.kick ? '<em>로그아웃 대기 중</em>' : `<button type="button" class="link-s" data-kick="${esc(d.id)}">로그아웃시키기</button>`}</li>`).join('')}</ul>`
+        : '<p class="sub-s">학생 앱에는 로그아웃 버튼이 없어요. 로그아웃이 필요하면 여기서 풀어 주세요.</p>');
+      devs.querySelectorAll('[data-kick]').forEach((b) => b.addEventListener('click', async () => {
+        b.disabled = true;
+        try { await kickDevice(b.dataset.kick); toast('1분 안에 그 기기가 로그아웃됩니다'); drawDevs(); }
+        catch (x) { b.disabled = false; toast('실패: ' + x.message, 'bad'); }
+      }));
+    };
+    if (stu) drawDevs();
 
     // 자리번호 중복 안내 (재원 학생 기준)
     const seat = $('#f-seat', panel), seatHint = $('#f-seat-hint', panel);

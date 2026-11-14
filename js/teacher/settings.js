@@ -3,7 +3,7 @@
 import { $, $$, esc, toast, X, fadeOut } from '../ui.js';
 import { loadStudents } from '../data/students.js';
 import { getPeriods, savePeriods, DEFAULT_PERIODS } from '../data/schedules.js';
-import { loadTeachers, addTeacher, removeTeacher, updateTeacher, changeMyPassword, teacherId, promoteAll, NEXT_GRADE, EVENT_KINDS, loadSchoolEvents, addSchoolEvents, deleteSchoolEvent } from '../data/settings.js';
+import { loadTeachers, addTeacher, removeTeacher, updateTeacher, changeMyPassword, teacherId, promoteGrades, lastPromoted, NEXT_GRADE, EVENT_KINDS, loadSchoolEvents, addSchoolEvents, deleteSchoolEvent } from '../data/settings.js';
 import { toMin, today, short } from '../date.js';
 import { getKakao, saveKakao } from '../data/chat.js';
 
@@ -141,22 +141,34 @@ export async function renderSettings(body, { me } = {}) {
   }
 
   /* ---------- 학년 올리기 ---------- */
+  //  새 학년도(3월) 1회 · 재원·휴원 학생 · 고3은 그대로 두거나 졸업(퇴원) 처리 · 올해 이미 했으면 경고
   async function drawGrade() {
     const el = $('#s-grade'); if (!el) return;
-    let list = [];
-    try { list = (await loadStudents()).filter((s) => s.status !== '퇴원'); } catch (e) { el.insertAdjacentHTML('beforeend', `<div class="empty">불러오기 실패</div>`); return; }
+    let list = [], last = null;
+    try { [list, last] = await Promise.all([loadStudents().then((l) => l.filter((s) => s.status !== '퇴원')), lastPromoted().catch(() => null)]); }
+    catch (e) { el.insertAdjacentHTML('beforeend', `<div class="empty">불러오기 실패</div>`); return; }
     const n = (g) => list.filter((s) => s.grade === g).length;
+    const year = Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul', year: 'numeric' }));
+    const done = last && last.year === year;
+    const toHigh = list.filter((s) => s.grade === '중3');
     el.innerHTML = `<div class="set-h"><h3>학년 올리기</h3><span>새 학년도 시작 때 1회 · 재원·휴원 학생</span></div>
+      ${done ? `<p class="g-warn">${year}년에 이미 올렸습니다 (${short(String(last.at).slice(0, 10))}). 다시 누르면 한 학년 더 올라갑니다.</p>` : ''}
       <div class="grade-flow">${Object.entries(NEXT_GRADE).map(([a, b]) => `<div><span>${a}</span><i>→</i><span>${b}</span><b>${n(a)}명</b></div>`).join('')}
-        <div class="dim"><span>고3</span><i></i><span>그대로</span><b>${n('고3')}명</b></div></div>
-      <p class="hint">고3은 바뀌지 않습니다. 졸업생은 학생 관리에서 퇴원 처리하세요.</p>
+        <div class="dim" id="g-hs"><span>고3</span><i></i><span id="g-hs-to">그대로</span><b>${n('고3')}명</b></div></div>
+      <label class="g-grad"><input type="checkbox" id="g-grad"> 고3은 졸업 처리 (퇴원으로 바꿈)</label>
+      ${toHigh.length ? `<p class="hint">중3 → 고1 ${toHigh.length}명은 학교 이름을 학생 정보에서 고등학교로 바꿔 주세요.</p>` : ''}
       <button type="button" class="btn btn-gray btn-sm" id="g-go">전체 학년 올리기</button>`;
+    $('#g-grad', el).addEventListener('change', (e) => { $('#g-hs-to', el).textContent = e.target.checked ? '졸업(퇴원)' : '그대로'; });
     let armed = false;
     $('#g-go', el).addEventListener('click', async (e) => {
       const b = e.currentTarget;
       if (!armed) { armed = true; b.textContent = '한 번 더 누르면 실행'; b.classList.add('btn-danger'); setTimeout(() => { armed = false; b.textContent = '전체 학년 올리기'; b.classList.remove('btn-danger'); }, 4000); return; }
       b.disabled = true;
-      try { await promoteAll(list); toast('학년을 올렸습니다'); drawGrade(); } catch (x) { toast('실패: ' + x.message); b.disabled = false; }
+      try {
+        const r = await promoteGrades(list, $('#g-grad', el).checked);
+        toast(r ? `${r.moved}명 학년을 올렸습니다${r.graduated ? ` · ${r.graduated}명 졸업` : ''}` : '학년을 올렸습니다');
+        drawGrade();
+      } catch (x) { toast('실패: ' + x.message, 'bad'); b.disabled = false; }
     });
   }
 

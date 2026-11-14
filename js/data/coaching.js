@@ -192,6 +192,37 @@ export async function saveConsult(s, me) {
   return coaching.id;
 }
 
+/* ---------- 상담 저장 (DB 함수 한 번 · SQL 20) ---------- */
+// 전부 저장되거나 전부 안 됨. 함수가 아직 없으면(SQL 20 안 돌림) null → 예전 방식으로 저장
+export function reportRows(prevItems, newItems) {
+  const rates = prevItems.map((i) => ({
+    subject: i.subject, detail: i.subject_detail || '', title: (i.title || '').trim(), rate: i.final_rate ?? null,
+    ...(i.academy ? { academy: { done: i.acStat?.done ?? null, total: i.acStat?.total ?? null, progress: i.academy_progress?.trim() || '', note: i.final_note?.trim() || '' } } : {}),
+  }));
+  const next_plan = newItems.map((i) => ({ subject: i.subject, detail: i.subject_detail || '', title: i.title.trim() }));
+  return { rates, next_plan };
+}
+export async function saveConsultTx(s, me) {
+  const { rates, next_plan } = reportRows(s.prevItems, s.newItems);
+  const payload = {
+    student_id: s.student.id, scheduled: s.scheduled, held_on: s.heldOn || null, absent: !!s.absent, is_new: !!s.isNew,
+    is_leaving: !!s.isLeaving, summary: s.summary || null, check_items: s.checkItems || [], profile: s.profile || null, me,
+    prev_plan_id: s.prevPlan?.id || null, new_plan_id: s.newPlan?.id || null,
+    prev_items: s.prevItems.map((i) => ({ id: i.id || null, subject: i.subject, subject_detail: i.subject_detail || null, title: i.title,
+      final_rate: i.final_rate ?? null, final_note: i.final_note || null, academy: !!i.academy, academy_progress: i.academy_progress || null, edited: !!i._edited })),
+    removed_prev_ids: s.removedPrevIds || [],
+    new_items: s.newItems.map((i) => ({ id: i.id || null, subject: i.subject, subject_detail: i.subject_detail || null, title: i.title,
+      detail: i.detail || null, academy: !!i.academy, source: i.source || '계획', carried_from: i.carried_from || null })),
+    removed_ids: s.removedIds || [], rates, next_plan,
+  };
+  const { data, error } = await sb.rpc('save_consult', { p: payload });
+  if (error) {
+    if (error.code === 'PGRST202' || /save_consult/.test(error.message || '') && /find|exist/i.test(error.message || '')) return null;
+    throw error;
+  }
+  return data;
+}
+
 /* ---------- 배지 판정용 숫자 (기간 = 지난 상담 ~ 이번 상담) ---------- */
 // { avg, prev_avg, study_seconds, days_needed, days_studied }
 const avgOf = (rates) => { const rs = (rates || []).filter((x) => x.rate != null); return rs.length ? Math.round(rs.reduce((a, x) => a + x.rate, 0) / rs.length) : null; };

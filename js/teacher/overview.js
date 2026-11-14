@@ -5,6 +5,8 @@ import { teacherAttendance, deleteAttendance } from '../data/student.js';
 import { isoDow, today } from '../date.js';
 import { loadOverview, judge } from '../data/overview.js';
 import { loadOpenRequests, checkRequests } from '../data/schedules.js';
+import { housekeepNow } from '../data/chat.js';
+import { sb } from '../sb.js';
 
 const COLOR = { red: '빨강', orange: '주황', green: '초록' };
 const bySeat = (a, b) => {
@@ -27,6 +29,7 @@ export async function renderOverview(body, { me } = {}) {
       <span class="ov-rule">빨강: 계획 없음 · 스톱워치/진행률 2일 공백 &nbsp;·&nbsp; 주황: 최근 2일 순공 2시간 미만</span>
     </div>
     <div id="ov-req"></div>
+    <div id="ov-ret"></div>
     <div id="ov-grid" class="ov-grid"><div class="card empty">불러오는 중</div></div>
     <div id="ov-stu" class="ov-stu"></div>`;
   // 학생 관리: 현황 카드 아래 전체 학생 목록 (카드 누르면 학생 정보 열기)
@@ -52,6 +55,36 @@ export async function renderOverview(body, { me } = {}) {
     const done = async (ids) => { try { await checkRequests(ids, me?.name || '선생님'); loadReq(); } catch (e) { toast('저장 실패: ' + e.message); } };
     $('#req-all').addEventListener('click', () => done(reqs.map((r) => r.id)));
     box.querySelectorAll('[data-req]').forEach((b) => b.addEventListener('click', () => done([b.dataset.req])));
+  }
+
+  // 학생 상태 정리: 복귀일이 지난 휴원생 → 재원 / 상담에서 '이번 주로 퇴원' 표시한 재원생 → 퇴원
+  async function loadRet() {
+    const box = $('#ov-ret'); if (!box) return;
+    let ret = [], leave = [];
+    try {
+      const t = today();
+      const [hu, lv] = await Promise.all([
+        sb.from('students').select('id,name,grade,return_on').eq('status', '휴원').lte('return_on', t),
+        sb.from('coachings').select('student_id,scheduled_on').eq('is_leaving', true).lte('scheduled_on', t),
+      ]);
+      ret = hu.data || [];
+      const ids = [...new Set((lv.data || []).map((x) => x.student_id))];
+      if (ids.length) leave = ((await sb.from('students').select('id,name,grade').eq('status', '재원').in('id', ids)).data || []);
+    } catch { box.innerHTML = ''; return; }
+    if (!ret.length && !leave.length) { box.innerHTML = ''; return; }
+    const row = (s, kind) => `<li><span class="pill ${kind === 'ret' ? 'pill-blue' : 'pill-gray'}">${kind === 'ret' ? '복귀일 지남' : '퇴원 예정'}</span>
+      <b>${esc(s.name)}</b><span class="ov-req-s">${esc(s.grade || '')}${kind === 'ret' ? ` · 복귀 예정 ${Number(s.return_on.slice(5, 7))}/${Number(s.return_on.slice(8))}` : ' · 상담에서 이번 주로 퇴원 표시'}</span>
+      <button type="button" class="link-s" data-st="${kind === 'ret' ? '재원' : '퇴원'}" data-sid="${esc(s.id)}">${kind === 'ret' ? '재원으로' : '퇴원 처리'}</button></li>`;
+    box.innerHTML = `<section class="card ov-req"><div class="ov-req-h"><h3>학생 상태 확인 <span>${ret.length + leave.length}</span></h3></div>
+      <ul>${ret.map((s) => row(s, 'ret')).join('')}${leave.map((s) => row(s, 'leave')).join('')}</ul></section>`;
+    box.querySelectorAll('[data-st]').forEach((b) => b.addEventListener('click', async () => {
+      b.disabled = true;
+      const patch = b.dataset.st === '재원' ? { status: '재원', return_on: null } : { status: '퇴원' };
+      const { error } = await sb.from('students').update(patch).eq('id', b.dataset.sid);
+      if (error) { b.disabled = false; return toast('저장 실패: ' + error.message, 'bad'); }
+      toast(b.dataset.st === '재원' ? '재원으로 바꿨습니다' : '퇴원 처리했습니다');
+      await fadeOut(b.closest('li')); loadRet(); load(); stuApi.then((a) => a?.reload?.());
+    }));
   }
 
   // 토요일 출결 수정 (선생님): 오늘 기록 보기·삭제 + 등원/외출/복귀/하원 추가(시각 지정)
@@ -93,10 +126,11 @@ export async function renderOverview(body, { me } = {}) {
   }
 
   async function load() {
+    if (sat && new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul', hour: 'numeric', hour12: false }) >= 20) await housekeepNow();
     try { st.data = await loadOverview(); }
     catch (e) { $('#ov-grid').innerHTML = `<div class="card empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
     st.list = judge(st.data).sort(bySeat);
-    loadReq();
+    loadReq(); loadRet();
     $('#ov-at') && ($('#ov-at').textContent = `${clock()} 기준`);
     paint();
   }

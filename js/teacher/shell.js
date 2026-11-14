@@ -9,7 +9,7 @@ import { renderOverview } from './overview.js';
 import { renderSettings } from './settings.js';
 import { renderPlans } from './plans.js';
 import { renderParents } from './parents.js';
-import { countTeacherUnread } from '../data/chat.js';
+import { countTeacherUnread, purgeOld } from '../data/chat.js';
 
 const TABS = [
   { id: 'overview', label: '전체 현황' },
@@ -24,6 +24,7 @@ const PARENT = { consult: 'coaching', students: 'overview', reports: 'parents', 
 const DEFAULT_TAB = 'overview';
 
 export function renderTeacher({ me, onLogout }) {
+  purgeOld();   // 정리 작업: 토요일 자동 하원 · 30일 지난 채팅 (SQL 20)
   const current = () => {
     const id = location.hash.replace(/^#\//, '').split('?')[0];
     return TABS.some((t) => t.id === id) || READY[id] ? id : DEFAULT_TAB;

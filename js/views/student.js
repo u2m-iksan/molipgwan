@@ -8,6 +8,9 @@ import { academyStat, dayLabel } from '../data/academy.js';
 import { segBar } from './progress-bar.js';
 import { openStopwatch, clock } from './stopwatch.js';
 import { openSelfPlan } from './self-plan.js';
+import { purgeOld } from '../data/chat.js';
+import { lastDays } from '../data/overview.js';
+import { openHistory } from './history.js';
 import {
   loadOpenPlan, saveProgress, loadAttendance, attState, isSaturday, checkIn, addAttendance, autoCheckout,
   loadSessions, elapsedSec, needsCheck, loadWeekDone, selfPlanNeed,
@@ -28,6 +31,7 @@ export async function renderStudentHome({ student, onLogout }) {
       <button type="button" class="chip muted lo-btn" id="lo" aria-label="로그아웃"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg><span>로그아웃</span></button></div></header>
     <div class="sa-mtop">
       <button type="button" class="sa-today" id="today"><span class="sa-today-l"><i></i>오늘 공부시간</span><b id="today-t">0분</b><em>›</em></button>
+      <div id="nag-m"></div>
       <div class="sa-sum" id="sum">
 ${SUM}
       </div>
@@ -50,6 +54,7 @@ ${SUM}
   /* ---------- 등원 ---------- */
   async function loadAtt() {
     try {
+      await purgeOld();   // 토요일 20:00 자동 하원 등 정리 (앱 열 때 1번)
       st.att = await loadAttendance(student.id);
       if (await autoCheckout(student.id, st.att)) st.att = await loadAttendance(student.id);
     } catch { st.att = []; }
@@ -208,21 +213,48 @@ ${SUM}
     const h = st.progress.get(id) || []; return h.length ? h[h.length - 1].pct : 0;
   };
   const todayPct = (id) => (st.progress.get(id) || []).find((r) => r.on_date === today())?.pct;
+  // 진행률을 최근 2일(일요일 제외) 안 적었으면 알림 — 선생님 화면 빨간색 기준과 같음 (오늘 적으면 사라짐)
+  function missDays() {
+    if (!st.plan) return 0;
+    const normal = st.items.filter((i) => !i.academy);
+    if (!normal.length) return 0;
+    const days = lastDays(2).filter((d) => d >= st.plan.start_date);
+    if (!days.length) return 0;
+    const has = (d) => normal.some((i) => (st.progress.get(i.id) || []).some((r) => r.on_date === d));
+    if (has(today()) || days.some(has)) return 0;
+    return days.length;
+  }
+  function paintNag() {
+    const n = missDays();
+    const html = n ? `<button type="button" class="sa-nag" data-nag><i aria-hidden="true">!</i><span><b>진행률을 ${n}일째 안 적었어요</b><small>오늘 한 만큼 기록해 주세요. 비어 있으면 선생님 화면에 빨간색으로 떠요.</small></span><em aria-hidden="true">›</em></button>` : '';
+    const m = $('#nag-m'); if (m) m.innerHTML = html;
+    return html;
+  }
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#plan [data-hist]') && document.body.contains(root)) return void openHistory(student);
+    if (!e.target.closest('[data-nag]') || !document.body.contains(root)) return;
+    const pg = $('#pg [data-p="1"]');
+    if (pg && getComputedStyle($('#pg')).display !== 'none') pg.click();
+    const first = st.items.find((i) => !i.academy);
+    if (first && st.open !== first.id) $(`[data-tg="${first.id}"]`)?.click();
+    $('#plan')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   function drawPlan() {
     const el = $('#plan');
+    const nag = paintNag();
     // 보강 대상(상담일 지남 · 새 계획 없음) · 계획 없음 → 직접 계획 세우기
     const need = st.sched ? selfPlanNeed(st.plan, st.sched) : null;
     const spBtn = need ? `<div class="sa-self ${need.reason}"><div><b>${need.reason === 'makeup' ? '이번 주 상담을 하지 못했습니다' : '진행 중인 계획이 없습니다'}</b>
       <span>${need.reason === 'makeup' ? `다음 상담(${md(need.due)})까지의 계획을 직접 세우세요. 토요일 보강 때 함께 점검합니다.` : `다음 상담(${md(need.due)})까지의 계획을 직접 세우세요.`}</span></div>
       <button type="button" class="btn btn-primary btn-sm" id="sp-open">계획 세우기</button></div>` : '';
     if (!st.plan) {
-      el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3></div>${spBtn || '<div class="sa-empty"><b>진행 중인 계획이 없습니다.</b>상담에서 계획을 세웁니다.</div>'}`;
+      el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3><button type="button" class="link-s" data-hist>지난 기록</button></div>${spBtn || '<div class="sa-empty"><b>진행 중인 계획이 없습니다.</b>상담에서 계획을 세웁니다.</div>'}`;
       $('#sp-open')?.addEventListener('click', () => openSelfPlan(student, { plan: null, items: [], sched: st.sched, need, onSaved: loadPlan }));
       paintSum();
       return;
     }
     const p = st.plan;
-    el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3><span>${md(p.start_date)} – ${p.due_date ? md(p.due_date) : ''}</span></div>${spBtn}
+    el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3><span>${md(p.start_date)} – ${p.due_date ? md(p.due_date) : ''}</span><button type="button" class="link-s" data-hist>지난 기록</button></div>${spBtn}${nag ? `<div class="sa-nag-in">${nag}</div>` : ''}
       <ul class="sa-items">${st.items.map((i) => {
         if (i.academy) {
           // 학원 숙제: 학원 가는 날마다 해갔는지 체크

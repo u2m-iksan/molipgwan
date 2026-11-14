@@ -316,5 +316,5 @@ export async function renderStudents(body) {
   const open = (id) => { const s = state.list.find((x) => x.id === id); if (s) openEditor(s); };
   const openId = new URLSearchParams(location.hash.split('?')[1] || '').get('open');
   if (openId) { history.replaceState(null, '', '#/overview'); open(openId); }
-  return { open };
+  return { open, reload };
 }

@@ -19,7 +19,15 @@ export async function saveKakao(url) {
   check(await sb.from('app_settings').upsert({ key: 'kakao', value: { url } }));
 }
 
-export function purgeOld() { return sb.rpc('purge_old_messages').then(() => {}, () => {}); }
+// 정리 작업 (SQL 20): 토요일 20:00 자동 하원 + 30일 지난 채팅 삭제. 앱 열 때 한 번 (함수 없으면 예전 채팅 정리만)
+let housekept = false;
+// 토요일 20시 이후 화면을 켜 둔 경우: 새로 고칠 때마다 자동 하원 확인
+export function housekeepNow() { return sb.rpc('housekeeping').then(() => {}, () => {}); }
+export function purgeOld() {
+  if (housekept) return Promise.resolve();
+  housekept = true;
+  return sb.rpc('housekeeping').then(({ error } = {}) => { if (error) return sb.rpc('purge_old_messages'); }).then(() => {}, () => {});
+}
 
 // 한 방의 메시지 + 보고서 (시간순)
 export async function loadThread(studentId) {

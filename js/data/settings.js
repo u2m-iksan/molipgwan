@@ -35,6 +35,20 @@ export async function changeMyPassword(password) {
 
 // 학년 올리기: 중1→중2 … 중3→고1, 고1→고2, 고2→고3 (고3은 그대로)
 export const NEXT_GRADE = { 중1: '중2', 중2: '중3', 중3: '고1', 고1: '고2', 고2: '고3' };
+// SQL 20: 한 번에 (전부 되거나 전부 안 됨) · 고3 졸업(퇴원) 선택 · 실행 기록
+export async function promoteGrades(students, graduate) {
+  const { data, error } = await sb.rpc('promote_grades', { graduate });
+  if (!error) return data;
+  if (error.code !== 'PGRST202' && !/promote_grades/.test(error.message || '')) throw error;
+  await promoteAll(students);   // 함수 없으면 예전 방식
+  if (graduate) { const ids = students.filter((s) => s.grade === '고3').map((s) => s.id); if (ids.length) check(await sb.from('students').update({ status: '퇴원' }).in('id', ids)); }
+  check(await sb.from('app_settings').upsert({ key: 'promoted', value: { year: Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul', year: 'numeric' })), at: new Date().toISOString() } }));
+  return null;
+}
+export async function lastPromoted() {
+  const r = check(await sb.from('app_settings').select('value').eq('key', 'promoted').maybeSingle());
+  return r?.value || null;
+}
 export async function promoteAll(students) {
   const groups = {};
   for (const s of students) if (NEXT_GRADE[s.grade]) (groups[s.grade] ||= []).push(s.id);

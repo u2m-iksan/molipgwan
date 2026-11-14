@@ -8,7 +8,7 @@ import { sb } from '../sb.js';
 import { loadStudentSchedules, loadVacations, withTerm } from '../data/schedules.js';
 import { hasAcademy, matches, academyStat, dayLabel } from '../data/academy.js';
 import {
-  loadConsult, loadCarryCandidates, saveConsult, saveReport, computeReportStats,
+  loadConsult, loadCarryCandidates, saveConsult, saveConsultTx, saveReport, computeReportStats,
   buildPrompt, parseGpt, reportSubjects, noticeText,
 } from '../data/coaching.js';
 import { mountReport, autoBadges, badgesOf, BADGE_ORDER } from '../views/report-card.js';
@@ -45,6 +45,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
           <a class="btn btn-gray btn-sm" href="#/students?open=${esc(stu.id)}">일정</a>
         </div>
       </header>
+      <div class="cp-busy" id="cp-busy" role="status" hidden></div>
       <div class="cp-wrap${sideOpen ? ' side-open' : ''}" id="cp-wrap">
         <aside class="cp-side" id="cp-side" aria-label="상담 참고사항"></aside>
         <div class="cp-main">
@@ -77,6 +78,29 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     carry: null, report: null, coachingId: null,
     profile: { goal: stu.goal || '', strong: [...(stu.strong_subjects || [])], weak: [...(stu.weak_subjects || [])], habits: stu.habits?.length ? [...stu.habits] : [''] },
   };
+
+  /* ---------- 같은 상담을 다른 선생님이 열고 있으면 경고 (SQL 20 · 30초마다 확인, 표 없으면 조용히 생략) ---------- */
+  (async () => {
+    const ses = await sb.auth.getSession().catch(() => null);
+    const email = ses?.data?.session?.user?.email; if (!email) return;
+    const name = (await sb.from('teachers').select('name').eq('email', email).maybeSingle()).data?.name || '';
+    const key = { student_id: stu.id, scheduled_on: scheduled, editor: email };
+    let alive = true;
+    const beat = async () => {
+      if (!document.body.contains(root)) { alive = false; sb.from('consult_presence').delete().match(key).then(() => {}, () => {}); return; }
+      const up = await sb.from('consult_presence').upsert({ ...key, editor_name: name, seen_at: new Date().toISOString() }, { onConflict: 'student_id,scheduled_on,editor' });
+      if (up.error) { alive = false; return; }   // SQL 20 전
+      const since = new Date(Date.now() - 90e3).toISOString();
+      const { data } = await sb.from('consult_presence').select('editor,editor_name').eq('student_id', stu.id).eq('scheduled_on', scheduled).neq('editor', email).gte('seen_at', since);
+      const box = $('#cp-busy', root); if (!box) return;
+      const others = (data || []).map((x) => `${x.editor_name || x.editor.split('@')[0].replace(/^t-/, '')} 선생님`);
+      box.hidden = !others.length;
+      box.innerHTML = others.length ? `<b>${esc(others.join(', '))}</b>도 지금 이 상담을 열어 두었습니다. 동시에 저장하면 나중에 저장한 내용으로 덮어씁니다.` : '';
+    };
+    await beat();
+    const t = setInterval(() => { if (!alive) return clearInterval(t); beat(); }, 30000);
+    addEventListener('pagehide', () => sb.from('consult_presence').delete().match(key), { once: true });
+  })();
 
   /* ---------- 작성 중 내용 임시저장 (이 기기) — 다른 화면으로 가거나 창을 닫아도 유실 안 됨 ---------- */
   const DKEY = `molip-draft:${stu.id}:${scheduled}`;
@@ -451,7 +475,20 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
 
     btn.disabled = true; btn.textContent = '저장 중';
     try {
-      // 상담 중 추가한 지난 계획 항목
+      // 학원 숙제 횟수 (보고에 고정)
+      if (st.d.prevPlan) for (const i of prevItems) if (i.academy) i.acStat = academyStat(i, st.d.prevPlan, st.sched || [], st.d.progress.get(i.id), st.d.prevPlan.due_date || today());
+      const P = st.isNew ? st.profile : null;
+      const prof = P ? { goal: P.goal.trim() || null, strong_subjects: P.strong, weak_subjects: P.weak, habits: P.habits.map((h) => h.trim()).filter(Boolean) } : null;
+      // 1순위: DB 함수 한 번으로 저장 (중간에 끊겨도 반쪽 저장 없음)
+      let coachingId = await saveConsultTx({ profile: prof,
+        student: stu, scheduled, heldOn: st.heldOn, absent: st.absent, isNew: st.isNew, isLeaving: st.isLeaving,
+        summary: st.summary.trim(), checkItems: st.checkItems,
+        prevPlan: st.isNew ? null : st.d.prevPlan, prevItems: st.isNew ? [] : prevItems, newPlan: st.d.newPlan,
+        newItems, removedIds: st.removedIds, removedPrevIds: st.isNew ? [] : st.removedPrevIds,
+      }, st.me);
+      if (coachingId && prof) Object.assign(stu, prof);
+      if (!coachingId) {
+      // (SQL 20 전) 예전 방식: 상담 중 추가한 지난 계획 항목
       // 지난 계획 직접 입력분 → 마감된 계획 1장으로 기록 (기간: 상담일 7일 전 ~ 상담일)
       if (!st.d.prevPlan && !st.isNew && prevItems.some((i) => !i.id)) {
         const { data: pl, error: pe } = await sb.from('plans').insert({
@@ -479,17 +516,17 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         if (error) throw error;
         Object.assign(stu, profile);
       }
-      // 학원 숙제 횟수 (보고에 고정)
-      if (st.d.prevPlan) for (const i of prevItems) if (i.academy) i.acStat = academyStat(i, st.d.prevPlan, st.sched || [], st.d.progress.get(i.id), st.d.prevPlan.due_date || today());
-      const coachingId = await saveConsult({ profile,
+      coachingId = await saveConsult({ profile,
         student: stu, scheduled, heldOn: st.heldOn, absent: st.absent, isNew: st.isNew, isLeaving: st.isLeaving,
         summary: st.summary.trim(), checkItems: st.checkItems,
         prevPlan: st.isNew ? null : st.d.prevPlan, prevItems: st.isNew ? [] : prevItems.filter((i) => i.id), newPlan: st.d.newPlan,
         newItems, removedIds: st.removedIds, removedPrevIds: st.isNew ? [] : st.removedPrevIds, subjects: st.d.subjects,
       }, st.me);
+      }
       st.d = await loadConsult(stu.id, scheduled);
       st.coachingId = coachingId; st.report = st.d.report; st.removedIds = []; st.removedPrevIds = []; st.rDrawn = false;
-      st.prevItems.forEach((i) => { delete i._editing; delete i._edited; });
+      // 저장된 그대로 다시 불러옴 (새로 넣은 지난 계획 항목도 id를 받아 다시 저장해도 중복 안 됨)
+      st.prevItems = st.d.prevItems.map((i) => ({ ...i }));
       st.newItems = st.d.newItems.map((i) => ({ ...i }));
       clearDraft();
       onSaved?.();

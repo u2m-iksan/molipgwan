@@ -6,7 +6,7 @@ import { segBar } from '../views/progress-bar.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
 import { loadStudentSchedules, loadVacations, withTerm } from '../data/schedules.js';
-import { hasAcademy, matches, academyStat, dayLabel } from '../data/academy.js';
+import { hasAcademy, matches, academyStat, dayLabel, AC_MARK, AC_CLS } from '../data/academy.js';
 import {
   loadConsult, loadCarryCandidates, saveConsult, saveConsultTx, saveReport, computeReportStats,
   buildPrompt, parseGpt, reportSubjects, noticeText,
@@ -242,7 +242,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     if (!a.dates.length) return '<div class="cs-hist none">학원 숙제 · 기간 안에 학원 일정 없음</div>';
     return `<div class="ac-hist"><span class="ac-tag">학원 숙제 ${a.done}/${a.total}회</span>${a.dates.map((d) => {
       const v = a.checks.get(d);
-      return `<span class="ac-d ${v === true ? 'ok' : v === false ? 'no' : ''}">${dayLabel(d)}${v === true ? ' ✓' : v === false ? ' ✗' : ''}</span>`;
+      return `<span class="ac-d ${v ? AC_CLS[v] : ''}">${dayLabel(d)}${v ? ' ' + AC_MARK[v] : ''}</span>`;
     }).join('')}</div>`;
   }
 

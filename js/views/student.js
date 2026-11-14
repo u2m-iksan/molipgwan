@@ -4,7 +4,7 @@ import { mount, $, $$, esc, toast, sheet, BRAND, X } from '../ui.js';
 import { DOW, today, mondayOf, short, isoDow, toMin, toTime, hm, addDays } from '../date.js';
 import { loadStudentSchedules, loadVacations, withTerm, termOk } from '../data/schedules.js';
 import { weekGrid, renderScheduleEditor } from '../teacher/schedule-editor.js';
-import { academyStat, dayLabel } from '../data/academy.js';
+import { academyStat, dayLabel, AC_MARK, AC_CLS, AC_PCT, acOf } from '../data/academy.js';
 import { segBar } from './progress-bar.js';
 import { openStopwatch, clock } from './stopwatch.js';
 import { openSelfPlan } from './self-plan.js';
@@ -266,9 +266,9 @@ ${SUM}
               <b class="sa-pct">${a.total ? `${a.done}/${a.total}회` : '-'}</b>
             </div>
             <div class="sa-ac">${a.dates.length ? a.dates.map((d) => {
-              const v = a.checks.get(d), fut = d > today();
-              return `<button type="button" class="sa-ac-d ${v === true ? 'ok' : v === false ? 'no' : ''}" data-ac-d="${d}"${fut ? ' disabled' : ''}>
-                <span>${dayLabel(d)}</span><b>${v === true ? '해감' : v === false ? '안 해감' : fut ? '예정' : '체크'}</b></button>`;
+              const v = a.checks.get(d), fut = d > today(), just = st.justAc === `${i.id}:${d}`;
+              return `<button type="button" class="sa-ac-d ${v ? AC_CLS[v] : ''}${just ? ' just' : ''}" data-ac-d="${d}"${fut ? ' disabled' : ''} aria-label="${dayLabel(d)} ${v ? { o: '해감', h: '반만 해감', x: '안 해감' }[v] : '체크 안 함'}">
+                <span>${dayLabel(d)}</span><b>${v ? AC_MARK[v] : fut ? '예정' : '체크'}</b></button>`;
             }).join('') : '<span class="sa-ac-none">이번 기간에 학원 일정이 없습니다.</span>'}</div>
           </li>`;
         }
@@ -290,20 +290,23 @@ ${SUM}
   $('#plan').addEventListener('click', async (e) => {
     const acb = e.target.closest('[data-ac-d]');
     if (acb) {
-      // 체크 안 함 → 해감 → 안 해감 → 해감 …
+      // 체크 안 함 → O(해감) → △(반만 · 50%) → X(안 해감) → O …
       const item = st.items.find((i) => i.id === acb.closest('.sa-item').dataset.id), d = acb.dataset.acD;
       const cur = (st.progress.get(item.id) || []).find((r) => r.on_date === d);
-      const v = cur && cur.pct >= 100 ? 0 : 100;
+      const v = AC_PCT[!cur ? 'o' : { o: 'h', h: 'x', x: 'o' }[acOf(cur.pct)]];
       try {
         await saveProgress(item, v, d);
         const h = (st.progress.get(item.id) || []).filter((r) => r.on_date !== d);
         h.push({ item_id: item.id, on_date: d, pct: v }); h.sort((x, y) => (x.on_date < y.on_date ? -1 : 1));
         st.progress.set(item.id, h);
-        drawPlan();
+        st.justAc = `${item.id}:${d}`;   // 방금 누른 칸만 톡 튀게
+        drawPlan(); st.justAc = null;
       } catch (ex) { toast('저장 실패: ' + ex.message); }
       return;
     }
-    const tg = e.target.closest('[data-tg]');
+    // 항목 어디를 눌러도(제목 · 그래프) 펼치기/접기 — 진행률 고르는 칸 안은 제외
+    const li = !e.target.closest('.sa-pick') && e.target.closest('.sa-item:not(.ac)');
+    const tg = li ? { dataset: { tg: li.dataset.id } } : null;
     if (tg) {
       st.open = st.open === tg.dataset.tg ? null : tg.dataset.tg; drawPlan();
       // 펼친 칸만 부드럽게 열림

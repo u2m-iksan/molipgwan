@@ -984,7 +984,7 @@ button:disabled{cursor:default}
 
 /* ---------- 체크가 생길 때마다 톡 튀어나오는 모션 ---------- */
 @keyframes chkPop{0%{transform:scale(.3) rotate(-25deg);opacity:0}60%{transform:scale(1.18) rotate(4deg);opacity:1}100%{transform:none;opacity:1}}
-.cs-steps li.done:not(.cur) i,.sd-flow li.done i,.stu.done .ok-ic,.stu.half .ok-ic,.sa-ac-d.ok b,.toast .ti,.sd-read .ok,.flash-done svg,.co-legend .lg{animation:chkPop .45s cubic-bezier(.2,1.4,.4,1) both}
+.cs-steps li.done:not(.cur) i,.sd-flow li.done i,.stu.done .ok-ic,.stu.half .ok-ic,.sa-ac-d.just b,.toast .ti,.sd-read .ok,.flash-done svg,.co-legend .lg{animation:chkPop .45s cubic-bezier(.2,1.4,.4,1) both}
 
 /* ---------- 상담 단계 전환: 다음 단계는 오른쪽에서, 이전 단계는 왼쪽에서 부드럽게 ---------- */
 @keyframes paneFwd{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
@@ -1046,3 +1046,13 @@ button:disabled{cursor:default}
 /* 체크만 있는 완료 모달 */
 .cel-card.only{min-width:0;padding:26px;border-radius:28px;gap:0}
 .cel-card.only .cel-ic{width:72px;height:72px;margin:0}
+
+/* ---------- 학원 숙제 O / △ / X ---------- */
+.sa-ac-d b{font-size:16px}
+.sa-ac-d.half{background:#FFF4E5;border-color:#F6D3A6}.sa-ac-d.half b{color:#D97706}
+.sa-ac-d.just{animation:none}
+.ac-d.half{background:#FFF4E5;border-color:#F6D3A6;color:#D97706}
+.pl-acd span.half{background:var(--orange-soft);color:#D97706}
+/* 계획 항목: 제목·그래프 어디를 눌러도 펼침 */
+.sa-item:not(.ac){cursor:pointer}
+.sa-item:not(.ac) .sa-pick{cursor:default}

@@ -5,7 +5,7 @@
 import { $, $$, esc } from '../ui.js';
 import { today, short, DOW, hm } from '../date.js';
 import { loadAllPlans } from '../data/coaching.js';
-import { academyStat } from '../data/academy.js';
+import { academyStat, AC_CLS } from '../data/academy.js';
 import { withTerm } from '../data/schedules.js';
 import { segBar } from '../views/progress-bar.js';
 import { lastDays } from '../data/overview.js';
@@ -73,7 +73,7 @@ export async function renderPlans(body) {
   const itemHtml = (i) => `<li class="pl-it">
       <span class="pl-sub">${esc(i.subject)}${i.subject_detail ? `<small>${esc(i.subject_detail)}</small>` : ''}</span>
       <div class="pl-tt"><p>${esc(i.title)}${i.academy && i.title.trim() !== '학원 숙제' ? '<em class="pl-ac">학원 숙제</em>' : ''}</p>
-        ${i.academy ? `<div class="pl-acd">${i.a.dates.map((d) => { const v = i.a.checks.get(d); return `<span class="${v === true ? 'ok' : v === false ? 'no' : d > t ? 'fut' : ''}">${DOW[new Date(d + 'T00:00:00Z').getUTCDay() || 7]}</span>`; }).join('') || '<span class="none">학원 일정 없음</span>'}</div>` : segBar(i.h, { legend: false })}</div>
+        ${i.academy ? `<div class="pl-acd">${i.a.dates.map((d) => { const v = i.a.checks.get(d); return `<span class="${v ? AC_CLS[v] : d > t ? 'fut' : ''}">${DOW[new Date(d + 'T00:00:00Z').getUTCDay() || 7]}</span>`; }).join('') || '<span class="none">학원 일정 없음</span>'}</div>` : segBar(i.h, { legend: false })}</div>
       <b class="pl-pct ${tone(i.pct)}">${i.academy ? (i.a.total ? `${i.a.done}/${i.a.total}` : '-') : `${i.pct}%`}</b></li>`;
 
   function card(r) {

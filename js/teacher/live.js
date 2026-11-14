@@ -82,8 +82,8 @@ export async function openLive() {
     const rows = data.att.filter((a) => a.student_id === s.id);
     const att = rows[rows.length - 1];
     const sat = isoDow(data.t) === 6;
-    const blk = data.sched.find((r) => r.student_id === s.id && ['학원', '학교', '기타'].includes(r.category) && toMin(r.start_time) <= nowMin && nowMin < toMin(r.end_time));
     const nb = sat ? nowBlock(s, data.sched, nowMin) : null;   // 토: 일정 끝 + 이동 시간까지
+    const nb2 = sat ? null : nowBlock(s, data.sched, nowMin);   // 주중도 같은 기준
     const al = sat ? satAlert(s, rows, data.sched, nowMin) : null;
     let k, label, sub = '';
     if (s.status === '휴원') return { k: 'ret', label: `복귀 예정 ${Number(s.return_on.slice(5, 7))}/${Number(s.return_on.slice(8))}`, sub: '', todaySec: 0 };
@@ -95,7 +95,7 @@ export async function openLive() {
     else if (!sat && active) { k = 'rest'; label = '휴식 중'; sub = `${active.subject} ${clockSec(elapsed(active, at))}`; }
     else if (sat && att?.kind === '외출') { const o = outInfo(s, att, data.sched, nowMin); k = al?.kind === 'late' ? 'none' : 'out'; label = `외출 · ${o.name}`; sub = al?.kind === 'late' ? al.text : o.back ? `${o.back} 복귀 예정` : ''; }
     else if (sat && att?.kind === '하원') { k = 'off'; label = '하원'; }
-    else if (blk) { k = blk.category === '학원' ? 'acad' : 'school'; label = `${blk.category === '학원' ? (blk.title || '학원') : '학교'} ~${hm(blk.end_time)}`; }
+    else if (!sat && nb2 && !active) { const o = outInfo(s, null, data.sched, nowMin); k = 'out'; label = `외출 · ${o.name}`; sub = `${o.moving ? '이동 중 · ' : ''}${o.back} 복귀 예정`; }   // 주중: 스톱워치 켰으면 그게 우선
     else if (sat && !att) { k = al?.kind === 'late' ? 'none' : 'idle'; label = al?.kind === 'late' ? al.text : al?.text || '미등원'; }
     else { k = 'idle'; label = sat && att ? '등원' : '대기'; }
     return { k, label, sub, todaySec };

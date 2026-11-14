@@ -42,9 +42,9 @@ export async function renderParentHome({ students, onLogout }) {
       try {
         const { data } = await sb.from('attendance').select('student_id,kind,at,reason,expect_back').in('student_id', students.map((s) => s.id)).eq('on_date', today()).order('at');
         (data || []).forEach((r) => st.att.set(r.student_id, r));
-        await Promise.all(students.map((k) => loadSched(k).catch(() => [])));   // 지금 학원·학교 일정인지
       } catch { /* 없음 */ }
     }
+    await Promise.all(students.map((k) => loadSched(k).catch(() => [])));   // 지금 학원·학교 일정인지 (주중도)
   }
   async function loadSched(s) {
     if (st.sched.has(s.id)) return st.sched.get(s.id);
@@ -64,15 +64,16 @@ export async function renderParentHome({ students, onLogout }) {
   const statusHtml = (s) => {
     const a = st.live.get(s.id);
     const sat = isoDow(today()) === 6, at = st.att?.get(s.id);
-    // 토요일: 지금 일정 중(끝 + 이동 시간 포함)이면 '외출 · 학원명' — 선생님 현황판과 같은 기준
-    const t0 = today(), n = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-    const todayRows = sat ? (st.sched.get(s.id) || []).filter((r) => r.weekday === 6 && r.valid_from <= t0 && (!r.valid_to || r.valid_to >= t0)) : [];
-    const nb = sat ? nowBlock(s, todayRows, n.getHours() * 60 + n.getMinutes()) : null;
-    const autoOut = !!nb && !at && !(a && !a.paused_at);   // 학생이 등원 등을 눌렀으면 학생 입력 우선
+    // 지금 일정 중(끝 + 이동 시간 포함)이면 '외출 · 학원명' — 선생님 현황판과 같은 기준
+    //  학생 입력 우선: 토요일은 출결 기록, 주중은 스톱워치를 켜 두었으면 그걸 따름
+    const t0 = today(), n = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' })), nowMin = n.getHours() * 60 + n.getMinutes();
+    const todayRows = (st.sched.get(s.id) || []).filter((r) => r.weekday === isoDow(t0) && r.valid_from <= t0 && (!r.valid_to || r.valid_to >= t0));
+    const nb = nowBlock(s, todayRows, nowMin);
+    const autoOut = !!nb && (sat ? !at && !(a && !a.paused_at) : !a);
     const satOn = sat && !autoOut && !!at && (at.kind === '등원' || at.kind === '복귀');
     const on = sat ? satOn : a && !a.paused_at;
-    // 토요일 외출(주황): 어디(학원명 · 식사 · 기타) + 복귀 예정
-    const out = sat && !on && (autoOut || at?.kind === '외출') ? outInfo(s, autoOut ? null : at, todayRows, n.getHours() * 60 + n.getMinutes()) : null;
+    // 외출(주황): 어디(학원명 · 학교 · 식사 · 기타) + 복귀 예정
+    const out = !on && (autoOut || (sat && at?.kind === '외출')) ? outInfo(s, autoOut ? null : at, todayRows, nowMin) : null;
     return `<button type="button" class="pa-kid${on ? ' on' : ''}${out ? ' out' : ''}${students[st.cur] === s ? ' cur' : ''}" data-k="${students.indexOf(s)}">
       <div class="pa-kid-h"><b>${esc(s.name)}</b><span>${esc(s.grade || '')}</span></div>
       <div class="pa-st"><i></i>${on ? (a && !a.paused_at ? `${esc(a.subject)} 몰입 중` : '몰입 중') : out ? `외출 · ${esc(out.name)}` : sat ? (at?.kind === '하원' ? '하원' : '몰입 중 아님') : a ? '잠시 휴식 중' : '몰입 중 아님'}</div>

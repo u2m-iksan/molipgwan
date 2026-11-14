@@ -31,63 +31,106 @@ export function openReportViewer(r, student, title = '') {
 
   const scroll = v.querySelector('.rvw-scroll'), sizer = v.querySelector('.rvw-sizer'), page = v.querySelector('.rvw-page'), pct = v.querySelector('.rvw-pct');
   const PAD = 16;
-  let s = 1, fitS = 1;
+  let s = 1, fitS = 1, m = 0;          // m = 화면보다 작을 때 가운데 정렬용 왼쪽 여백
   const H = () => page.offsetHeight;
-  function apply(next, fx, fy) {
-    // fx, fy: 화면(스크롤 상자) 안의 기준점 → 확대 후에도 같은 자리에 오게
-    const rect = scroll.getBoundingClientRect();
-    const px = fx ?? rect.width / 2, py = fy ?? 0;
-    const cx = (scroll.scrollLeft + px - PAD) / s, cy = (scroll.scrollTop + py - PAD) / s;
+  // 화면 좌표(스크롤 상자 기준) ↔ 보고서 원본 좌표
+  const toContent = (px, py) => ({ x: (scroll.scrollLeft + px - PAD - m) / s, y: (scroll.scrollTop + py - PAD) / s });
+  function layout(next) {
     s = clamp(next);
     page.style.transform = `scale(${s})`;
     const w = A4_W * s, h = H() * s;
     sizer.style.width = `${w + PAD * 2}px`; sizer.style.height = `${h + PAD * 2}px`;
-    // 화면보다 작으면 가운데
-    sizer.style.marginLeft = w + PAD * 2 < scroll.clientWidth ? `${(scroll.clientWidth - w - PAD * 2) / 2}px` : '0';
-    scroll.scrollLeft = cx * s + PAD - px; scroll.scrollTop = cy * s + PAD - py;
+    m = w + PAD * 2 < scroll.clientWidth ? (scroll.clientWidth - w - PAD * 2) / 2 : 0;
+    sizer.style.marginLeft = `${m}px`;
     pct.textContent = `${Math.round(s * 100)}%`;
   }
-  const fit = () => { fitS = clamp((scroll.clientWidth - PAD * 2) / A4_W); apply(fitS); scroll.scrollTop = 0; scroll.scrollLeft = 0; };
+  // 보고서의 점 c 가 화면의 (px, py) 에 오도록 확대 + 스크롤 (가운데 정렬 여백까지 계산해 튀지 않음)
+  function zoomAt(next, c, px, py) {
+    layout(next);
+    scroll.scrollLeft = c.x * s + PAD + m - px;
+    scroll.scrollTop = c.y * s + PAD - py;
+  }
+  function apply(next, fx, fy) {
+    const rect = scroll.getBoundingClientRect();
+    const px = fx ?? rect.width / 2, py = fy ?? 0;
+    zoomAt(next, toContent(px, py), px, py);
+  }
+  const fit = () => { fitS = clamp((scroll.clientWidth - PAD * 2) / A4_W); layout(fitS); scroll.scrollTop = 0; scroll.scrollLeft = 0; };
   requestAnimationFrame(() => { fit(); v.classList.add('open'); });
   const ro = new ResizeObserver(() => { if (Math.abs(s - fitS) < 0.001) fit(); });
   ro.observe(scroll);
+
+  // 버튼 확대·축소는 부드럽게 (0.18초 동안 나눠서)
+  let anim = 0;
+  function smoothTo(target, fx, fy) {
+    cancelAnimationFrame(anim);
+    const rect = scroll.getBoundingClientRect();
+    const px = fx ?? rect.width / 2, py = fy ?? rect.height / 2;
+    const c = toContent(px, py), s0 = s, s1 = clamp(target), t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 180), e = 1 - Math.pow(1 - k, 3);
+      zoomAt(s0 + (s1 - s0) * e, c, px, py);
+      if (k < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  }
 
   v.querySelector('.rvw-tools').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.new != null) return openTab(r, student, name);
     const z = b.dataset.z;
-    if (z === 'fit') return fit();
-    apply(z === '+' ? s * 1.25 : s / 1.25);
+    if (z === 'fit') { cancelAnimationFrame(anim); return fit(); }
+    smoothTo(z === '+' ? s * 1.25 : s / 1.25);
   });
-  // Ctrl/⌘ + 휠 (트랙패드 핀치 포함)
+  // Ctrl/⌘ + 휠 (트랙패드 핀치 포함) — 한 번에 너무 크게 안 튀게 제한 + 프레임마다 한 번만
+  let wheelQ = null;
   scroll.addEventListener('wheel', (e) => {
     if (!e.ctrlKey && !e.metaKey) return;
     e.preventDefault();
-    const rect = scroll.getBoundingClientRect();
-    apply(s * Math.exp(-e.deltaY * 0.01), e.clientX - rect.left, e.clientY - rect.top);
+    cancelAnimationFrame(anim);
+    const rect = scroll.getBoundingClientRect(), d = Math.max(-40, Math.min(40, e.deltaY));
+    if (!wheelQ) {
+      wheelQ = { k: 1, px: e.clientX - rect.left, py: e.clientY - rect.top };
+      requestAnimationFrame(() => { const q = wheelQ; wheelQ = null; apply(s * q.k, q.px, q.py); });
+    }
+    wheelQ.k *= Math.exp(-d * 0.01);
   }, { passive: false });
-  // 두 손가락 확대/축소
-  let pinch = null;
+
+  // 두 손가락: 시작할 때 손가락 사이 보고서 지점을 기억 → 손가락이 움직여도 그 지점이 손가락 사이에 그대로 (확대+이동 같이)
+  let pinch = null, pinchEnd = 0, raf = 0, pend = null;
+  const mid = (t, rect) => ({ x: (t[0].clientX + t[1].clientX) / 2 - rect.left, y: (t[0].clientY + t[1].clientY) / 2 - rect.top });
   const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
   scroll.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 2) return;
-    const rect = scroll.getBoundingClientRect();
-    pinch = { d: dist(e.touches), s, x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left, y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top };
+    cancelAnimationFrame(anim);
+    const rect = scroll.getBoundingClientRect(), p0 = mid(e.touches, rect);
+    pinch = { d: Math.max(10, dist(e.touches)), s, c: toContent(p0.x, p0.y) };
   }, { passive: true });
   scroll.addEventListener('touchmove', (e) => {
     if (!pinch || e.touches.length !== 2) return;
     e.preventDefault();
-    apply(pinch.s * (dist(e.touches) / pinch.d), pinch.x, pinch.y);
+    const rect = scroll.getBoundingClientRect(), p = mid(e.touches, rect);
+    pend = { s: pinch.s * (dist(e.touches) / pinch.d), x: p.x, y: p.y };
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (pend && pinch) zoomAt(pend.s, pinch.c, pend.x, pend.y); });
   }, { passive: false });
-  scroll.addEventListener('touchend', (e) => { if (e.touches.length < 2) pinch = null; });
-  // 두 번 탭: 맞춤 ↔ 2배
-  let lastTap = 0;
   scroll.addEventListener('touchend', (e) => {
-    if (e.touches.length || e.changedTouches.length !== 1) return;
-    const now = Date.now();
-    if (now - lastTap < 280) {
-      const rect = scroll.getBoundingClientRect(), t = e.changedTouches[0];
-      if (s > fitS * 1.2) fit(); else apply(fitS * 2, t.clientX - rect.left, t.clientY - rect.top);
+    if (pinch && e.touches.length < 2) { pinch = null; pinchEnd = Date.now(); }
+  });
+
+  // 두 번 탭: 맞춤 ↔ 2배 (한 손가락 · 거의 안 움직인 탭만 · 두 손가락 확대 직후는 무시 → 튕김 방지)
+  let lastTap = 0, tapStart = null;
+  scroll.addEventListener('touchstart', (e) => {
+    tapStart = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
+  }, { passive: true });
+  scroll.addEventListener('touchend', (e) => {
+    if (e.touches.length || e.changedTouches.length !== 1 || !tapStart) return;
+    const t = e.changedTouches[0], now = Date.now();
+    const moved = Math.hypot(t.clientX - tapStart.x, t.clientY - tapStart.y) > 10 || now - tapStart.t > 250;
+    tapStart = null;
+    if (moved || now - pinchEnd < 400) { lastTap = 0; return; }
+    if (now - lastTap < 300) {
+      const rect = scroll.getBoundingClientRect();
+      if (s > fitS * 1.2) { cancelAnimationFrame(anim); fit(); } else smoothTo(fitS * 2, t.clientX - rect.left, t.clientY - rect.top);
       lastTap = 0;
     } else lastTap = now;
   });
@@ -96,15 +139,15 @@ export function openReportViewer(r, student, title = '') {
   let closed = false;
   function close(fromPop) {
     if (closed) return; closed = true;
-    ro.disconnect(); removeEventListener('keydown', onKey); removeEventListener('popstate', onPop);
+    ro.disconnect(); cancelAnimationFrame(anim); removeEventListener('keydown', onKey); removeEventListener('popstate', onPop);
     if (!fromPop && history.state?.rvw) history.back();
     v.classList.remove('open');
     setTimeout(() => { v.remove(); if (!document.querySelector('.rvw')) document.documentElement.classList.remove('rvw-lock'); }, 260);
   }
   const onKey = (e) => {
     if (e.key === 'Escape') close();
-    if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); apply(s * 1.25); }
-    if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); apply(s / 1.25); }
+    if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) { e.preventDefault(); smoothTo(s * 1.25); }
+    if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); smoothTo(s / 1.25); }
     if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); fit(); }
   };
   const onPop = () => close(true);

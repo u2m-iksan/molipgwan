@@ -1040,3 +1040,6 @@ button:disabled{cursor:default}
 .pa-kids2 .pa-kid{border:2px solid #D5DAE0!important;background:#fff!important}
 .pa-kids2 .pa-kid.on{border-color:#3DBE72!important}
 .pa-kids2 .pa-kid.out{border-color:#F59E2B!important}
+/* 학부모 자녀 카드: 세로 여백 줄임 */
+.pa-kids2 .pa-kid{padding:12px 14px;gap:5px}
+.pa-kids2 .pa-back{margin-top:0}

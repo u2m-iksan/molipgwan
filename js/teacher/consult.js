@@ -670,9 +670,10 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       clearTimeout(aTimer);
       const c = collect();
       if (!c.summary && !c.subject_feedback.length && !r.is_absent) { toast('피드백이나 총평을 입력하세요', 'bad'); return ($('#rp-err', pane).textContent = '피드백이나 총평을 입력하세요.'); }
-      e.currentTarget.disabled = true;
+      const btn = e.currentTarget;   // await 뒤에는 e.currentTarget 이 비어 있음
+      btn.disabled = true;
       const ok = await persist();
-      e.currentTarget.disabled = false;
+      btn.disabled = false;
       if (ok) { ss.saved(); showTab('s'); }
     });
     // 다른 단계로 갈 때 작성 중인 내용 저장 (공개 전만 — 공개 후에는 직접 저장)

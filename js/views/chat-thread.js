@@ -144,17 +144,19 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
     $('#cm-edit', w).addEventListener('click', () => { show('cm-ed'); const t = $('#cm-text', w); t.focus(); t.setSelectionRange(t.value.length, t.value.length); });
     $('#cm-del', w).addEventListener('click', () => show('cm-cf'));
     $('#cm-save', w).addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
       const v = $('#cm-text', w).value.trim();
       if (!v) return ($('#cm-err', w).textContent = '내용을 입력하세요.');
       if (v === m.body) return w.close();
-      e.currentTarget.disabled = true;
+      btn.disabled = true;
       try { await editMessage(m.id, v); w.close(); toast('수정했습니다'); await after(); }
-      catch (x) { e.currentTarget.disabled = false; $('#cm-err', w).textContent = '수정 실패: ' + x.message; }
+      catch (x) { btn.disabled = false; $('#cm-err', w).textContent = '수정 실패: ' + x.message; }
     });
     $('#cm-yes', w).addEventListener('click', async (e) => {
-      e.currentTarget.disabled = true;
+      const btn = e.currentTarget;
+      btn.disabled = true;
       try { await deleteMessage(m.id); w.close(); toast('삭제했습니다'); await after(); }
-      catch (x) { e.currentTarget.disabled = false; $('#cm-err2', w).textContent = '삭제 실패: ' + x.message; }
+      catch (x) { btn.disabled = false; $('#cm-err2', w).textContent = '삭제 실패: ' + x.message; }
     });
   }
   function openRepMenu(r) {
@@ -165,9 +167,10 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
       <div class="ct-menu-acts"><button type="button" class="btn btn-gray" data-close>취소</button>
         <button type="button" class="btn btn-danger" id="cm-yes">채팅에서 삭제</button></div>`);
     $('#cm-yes', w).addEventListener('click', async (e) => {
-      e.currentTarget.disabled = true;
+      const btn = e.currentTarget;
+      btn.disabled = true;
       try { await unpublishReport(r.id); w.close(); toast('채팅에서 내렸습니다'); await after(); }
-      catch (x) { e.currentTarget.disabled = false; $('#cm-err', w).textContent = '실패: ' + x.message; }
+      catch (x) { btn.disabled = false; $('#cm-err', w).textContent = '실패: ' + x.message; }
     });
   }
 

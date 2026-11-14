@@ -1,12 +1,14 @@
 // 채팅방 (학부모 앱 · 선생님 채팅 탭 공용)
 //  내 말풍선 오른쪽 / 상대 왼쪽 · 보고서는 썸네일 말풍선(누르면 크게) · 날짜 구분선
 //  읽음: 내 메시지 옆 "1"(안 읽음) / "읽음" · 8초마다 새 메시지 확인
+//  내 말풍선 누르기 → 수정 · 삭제 (선생님은 흔적 없음, 학부모는 '수정됨' · '삭제된 메시지')
+//  선생님: 보고서 옆 ⋯ → 채팅에서 삭제(공개 취소)
 //  학부모: 학원비 등 운영 문의로 보이면 카카오 채널 안내
-import { $, $$, esc, toast } from '../ui.js';
+import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import { short } from '../date.js';
 import { mountReport, BADGES, BADGE_ORDER, badgesOf } from './report-card.js';
 import { openReportViewer } from './report-viewer.js';
-import { loadThread, sendMessage, markRead, markReportRead, isOpsQuestion, KEEP_DAYS } from '../data/chat.js';
+import { loadThread, sendMessage, markRead, markReportRead, isOpsQuestion, KEEP_DAYS, editMessage, deleteMessage, unpublishReport } from '../data/chat.js';
 
 const SEND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg>';
 const kst = (iso) => new Date(new Date(iso).getTime() + 9 * 3600e3).toISOString();
@@ -50,16 +52,19 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
                 <div class="msg-thumb"><div class="msg-thumb-in"></div></div>
                 <span class="ct-rep-go">보고서 보기 ›</span>
               </button>
-              ${mine ? '' : `<span class="ct-meta">${!r.read_at ? '<em class="new">N</em>' : ''}<time>${timeOf(it.at)}</time></span>`}</div></div></div>`;
+              ${mine ? '' : `<span class="ct-meta">${!r.read_at ? '<em class="new">N</em>' : ''}<time>${timeOf(it.at)}</time></span>`}</div>
+            ${mine ? `<button type="button" class="ct-more" data-rm="${i}" aria-label="보고서 메뉴">⋯</button>` : ''}</div></div>`;
       }
       const m = it.m, mine = m.sender === me;
       const who = m.sender === 'teacher' ? (m.author ? `${esc(m.author)} 선생님` : '선생님') : '학부모';
       return `${sep}<div class="ct-row ${mine ? 'mine' : ''}${m.pending ? ' pending' : ''}" data-id="${m.pending ? 'tmp' : `m${esc(m.id)}`}">
         ${mine ? '' : `<div class="ct-av ${m.sender === 'parent' ? 'par' : ''}">${m.sender === 'parent' ? '부모' : 'U2M'}</div>`}
         <div class="ct-col">${mine ? '' : `<span class="ct-from">${who}</span>`}
-          <div class="ct-b-wrap">${mine ? `<span class="ct-meta">${m.read_at ? '<em class="rd">읽음</em>' : '<em class="ur">1</em>'}<time>${timeOf(m.created_at)}</time></span>` : ''}
-            <div class="ct-b">${esc(m.body)}</div>
-            ${mine ? '' : `<span class="ct-meta"><time>${timeOf(m.created_at)}</time></span>`}</div></div></div>`;
+          <div class="ct-b-wrap">${mine ? `<span class="ct-meta">${m.deleted_at ? '' : m.read_at ? '<em class="rd">읽음</em>' : '<em class="ur">1</em>'}${m.edited_at && !m.deleted_at ? '<em class="ed">수정됨</em>' : ''}<time>${timeOf(m.created_at)}</time></span>` : ''}
+            ${m.deleted_at ? `<div class="ct-b del">삭제된 메시지입니다.</div>`
+              : mine && !m.pending ? `<button type="button" class="ct-b ct-b-btn" data-m="${i}" aria-label="메시지 수정 · 삭제">${esc(m.body)}</button>`
+              : `<div class="ct-b">${esc(m.body)}</div>`}
+            ${mine ? '' : `<span class="ct-meta">${m.edited_at && !m.deleted_at ? '<em class="ed">수정됨</em>' : ''}<time>${timeOf(m.created_at)}</time></span>`}</div></div></div>`;
     }).join('');
     $$('.ct-rep', list).forEach((b) => {
       const r = items[Number(b.dataset.r)].r;
@@ -69,6 +74,8 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
         if (me === 'parent' && !r.read_at) { r.read_at = new Date().toISOString(); markReportRead(r.id).then(() => onActivity?.()).catch(() => {}); draw(); }
       });
     });
+    $$('[data-m]', list).forEach((b) => b.addEventListener('click', () => openMsgMenu(items[Number(b.dataset.m)].m)));
+    $$('[data-rm]', list).forEach((b) => b.addEventListener('click', () => openRepMenu(items[Number(b.dataset.rm)].r)));
     // 새 말풍선만 등장 애니메이션 (처음 그릴 때 · 다시 그릴 때 기존 것은 그대로)
     const rows = $$('.ct-row', list);
     if (seen) rows.forEach((row) => { if (!seen.has(row.dataset.id) && !(row.dataset.id !== 'tmp' && seen.has('tmp') && row.classList.contains('mine'))) row.classList.add('ct-new'); });
@@ -100,10 +107,68 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
           onActivity?.();
         }
       }
-      const s = JSON.stringify(next.map((x) => [x.type, x.m?.id || x.r?.id, x.m?.read_at || x.r?.read_at]));
+      const s = JSON.stringify(next.map((x) => [x.type, x.m?.id || x.r?.id, x.m?.read_at || x.r?.read_at, x.m?.body, x.m?.edited_at, x.m?.deleted_at]));
       if (s === sig && !first) return;
       sig = s; items = next; draw(first || keep);
     } catch (e) { if (first) list.innerHTML = `<div class="ct-empty">불러오기 실패: ${esc(e.message)}</div>`; }
+  }
+
+  /* ---------- 내 메시지 수정 · 삭제 ---------- */
+  function menuSheet(title, bodyHtml) {
+    return sheet(`<div class="modal modal-s ct-menu" role="dialog" aria-label="${esc(title)}">
+      <div class="drawer-head"><h3>${esc(title)}</h3><button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
+      <div class="drawer-body">${bodyHtml}</div></div>`, 'center');
+  }
+  const after = async () => { sig = ''; await refresh(); onActivity?.(); };
+  function openMsgMenu(m) {
+    const note = me === 'parent' ? '수정하면 \'수정됨\', 삭제하면 \'삭제된 메시지입니다\'로 표시됩니다.' : '수정 · 삭제해도 기록이 남지 않습니다.';
+    const w = menuSheet('내 메시지', `
+      <div class="ct-menu-view" id="cm-main">
+        <p class="ct-menu-quote">${esc(m.body)}</p>
+        <div class="ct-menu-acts">
+          <button type="button" class="btn btn-gray" id="cm-edit">수정</button>
+          <button type="button" class="btn btn-danger-soft" id="cm-del">삭제</button></div>
+        <p class="hint">${note}</p></div>
+      <div class="ct-menu-view" id="cm-ed" hidden>
+        <textarea class="textarea" id="cm-text" rows="4" maxlength="1000">${esc(m.body)}</textarea>
+        <p class="err" id="cm-err" role="alert"></p>
+        <div class="ct-menu-acts"><button type="button" class="btn btn-gray" data-close>취소</button>
+          <button type="button" class="btn btn-primary" id="cm-save">저장</button></div></div>
+      <div class="ct-menu-view" id="cm-cf" hidden>
+        <p class="ct-menu-ask">이 메시지를 삭제할까요?</p>
+        <p class="hint">${me === 'parent' ? '대화방에는 \'삭제된 메시지입니다\'로 남습니다.' : '상대 화면에서도 완전히 사라집니다.'}</p>
+        <p class="err" id="cm-err2" role="alert"></p>
+        <div class="ct-menu-acts"><button type="button" class="btn btn-gray" data-close>취소</button>
+          <button type="button" class="btn btn-danger" id="cm-yes">삭제</button></div></div>`);
+    const show = (id) => $$('.ct-menu-view', w).forEach((v) => { v.hidden = v.id !== id; });
+    $('#cm-edit', w).addEventListener('click', () => { show('cm-ed'); const t = $('#cm-text', w); t.focus(); t.setSelectionRange(t.value.length, t.value.length); });
+    $('#cm-del', w).addEventListener('click', () => show('cm-cf'));
+    $('#cm-save', w).addEventListener('click', async (e) => {
+      const v = $('#cm-text', w).value.trim();
+      if (!v) return ($('#cm-err', w).textContent = '내용을 입력하세요.');
+      if (v === m.body) return w.close();
+      e.currentTarget.disabled = true;
+      try { await editMessage(m.id, v); w.close(); toast('수정했습니다'); await after(); }
+      catch (x) { e.currentTarget.disabled = false; $('#cm-err', w).textContent = '수정 실패: ' + x.message; }
+    });
+    $('#cm-yes', w).addEventListener('click', async (e) => {
+      e.currentTarget.disabled = true;
+      try { await deleteMessage(m.id); w.close(); toast('삭제했습니다'); await after(); }
+      catch (x) { e.currentTarget.disabled = false; $('#cm-err2', w).textContent = '삭제 실패: ' + x.message; }
+    });
+  }
+  function openRepMenu(r) {
+    const w = menuSheet('보고서', `
+      <p class="ct-menu-ask">채팅에서 이 보고서를 내릴까요?</p>
+      <p class="hint">학부모 화면에서 사라집니다. 보고서 내용은 코칭 기록에 그대로 남아 있어, 상담 화면이나 학부모 안내 탭에서 다시 공개할 수 있습니다.</p>
+      <p class="err" id="cm-err" role="alert"></p>
+      <div class="ct-menu-acts"><button type="button" class="btn btn-gray" data-close>취소</button>
+        <button type="button" class="btn btn-danger" id="cm-yes">채팅에서 삭제</button></div>`);
+    $('#cm-yes', w).addEventListener('click', async (e) => {
+      e.currentTarget.disabled = true;
+      try { await unpublishReport(r.id); w.close(); toast('채팅에서 내렸습니다'); await after(); }
+      catch (x) { e.currentTarget.disabled = false; $('#cm-err', w).textContent = '실패: ' + x.message; }
+    });
   }
 
   const fit = () => { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; };

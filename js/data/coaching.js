@@ -17,6 +17,10 @@ export async function loadWeekCoachings(base = today()) {
   const mon = mondayOf(base);
   const rows = check(await sb.from('coachings').select('id,student_id,scheduled_on,held_on,kind')
     .gte('scheduled_on', mon).lte('scheduled_on', addDays(mon, 6)));
+  // 2단계(보고 작성)까지 끝났는지: 피드백·총평이 있거나 공개됨
+  const reps = rows.length ? check(await sb.from('reports').select('coaching_id,summary,subject_feedback,published_at').in('coaching_id', rows.map((r) => r.id))) : [];
+  const byC = new Map(reps.map((x) => [x.coaching_id, x]));
+  for (const r of rows) { const x = byC.get(r.id); r.reported = !!(x && (x.summary || (x.subject_feedback || []).length || x.published_at)); }
   return new Map(rows.map((r) => [r.student_id, r]));
 }
 // 진행 중인 계획: Map(studentId → plan)
@@ -38,6 +42,9 @@ export async function loadConsult(studentId, scheduled) {
 
   let prevPlan = null, newPlan = null;
   if (coaching) {
+    // 오래된 상담은 최근 6개 계획 밖에 있을 수 있으니 없으면 직접 불러옴
+    const miss = [coaching.closed_plan_id, coaching.new_plan_id].filter((id) => id && !find(id));
+    if (miss.length) plans.push(...check(await sb.from('plans').select('*').in('id', miss)));
     prevPlan = find(coaching.closed_plan_id);
     newPlan = find(coaching.new_plan_id);
   } else {
@@ -101,17 +108,44 @@ export async function saveConsult(s, me) {
   }
 
   // 2) 새 계획
+  // 학생 1명당 '마감 안 된 계획'은 1개만 가능(plans_one_open).
+  //  · 지난 상담을 다시 저장할 때: 그 상담의 새 계획은 이미 다음 상담에서 마감됐으므로 다시 열지 않음
+  //  · 다음 상담이 이미 있으면: 새로 만드는 계획도 마감 상태로 기록
+  //  · 이전 저장이 중간에 실패해 남은 계획(어느 상담에도 안 묶임)은 다시 씀
   let newPlanId = s.newPlan?.id || null;
   const due = addDays(s.scheduled, 7);
   if (!s.absent || newPlanId) {
     if (newPlanId) {
-      check(await sb.from('plans').update({ status: '확정', due_date: s.newPlan.due_date || due }).eq('id', newPlanId));
+      const cur = check(await sb.from('plans').select('status').eq('id', newPlanId).maybeSingle());
+      check(await sb.from('plans').update({
+        due_date: s.newPlan.due_date || due, ...(cur && cur.status !== '마감' ? { status: '확정' } : {}),
+      }).eq('id', newPlanId));
     } else if (s.newItems.length) {
-      const p = check(await sb.from('plans').insert({
-        student_id: sid, start_date: s.heldOn || s.scheduled, due_date: due,
-        author_role: '선생님', status: '확정', created_by: me,
-      }).select('id').single());
-      newPlanId = p.id;
+      const later = check(await sb.from('coachings').select('id').eq('student_id', sid).gt('scheduled_on', s.scheduled).limit(1));
+      const open = later.length ? [] : check(await sb.from('plans').select('id').eq('student_id', sid).neq('status', '마감'))
+        .filter((p) => p.id !== s.prevPlan?.id);
+      let orphan = null;
+      if (open.length) {
+        const used = check(await sb.from('coachings').select('id').eq('student_id', sid).eq('new_plan_id', open[0].id).limit(1));
+        if (!used.length) orphan = open[0];
+      }
+      if (orphan) {
+        check(await sb.from('plans').update({ status: '확정', due_date: due }).eq('id', orphan.id));
+        // 실패한 저장에서 들어간 같은 항목은 지우고 다시 넣음
+        const old = check(await sb.from('plan_items').select('id,subject,title').eq('plan_id', orphan.id));
+        const dup = old.filter((o) => s.newItems.some((it) => !it.id && it.subject === o.subject && it.title.trim() === o.title)).map((o) => o.id);
+        if (dup.length) check(await sb.from('plan_items').delete().in('id', dup));
+        newPlanId = orphan.id;
+      } else if (open.length) {
+        throw new Error('이 학생은 이미 진행 중인 다음 계획이 있습니다. 이행도 관리에서 확인해 주세요.');
+      } else {
+        const p = check(await sb.from('plans').insert({
+          student_id: sid, start_date: s.heldOn || s.scheduled, due_date: due,
+          author_role: '선생님', status: later.length ? '마감' : '확정', created_by: me,
+          ...(later.length ? { closed_at: new Date().toISOString() } : {}),
+        }).select('id').single());
+        newPlanId = p.id;
+      }
     }
     if (s.removedIds.length) check(await sb.from('plan_items').delete().in('id', s.removedIds));
     for (const [i, it] of s.newItems.entries()) {

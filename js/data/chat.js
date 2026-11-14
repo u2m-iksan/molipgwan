@@ -73,3 +73,17 @@ export async function loadInbox() {
 export async function countTeacherUnread() {
   return check(await sb.from('messages').select('id').eq('sender', 'parent').is('read_at', null).gte('created_at', since())).length;
 }
+
+// 메시지 수정 · 삭제 (SQL 19) — 선생님은 흔적 없이, 학부모는 '수정됨' · '삭제된 메시지' 표시
+export async function editMessage(id, body) {
+  const { error } = await sb.rpc('edit_message', { mid: id, new_body: body.trim() });
+  if (error) throw error;
+}
+export async function deleteMessage(id) {
+  const { error } = await sb.rpc('delete_message', { mid: id });
+  if (error) throw error;
+}
+// 선생님: 보고서를 채팅에서 내림 (공개 취소 · 보고서는 코칭 기록에 남아 다시 공개 가능)
+export async function unpublishReport(id) {
+  check(await sb.from('reports').update({ published_at: null, sent_at: null, read_at: null }).eq('id', id));
+}

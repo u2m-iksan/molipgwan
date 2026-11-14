@@ -25,12 +25,12 @@ const CHEV_R = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 
 const EXPAND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>';
 const STATE = {
   wait: ['상담 전', 'pill-gray'], miss: ['미상담', 'pill-red'], draft: ['작성 중', 'pill-orange'],
-  pub: ['공개 · 미전송', 'pill-blue'], sent: ['전송 완료', 'pill-green'], none: ['', ''],
+  pub: ['미전송', 'pill-blue'], sent: ['전송 완료', 'pill-green'], none: ['', ''],
 };
 const ORDER = { miss: 0, pub: 1, draft: 2, wait: 3, sent: 4, none: 5 };
 const TILES = [
   ['done', '상담 완료', (x) => !!x.c],
-  ['pub', '공개 · 미전송', (x) => x.state === 'pub'],
+  ['pub', '미전송', (x) => x.state === 'pub'],
   ['sent', '전송 완료', (x) => x.state === 'sent'],
 ];
 

@@ -597,13 +597,13 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         $('#rp-parsed', pane).innerHTML = g.feedback.length || g.summary
           ? `과목 ${n}개${g.summary ? ' · 총평' : ''} 반영${miss.length ? ` · <b>${esc(miss.join(', '))}</b>은(는) 과목이 없어 제외` : ''}` : '';
       }
-      preview(); autoSave();
+      dirty = true; preview(); autoSave();
     });
     $('#rp-badge', pane).addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       const k = b.dataset.v;
       badges = badges.includes(k) ? badges.filter((x) => x !== k) : [...badges, k];
-      paintBadges(); preview(); autoSave();
+      dirty = true; paintBadges(); preview(); autoSave();
     });
     $('#rp-copy', pane).addEventListener('click', async (e) => {
       const btn = e.currentTarget;
@@ -611,13 +611,13 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       if (await copy(text)) { flashDone(btn); toast('프롬프트를 복사했습니다'); } else toast('복사 실패');
     });
 
-    let aTimer = 0;
+    let aTimer = 0, dirty = false;
     const ss = saveState($('#rp-auto', pane));
     const persist = async (extraPatch = {}) => {
       const err = $('#rp-err', pane); err.textContent = '';
       try {
         const saved = await saveReport(st.coachingId, { ...collect(), ...extraPatch });
-        Object.assign(r, saved); paintState(); onSaved?.();
+        Object.assign(r, saved); dirty = false; paintState(); onSaved?.();
         return true;
       } catch (e) { err.textContent = '저장 실패: ' + e.message; toast('저장 실패: ' + e.message, 'bad'); console.error(e); return false; }
     };
@@ -639,7 +639,11 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       if (ok) { ss.saved(); showTab('s'); }
     });
     // 다른 단계로 갈 때 작성 중인 내용 저장 (공개 전만 — 공개 후에는 직접 저장)
-    st.flushReport = async () => { clearTimeout(aTimer); if (!r.published_at) await persist(); };
+    st.flushReport = async () => {
+      clearTimeout(aTimer);
+      if (!r.published_at) await persist();
+      else if (dirty) toast('공개된 보고는 [저장]을 눌러야 학부모 화면에 반영돼요', 'bad');
+    };
   }
 
 }

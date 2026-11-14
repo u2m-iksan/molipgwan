@@ -874,3 +874,46 @@ button:disabled{cursor:default}
 .cs-item>.input,.cs-item>.ac-fb{margin-top:8px}
 .cs-cols>.cs-card{display:flex;flex-direction:column}
 .cs-info{align-items:center}
+
+/* ---------- 코칭 상태: 2단계 완료 = 초록 ●, 1단계만 = 주황 ▲ ---------- */
+.stu.half{border-color:#F6D3A6;background:var(--orange-soft)}
+.stu .ok-ic{flex:none;display:inline-grid;place-items:center;width:16px;height:16px;font-size:10px;font-weight:800;line-height:1;color:#fff}
+.stu.done .ok-ic{border-radius:50%;background:var(--green)}
+.stu.half .ok-ic{background:#F08A00;clip-path:polygon(50% 4%,100% 96%,0 96%);padding-top:4px;font-size:9px;width:17px}
+.stu.absent .ok-ic{border-radius:50%;background:var(--red);color:#fff;font-size:9px}
+.co-legend{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--sub)}
+.co-legend .lg{display:inline-grid;place-items:center;width:14px;height:14px;font-size:9px;font-weight:800;color:#fff;margin-left:6px}
+.co-legend .lg:first-child{margin-left:0}
+.co-legend .lg.done{border-radius:50%;background:var(--green)}
+.co-legend .lg.half{background:#F08A00;clip-path:polygon(50% 4%,100% 96%,0 96%);padding-top:3px;font-size:8px;width:15px}
+
+/* ---------- 채팅: 내 메시지 수정 · 삭제 ---------- */
+.ct-b-btn{font:inherit;text-align:left;cursor:pointer;-webkit-touch-callout:none}
+.ct-b.del{background:transparent;border:1px dashed var(--line);color:var(--faint);font-size:14px}
+.ct-row.mine .ct-b.del{background:transparent;color:var(--faint);border-color:var(--line)}
+.ct-meta .ed{color:var(--faint);font-weight:600}
+.ct-col{position:relative}
+.ct-row.mine .ct-col{flex-direction:row;align-items:flex-end;gap:2px}
+.ct-row.mine .ct-col>.ct-b-wrap{flex:1;justify-content:flex-end}
+.ct-more{flex:none;width:28px;height:28px;border-radius:50%;color:var(--sub);font-size:16px;font-weight:800;line-height:1;display:grid;place-items:center;align-self:center}
+.ct-more:hover{background:rgba(0,27,55,.06)}
+.ct-menu .drawer-body{display:flex;flex-direction:column;gap:12px}
+.ct-menu-view{display:flex;flex-direction:column;gap:12px}
+.ct-menu-quote{padding:12px 14px;border-radius:12px;background:var(--field-bg);font-size:14.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:30vh;overflow:auto}
+.ct-menu-ask{font-size:16px;font-weight:700}
+.ct-menu-acts{display:flex;gap:8px}
+.ct-menu-acts .btn{flex:1}
+.btn-danger-soft{background:var(--red-soft);color:var(--red)}
+
+/* ---------- 이행도 관리: 코칭 요일별 묶음 · 확인 필요 = 빨간 테두리 ---------- */
+.pl-list{display:flex;flex-direction:column;gap:28px}
+.pl-day-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:12px;align-items:start}
+.pl-day-h{display:flex;align-items:center;gap:6px;margin:0 2px 12px;font-size:17px;font-weight:800}
+.pl-day-n{margin-left:auto;font-size:13px;font-weight:600;color:var(--sub)}
+.pl-day-n b{color:var(--red);font-weight:700}
+.pl-card{border:1.5px solid var(--line)}
+.pl-card.over{box-shadow:none}
+.pl-card.red{border-color:#F2B8BE}
+.pl-card.none.red{background:#fff}
+.pl-card.red:hover{border-color:#EA8F98}
+@media (max-width:820px){.pl-day-list{grid-template-columns:1fr}.pl-list{gap:22px}}

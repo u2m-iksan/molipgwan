@@ -69,10 +69,11 @@ export async function renderCoaching(body) {
   const chip = (s, slot, big = false) => {
     const c = slot && conflict(s.id, slot);
     const dn = st.done.get(s.id);
-    const state = dn ? (dn.kind === '결석' ? ' absent' : ' done') : '';
+    // 결석 · 2단계까지 완료(초록 ●) · 1단계만(주황 ▲)
+    const state = dn ? (dn.kind === '결석' ? ' absent' : dn.reported ? ' done' : ' half') : '';
     return `<button type="button" class="stu${big ? ' big' : ''}${c ? ' warn' : ''}${state}" data-sid="${esc(s.id)}"
       title="${esc(`${s.name} ${s.grade}`)}${c ? esc(` · ${c.title} ${hm(c.start_time)}~${hm(c.end_time)}와 겹침`) : ''}">
-      ${dn ? `<span class="ok-ic">${dn.kind === '결석' ? '결' : '✓'}</span>` : ''}${s.seat_no ? `<i>${esc(s.seat_no)}</i>` : ''}<span class="nm">${esc(s.name)}</span><small>${esc(s.grade)}</small></button>`;
+      ${dn ? `<span class="ok-ic" aria-label="${dn.kind === '결석' ? '결석' : dn.reported ? '상담 완료' : '1단계만 저장'}">${dn.kind === '결석' ? '결' : dn.reported ? '✓' : '!'}</span>` : ''}${s.seat_no ? `<i>${esc(s.seat_no)}</i>` : ''}<span class="nm">${esc(s.name)}</span><small>${esc(s.grade)}</small></button>`;
   };
 
   /* ---------- 이전 · 현재 · 다음 타임 ---------- */
@@ -149,9 +150,11 @@ export async function renderCoaching(body) {
       const sl = st.slots.get(s.id);
       return sl && onDay(sl.weekday) < td0 && !st.done.has(s.id);
     });
-    const doneN = st.students.filter((s) => st.done.has(s.id)).length;
+    const doneN = st.students.filter((s) => st.done.has(s.id) && (st.done.get(s.id).reported || st.done.get(s.id).kind === '결석')).length;
+    const halfN = st.students.filter((s) => st.done.has(s.id) && !st.done.get(s.id).reported && st.done.get(s.id).kind !== '결석').length;
     $('#side').innerHTML = `
-      <div class="side-sec"><h4>${isNow() ? '이번 주' : weekName(st.mon)} 상담</h4><p class="big">${doneN}<span> / ${st.students.length - none.length}명</span></p></div>
+      <div class="side-sec"><h4>${isNow() ? '이번 주' : weekName(st.mon)} 상담</h4><p class="big">${doneN}<span> / ${st.students.length - none.length}명</span></p>
+        <p class="co-legend"><span class="lg done">✓</span>완료 ${doneN}<span class="lg half">!</span>보고 작성 전 ${halfN}</p></div>
       ${makeup.length ? `<div class="side-sec"><h4 class="red">${isNow() ? '보강 대상' : '상담 안 함'} ${makeup.length}</h4>
         <p class="sub-s">${isNow() ? '토요일까지 상담하지 않으면 결석 처리합니다.' : '이름을 누르면 그 주 상담을 열 수 있습니다.'}</p>
         <div class="stu-list">${makeup.map((s) => { const sl = st.slots.get(s.id); const p = st.open.get(s.id);

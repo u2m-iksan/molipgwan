@@ -1210,3 +1210,5 @@ body.is-preview .push-gate{display:none!important}
 .sp-opt:hover,.sp-opt.on{background:var(--surface)}
 .sp-add b{color:var(--blue,#3182F6)}
 .sp-none{padding:12px;font-size:13px;color:var(--sub)}
+.sync-sum{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px;color:var(--sub)}
+.sync-sum b{color:var(--text)}

@@ -193,7 +193,7 @@ export async function renderSettings(body, { me } = {}) {
 
   /* ---------- 학교별 학사일정 ---------- */
   //  학교 = 재원생 학교 이름 그대로 · 여러 학교 한 번에 추가 가능
-  const cal = { schools: [], kind: '방학' };
+  const cal = { schools: [], kind: '방학', all: false };
   async function drawCal() {
     const el = $('#s-cal'); if (!el) return;
     let stu = [], evs = [];
@@ -203,21 +203,25 @@ export async function renderSettings(body, { me } = {}) {
     const t = today();
     const count = new Map();
     for (const s of stu.filter((x) => x.status === '재원' && x.school)) count.set(s.school, (count.get(s.school) || 0) + 1);
-    for (const e of evs) if (!count.has(e.school)) count.set(e.school, 0);
+    // 기본은 학생 학교 + 직접 추가 · 직접 입력한 일정이 있는 학교만, [모든 학교]를 켜면 학사일정 앱 학교 전부
+    for (const e of evs) if (!count.has(e.school) && e.source !== 'sync') count.set(e.school, 0);
     for (const c of sync?.custom || []) if (!count.has(c)) count.set(c, 0);   // 직접 추가한 학교 (학사일정 직접 입력)
-    const schools = [...count.keys()].sort((a, b) => a.localeCompare(b, 'ko'));
+    const others = [...new Set(evs.filter((e) => !count.has(e.school)).map((e) => e.school))];
+    if (cal.all) others.forEach((x) => count.set(x, 0));
+    const schools = [...count.keys()].sort((a, b) => (count.get(b) > 0) - (count.get(a) > 0) || a.localeCompare(b, 'ko'));
     const md = (d) => short(d).replace(/\(.\)/, '');
     const dday = (e) => (e.end_date < t ? '' : e.start_date <= t ? '<em class="cal-now">진행 중</em>'
       : `<em>D-${Math.round((new Date(e.start_date) - new Date(t)) / 86400000)}</em>`);
     const ago = (iso) => { const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 1 ? '방금' : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.round(m / 60)}시간 전` : `${Math.round(m / 1440)}일 전`; };
     const syncBox = !sync ? '' : `<div class="sync">
       <div class="sync-top"><div class="sync-t"><b>학사일정 앱에서 가져오기</b>
-        <span>시험 · 방학만 · 하루 한 번 자동 · ${sync.last ? `마지막 ${ago(sync.last)}` : '아직 안 가져옴'}</span></div>
+        <span>방학만 · 하루 한 번 자동 · ${sync.last ? `마지막 ${ago(sync.last)}` : '아직 안 가져옴'}</span></div>
         <button type="button" class="btn btn-primary btn-sm" id="sy-run">지금 가져오기</button></div>
       <div class="sync-opt"><span class="lbl">방학 기준</span>
         <div class="seg" id="sy-vac"><button type="button" data-v="neis" class="${sync.vac !== 'est' ? 'on' : ''}">나이스 등록</button><button type="button" data-v="est" class="${sync.vac === 'est' ? 'on' : ''}">추정치</button></div>
         <span class="sub-s">방학 확정이 있으면 확정이 먼저예요</span></div>
-      ${sync.result?.length ? `<ul class="sync-res">${sync.result.map((r) => `<li class="${r.error ? 'bad' : ''}"><b>${esc(r.school)}</b><span>${r.error ? esc(r.error) : `시험 ${r.exams} · 방학 ${r.vac}`}</span></li>`).join('')}</ul>` : ''}
+      ${sync.result?.length ? `<p class="sync-sum">학교 <b>${sync.result.length}</b>곳 · 방학 <b>${sync.result.reduce((a, r) => a + (r.vac || 0), 0)}</b>개
+        ${others.length || cal.all ? `<button type="button" class="link-s" id="sy-all">${cal.all ? '학생 학교만 보기' : `모든 학교 보기 (+${others.length})`}</button>` : ''}</p>` : ''}
     </div>`;
     el.innerHTML = `<div class="set-h"><h3>학교별 학사일정</h3><span>방학 · 시험 · 휴업</span></div>
       ${syncBox}
@@ -250,6 +254,7 @@ export async function renderSettings(body, { me } = {}) {
       drawCal();
     };
     $('#sy-run', el)?.addEventListener('click', (e) => doSync(e.currentTarget));
+    $('#sy-all', el)?.addEventListener('click', () => { cal.all = !cal.all; drawCal(); });
     $('#sy-vac', el)?.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-v]'); if (!b || b.classList.contains('on')) return;
       $$('#sy-vac button', el).forEach((x) => x.classList.toggle('on', x === b));

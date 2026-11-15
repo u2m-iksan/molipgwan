@@ -1,6 +1,6 @@
-// 학사일정 앱(익산 U2M 학원 학사일정 · Apps Script)에서 시험 · 방학 가져오기 (SQL 28)
+// 학사일정 앱(익산 U2M 학원 학사일정 · Apps Script)에서 방학 가져오기 (SQL 28) — 시험 기간은 안 가져옴
 //  · 학사일정 앱 주소?json=1 → { schools, exams, vac: { neis, est, fixed } }
-//  · 학생 정보의 학교(익산고)와 학사일정 앱의 학교(익산고등학교)를 맞춰서 학생 학교 것만
+//  · 학사일정 앱에 등록된 학교 전부 (이름은 짧게 → 학생 정보의 학교와 맞음)
 //  · 방학: 확정이 있으면 확정 → 없으면 고른 기준(나이스 등록 / 추정치) → 그것도 없으면 나머지 하나
 //  · 가져온 일정은 source = 'sync' — 다시 가져오면 이것만 지우고 새로 넣음
 import { sb } from '../sb.js';
@@ -32,18 +32,12 @@ export async function runSync() {
   if (!data) throw new Error('학사일정 앱이 아직 json 을 안 줍니다 (MolipSync 추가 · 새 버전 배포 확인)');
   if (!data.ok) throw new Error('학사일정 앱 오류: ' + (data.error || ''));
 
-  // 학생 학교
-  const { data: stu } = await sb.from('students').select('school,status').neq('status', '퇴원');
-  const mine = [...new Set((stu || []).map((s) => (s.school || '').trim()).filter(Boolean))];
-  const byKey = new Map(data.schools.map((s) => [schoolKey(s.n), s]));
-
+  // 학사일정 앱에 있는 학교 전부 (이름은 짧게: 익산고등학교 → 익산고)
   const rows = [], result = [], fixedSegs = [];
-  for (const school of mine) {
-    const sc = byKey.get(schoolKey(school));
-    if (!sc) { result.push({ school, error: '학사일정 앱에 없음 (수집 체크 확인)' }); continue; }
+  for (const sc of data.schools) {
+    const school = schoolKey(sc.n);
+    if (!school) continue;
     const of = (list) => (list || []).filter((x) => x.s === sc.c);
-    const exams = of(data.exams);
-    exams.forEach((e) => rows.push({ school, kind: '시험', title: e.t, start_date: e.a, end_date: e.b, source: 'sync' }));
     // 방학: 시즌마다 확정 → 고른 기준 → 다른 기준
     const neis = of(data.vac.neis), est = of(data.vac.est), fixed = of(data.vac.fixed);
     const seasons = [...new Set([...neis, ...est, ...fixed].map((v) => v.season))].sort();
@@ -64,12 +58,13 @@ export async function runSync() {
         rows.push({ school, kind: '방학', title: `${SEASON(sea)} · ${tag}`, start_date: v.a, end_date: v.b, source: 'sync' }); nv++;
       });
     }
-    result.push({ school, full: sc.n, exams: exams.length, vac: nv });
+    result.push({ school, full: sc.n, vac: nv });
   }
 
   const ok = result.filter((r) => !r.error).map((r) => r.school);
   if (ok.length) {
-    const del = await sb.from('school_events').delete().eq('source', 'sync').in('school', ok);
+    // 가져온 일정은 전부 새로 (예전에 가져온 시험도 같이 정리)
+    const del = await sb.from('school_events').delete().eq('source', 'sync');
     if (del.error) throw new Error(/source/.test(del.error.message) ? 'SQL 28을 먼저 실행해 주세요' : del.error.message);
     if (rows.length) check(await sb.from('school_events').insert(rows));
     // 방학 확정이 생기면: 그 기간과 겹치는 직접 입력 방학도 확정으로 정리 (지움)

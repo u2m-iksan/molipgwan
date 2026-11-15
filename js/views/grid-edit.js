@@ -9,7 +9,7 @@ import { DOW, addDays, isoDow, toMin, toTime, hm, short } from '../date.js';
 import { addOffs, removeOverride, addMakeup, logScheduleRequest } from '../data/schedules.js';
 
 let pop = null;
-const close = () => { pop?.remove(); pop = null; };
+const close = () => { const f = pop?._onClose; pop?.remove(); pop = null; f?.(); };
 addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 addEventListener('scroll', close, true);
 addEventListener('resize', close);
@@ -20,7 +20,7 @@ export function wireGridEdit(root, { rows, stu, isStudent = false, onChanged }) 
   grid.classList.add('can-edit');   // 학원 블럭만 눌림
   const md = (d) => short(d);
   const log = (action, text) => (isStudent ? logScheduleRequest(stu.id, action, text).catch(() => {}) : null);
-  const done = (msg) => { close(); toast(msg); onChanged?.(); };
+  const done = (msg) => { if (pop) pop._onClose = null; close(); toast(msg); onChanged?.(); };
   const fail = (e) => toast('저장 실패: ' + (e.message || e), 'bad');
   const academies = () => {
     const seen = new Map();
@@ -113,7 +113,18 @@ export function wireGridEdit(root, { rows, stu, isStudent = false, onChanged }) 
           try {
             const n = await addOffs(r, date, until);
             log('휴강', `${r.title} ${DOW[isoDow(date)]} 휴강 ${md(date)}${until > date ? ` ~ ${md(until)}` : ''} (${n}회)`);
-            done(n > 1 ? `${r.title} ${n}회 휴강` : `${r.title} ${md(date)} 휴강`);
+            toast(n > 1 ? `${r.title} ${n}회 휴강` : `${r.title} ${md(date)} 휴강`);
+            // 이어서 물어보기: 보강도 잡을까요? (시간표는 말풍선을 닫을 때 새로 그림)
+            p._onClose = () => onChanged?.();
+            p.querySelectorAll(':scope > :not(.gp-x)').forEach((x) => x.remove());
+            p.insertAdjacentHTML('beforeend', `<h5>${esc(r.title)} 휴강했어요</h5><p class="gp-sub">보강도 잡을까요?</p>
+              <div class="gp-ask"><button type="button" class="gp-no" id="gp-no">괜찮아요</button><button type="button" class="gp-go" id="gp-yes">보강 잡기</button></div>`);
+            p.querySelector('#gp-no').addEventListener('click', close);
+            p.querySelector('#gp-yes').addEventListener('click', () => {
+              p.querySelector('.gp-ask').outerHTML = makeupForm(r, addDays(date, 1), hm(r.start_time), hm(r.end_time));
+              p.querySelector('.gp-sub').textContent = '날짜 · 시간을 정하세요';
+              wireMakeup(p, r);
+            });
           } catch (x) { fail(x); }
         };
         p.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => doOff(addDays(date, b.dataset.w === '2' ? 7 : 0))));

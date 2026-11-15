@@ -1295,3 +1295,8 @@ body.is-preview .push-gate{display:none!important}
 .sched-term h5{padding-bottom:6px;border-bottom:1px solid var(--line)}
 .sched-term .sched-row:last-child{border-bottom:0}
 .gp .gp-note{margin:10px 0 0;font-size:12px;line-height:1.45;color:var(--sub)}
+.gp .gp-ask{display:flex;gap:6px;margin-top:4px}
+.gp .gp-ask .gp-go{margin:0;flex:1}
+.gp .gp-no{flex:1;height:36px;border-radius:10px;background:var(--surface);font-weight:700;font-size:14px;color:var(--text)}
+.gp{width:284px}
+.gp .gp-row input[type=time]{padding:0 6px;font-size:12.5px}

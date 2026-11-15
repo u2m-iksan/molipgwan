@@ -309,10 +309,8 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
       to: Math.min(DAY_END, Math.max(...sch.map((r) => toMin(r.end_time)))), ratio: 0.35,
     };
   }
-  // 주말은 학교가 없으니 아침까지 고르게 (주중만 학교 시간 접기)
-  const splitW = opt.splitWeekend ?? !!opt.squeezeSchool;
-  const W = mkScale(sq), E = splitW ? mkScale(null) : W;
-  const split = !!sq && splitW;   // 주중·주말 눈금이 다르면 주말 앞에 눈금 한 줄 더
+  const W = mkScale(sq), E = opt.splitWeekend ? mkScale(null) : W;
+  const split = !!sq && !!opt.splitWeekend;   // 주중·주말 눈금이 다르면 주말 앞에 눈금 한 줄 더
   const hours = [];
   for (let h = DAY_START / 60; h <= DAY_END / 60; h++) hours.push(h);
 
@@ -346,10 +344,8 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
       const n = it._n || 1;
       const top = S.y(toMin(it.start_time)), h = Math.max(16, S.y(toMin(it.end_time)) - top);
       const off = offAt(it), thin = h < 40;
-      // 겹칠 때: 휴강(아래) 왼쪽 80% · 새 일정(위) 오른쪽 80% · 안 겹치면 그대로
-      const geo = it._stack === 'under' ? 'left:2px;width:calc(80% - 4px)'
-        : it._stack === 'over' ? `left:calc(20% + ${(it._lane / n) * 80}% + 2px);width:calc(${80 / n}% - 4px)`
-        : `left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)`;
+      // 겹칠 때: 휴강은 제자리에서 같은 비율로 80% 축소(가운데) + 흐리게, 겹친 일정은 원래 자리 그대로 그 위에
+      const geo = `left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)`;
       return `<div class="blk blk-${it.category}${it.valid_to && !(it.makeup && it.category === '학원') ? ' temp' : ''}${thin ? ' thin' : ''}${off ? ' off' : ''}${it._stack ? ' st-' + it._stack : ''}${it.makeup && it.category === '학원' ? ' mk' : ''}" data-sid="${esc(String(it.id))}" data-date="${date}" style="top:${top}px;height:${h - 2}px;${geo}"
         title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">
         ${(() => { const tag = off ? '<em class="blk-tag">휴강</em>' : it.makeup && it.category === '학원' ? '<em class="blk-tag">보강</em>' : ''; const name = esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title);

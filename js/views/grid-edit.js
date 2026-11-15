@@ -10,10 +10,20 @@ import { addOffs, removeOverride, addMakeup, logScheduleRequest } from '../data/
 
 let pop = null;
 const close = () => { const f = pop?._onClose; pop?.remove(); pop = null; f?.(); };
-addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
-addEventListener('scroll', close, true);
-addEventListener('resize', close);
-document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !e.target.closest('.wk-grid.can-edit')) close(); });
+// 말풍선은 ✕(또는 끝내는 버튼)로만 닫힘 — 잘못 끌거나 바깥을 눌러도 그대로. 스크롤하면 블럭을 따라감
+const place = () => {
+  if (!pop) return;
+  if (pop._anchor && !document.body.contains(pop._anchor)) return close();
+  const a = pop._anchor ? pop._anchor.getBoundingClientRect() : pop._rect, w = pop.offsetWidth, h = pop.offsetHeight;
+  let x = a.right + 8, y = a.top;
+  if (x + w > innerWidth - 8) x = a.left - w - 8;
+  if (x < 8) x = Math.max(8, Math.min(innerWidth - w - 8, a.left));
+  if (y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
+  if (y < 8) y = 8;
+  pop.style.left = `${x}px`; pop.style.top = `${y}px`;
+};
+addEventListener('scroll', place, true);
+addEventListener('resize', place);
 
 export function wireGridEdit(root, { rows, stu, isStudent = false, onChanged }) {
   const grid = root.querySelector('.wk-grid'); if (!grid) return;
@@ -33,12 +43,7 @@ export function wireGridEdit(root, { rows, stu, isStudent = false, onChanged }) 
     pop = document.createElement('div');
     pop.className = 'gp'; pop.innerHTML = `<button type="button" class="gp-x" aria-label="닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>${html}`;
     document.body.append(pop);
-    const a = anchor.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
-    let x = a.right + 8, y = a.top;
-    if (x + w > innerWidth - 8) x = a.left - w - 8;
-    if (x < 8) x = Math.max(8, Math.min(innerWidth - w - 8, a.left));
-    if (y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
-    pop.style.left = `${x}px`; pop.style.top = `${y}px`;
+    pop._anchor = anchor; place();
     pop.addEventListener('pointerdown', (e) => e.stopPropagation());
     pop.querySelector('.gp-x').addEventListener('click', close);
     wire(pop);

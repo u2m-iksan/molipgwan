@@ -55,12 +55,15 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
       <section class="wk">
         <div class="wk-head">
           <h4>주간 시간표</h4>
-          <button type="button" class="btn-mk" data-makeup="${mon === thisMon ? t : mon}">+ 보강</button>
+          <div class="wk-nav2">
+            <button type="button" class="icon-btn sm" id="wkPrev" aria-label="이전 주"${mon <= thisMon ? ' disabled' : ''}>${CHEV_L}</button>
+            <span class="wk-label">${mon === thisMon ? '이번 주' : mon === addDays(thisMon, 7) ? '다음 주' : ''} ${short(mon)} ~ ${short(addDays(mon, 6))}</span>
+            <button type="button" class="icon-btn sm" id="wkNext" aria-label="다음 주">${CHEV_R}</button>
+            ${[0, 1, 2, 3, 4, 5, 6].some((i) => isVacation(stu.school, addDays(mon, i), vac)) ? '<span class="pill pill-green">방학</span>' : ''}
+          </div>
           <div class="spacer"></div>
-          <button type="button" class="icon-btn sm" id="wkPrev" aria-label="이전 주"${mon <= thisMon ? ' disabled' : ''}>${CHEV_L}</button>
-          <span class="wk-label">${mon === thisMon ? '이번 주' : mon === addDays(thisMon, 7) ? '다음 주' : ''} ${short(mon)} ~ ${short(addDays(mon, 6))}</span>${[0, 1, 2, 3, 4, 5, 6].some((i) => isVacation(stu.school, addDays(mon, i), vac)) ? '<span class="pill pill-green">방학</span>' : ''}
-          <button type="button" class="icon-btn sm" id="wkNext" aria-label="다음 주">${CHEV_R}</button>
           <div class="wk-legend">${['학교', '학원', '기타', '코칭'].map((c) => `<span class="lg lg-${c}">${c}</span>`).join('')}</div>
+          <button type="button" class="btn-mk" data-makeup="${mon === thisMon ? t : mon}">+ 보강</button>
         </div>
         <div class="wk-scroll">${weekGrid(rows, mon, t, HOUR_PX, { fitH: Math.round(Math.min(520, Math.max(300, innerHeight * 0.46))), squeezeSchool: true })}</div>
       </section>

@@ -309,8 +309,10 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
       to: Math.min(DAY_END, Math.max(...sch.map((r) => toMin(r.end_time)))), ratio: 0.22,
     };
   }
-  const W = mkScale(sq), E = opt.splitWeekend ? mkScale(null) : W;
-  const split = !!sq && !!opt.splitWeekend;   // 주중·주말 눈금이 다르면 주말 앞에 눈금 한 줄 더
+  // 주말은 학교가 없으니 아침까지 고르게 (주중만 학교 시간 접기)
+  const splitW = opt.splitWeekend ?? !!opt.squeezeSchool;
+  const W = mkScale(sq), E = splitW ? mkScale(null) : W;
+  const split = !!sq && splitW;   // 주중·주말 눈금이 다르면 주말 앞에 눈금 한 줄 더
   const hours = [];
   for (let h = DAY_START / 60; h <= DAY_END / 60; h++) hours.push(h);
 

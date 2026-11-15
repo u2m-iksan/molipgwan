@@ -282,6 +282,9 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
     // 그 날짜에 유효한 일정. '계속' 일정은 그 주 안에 시작했으면 주 전체에 표시(주간 패턴으로 보기)
     return rows
       .filter((r) => r.weekday === d && (r.valid_to ? r.valid_from <= date && r.valid_to >= date : r.valid_from <= sun))
+      // 이번 주 중간에 시간을 바꾼 일정(코칭 · 같은 이름 학원 등): 바꾸기 전 날짜엔 새 일정을 미리 안 보여줌 (두 개로 보이는 것 방지)
+      .filter((r) => r.valid_to || r.valid_from <= date || !rows.some((o) => o !== r && o.category === r.category
+        && (r.category === '코칭' || o.title === r.title) && o.valid_to && o.valid_to >= mon && o.valid_to < r.valid_from))
       .filter((r) => !r.term || !termAt || r.term === termAt(date))   // 학기 / 방학
       .filter((r) => toMin(r.end_time) > DAY_START && toMin(r.start_time) < DAY_END)
       .sort((a, b) => toMin(a.start_time) - toMin(b.start_time));

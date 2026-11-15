@@ -1307,7 +1307,7 @@ body.is-preview .push-gate{display:none!important}
 
 /* 휴강과 겹치는 일정이 있을 때만: 휴강은 흐리게 80% 아래, 새 일정은 그 위 */
 .blk{z-index:1}
-.blk.st-under{z-index:0;opacity:.45;transform:scale(.8);transform-origin:center}
+.blk.st-under{z-index:0;opacity:.32;filter:saturate(.6);transform:scale(.9);transform-origin:center}
 .blk.st-over{z-index:2;box-shadow:0 2px 8px rgba(0,27,55,.12)}
 /* 짧은 블럭: 표시 + 이름 한 줄 */
 .blk.thin b{display:flex;align-items:center;gap:4px;min-width:0}

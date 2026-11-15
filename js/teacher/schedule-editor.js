@@ -344,7 +344,7 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
       const n = it._n || 1;
       const top = S.y(toMin(it.start_time)), h = Math.max(16, S.y(toMin(it.end_time)) - top);
       const off = offAt(it), thin = h < 40;
-      // 겹칠 때: 휴강은 제자리에서 같은 비율로 80% 축소(가운데) + 흐리게, 겹친 일정은 원래 자리 그대로 그 위에
+      // 겹칠 때: 휴강은 제자리에서 같은 비율로 90% 축소(가운데) + 흐리게, 겹친 일정은 원래 자리 그대로 그 위에
       const geo = `left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)`;
       return `<div class="blk blk-${it.category}${it.valid_to && !(it.makeup && it.category === '학원') ? ' temp' : ''}${thin ? ' thin' : ''}${off ? ' off' : ''}${it._stack ? ' st-' + it._stack : ''}${it.makeup && it.category === '학원' ? ' mk' : ''}" data-sid="${esc(String(it.id))}" data-date="${date}" style="top:${top}px;height:${h - 2}px;${geo}"
         title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">

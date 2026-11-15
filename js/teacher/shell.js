@@ -33,7 +33,7 @@ export function renderTeacher({ me, onLogout }) {
   mount(`
     <div class="t-app">
       <header class="top"><div class="top-in">
-        ${BRAND}
+        <a href="#/overview" class="brand-link" id="t-home" aria-label="전체 현황으로">${BRAND}</a>
         <nav class="t-nav" aria-label="선생님 메뉴">
           ${TABS.map((t) => `<a href="#/${t.id}" class="t-tab" data-tab="${t.id}">${t.label}</a>`).join('')}
         </nav>
@@ -85,6 +85,8 @@ export function renderTeacher({ me, onLogout }) {
   paintUnread();
 
   window.addEventListener('hashchange', show);
+  // 좌상단 로고: 전체 현황 (이미 거기면 새로 고침 + 맨 위로)
+  $('#t-home').addEventListener('click', (e) => { if (/^#\/overview/.test(location.hash) || !location.hash) { e.preventDefault(); show(); } scrollTo({ top: 0, behavior: 'smooth' }); });
   // 학생 · 학부모 화면 보기(#/as/…)는 앱을 그 화면으로 새로 띄움
   window.addEventListener('hashchange', function pv(e) {
     if (!/^#\/as\//.test(location.hash)) return;

@@ -1,16 +1,16 @@
 // 선생님 · 코칭: 맨 위 이전/현재/다음 타임 → 아래 코칭 요일별 시간표(보기용)
-// 코칭 타임 배정·변경은 학생 관리 탭(학생 클릭 → 일정)에서 함. 여기서 이름을 누르면 상담이 열림.
+// 이름을 누르면 상담이 열림 · [시간 변경]을 켜면 학생을 끌어다(또는 눌러서) 다른 칸으로 옮겨 코칭 시간을 바꿈 (오늘부터 적용)
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
 import { DOW, today, isoDow, toMin, toTime, hm, mondayOf, addDays, short } from '../date.js';
 import { loadStudents } from '../data/students.js';
 import { loadWeekCoachings, loadOpenPlans, scheduledOn } from '../data/coaching.js';
-import { getCoachConfig, saveCoachConfig, slotTimes, loadCoachingSlots, loadAllFixedSchedules } from '../data/schedules.js';
+import { getCoachConfig, saveCoachConfig, slotTimes, loadCoachingSlots, loadAllFixedSchedules, setCoachingSlot } from '../data/schedules.js';
 
 const SEEN = new Set();
 export async function renderCoaching(body) {
   const thisMon = mondayOf(today());
   const WEEKS = 4;   // 이번 주 포함 4주까지 넘겨 보기
-  const st = { cfg: null, students: [], slots: new Map(), fixed: [], done: new Map(), open: new Map(), mon: thisMon };
+  const st = { cfg: null, students: [], slots: new Map(), fixed: [], done: new Map(), open: new Map(), mon: thisMon, edit: false, sel: null, busy: false };
   const isNow = () => st.mon === thisMon;
   const md = (d) => short(d).replace(/\(.\)/, '');
   const weekName = (mon) => `${Number(mon.slice(5, 7))}월 ${Math.ceil(Number(mon.slice(8, 10)) / 7)}주`;
@@ -25,8 +25,11 @@ export async function renderCoaching(body) {
       <span class="count" id="cfgLabel"></span>
       <div class="spacer"></div>
       <button type="button" class="btn btn-gray btn-sm" id="co-today" hidden>이번 주로</button>
+      <button type="button" class="btn btn-gray btn-sm" id="co-edit">시간 변경</button>
       <button type="button" class="btn btn-gray btn-sm" id="cfgBtn">설정</button>
     </div>
+    <div class="co-editbar" id="co-editbar" hidden><span>학생을 끌어서 옮기거나, 누른 다음 옮길 칸을 누르세요 · <b>오늘부터</b> 적용 · 미배정 칸에 놓으면 해제</span>
+      <button type="button" class="btn btn-primary btn-sm" id="co-done">완료</button></div>
     <section class="now-row" id="now"></section>
     <div class="coach-wrap">
       <div class="card table-card coach-grid" id="grid"><div class="empty">불러오는 중</div></div>
@@ -34,6 +37,16 @@ export async function renderCoaching(body) {
     </div>`;
 
   $('#cfgBtn').addEventListener('click', openSettings);
+  const setEdit = (on) => {
+    st.edit = on; st.sel = null;
+    if (on && !isNow()) { st.mon = thisMon; reload(); }
+    $('#co-edit').classList.toggle('btn-primary', on); $('#co-edit').classList.toggle('btn-gray', !on);
+    $('#co-editbar').hidden = !on;
+    $('.coach-wrap').classList.toggle('picking', on);
+    if (st.cfg) draw();
+  };
+  $('#co-edit').addEventListener('click', () => setEdit(!st.edit));
+  $('#co-done').addEventListener('click', () => setEdit(false));
   const go = (mon) => { st.mon = mon; reload(); };
   $('#co-prev').addEventListener('click', () => { if (st.mon > addDays(thisMon, -7 * (WEEKS - 1))) go(addDays(st.mon, -7)); });
   $('#co-next').addEventListener('click', () => { if (st.mon < thisMon) go(addDays(st.mon, 7)); });
@@ -115,6 +128,7 @@ export async function renderCoaching(body) {
 
   function wireChip(b) {
     b.addEventListener('click', () => {
+      if (st.edit) { st.sel = st.sel === b.dataset.sid ? null : b.dataset.sid; $$('.coach-wrap .stu').forEach((x) => x.classList.toggle('sel', x.dataset.sid === st.sel)); return; }
       const s = st.students.find((x) => x.id === b.dataset.sid);
       const sl = st.slots.get(s.id);
       if (!sl) { location.hash = `#/students?open=${s.id}`; return; }   // 미배정 → 일정에서 배정
@@ -141,7 +155,7 @@ export async function renderCoaching(body) {
             ${days.map((d) => {
               const list = who(d, t);
               const isCur = isNow() && cur && cur.d === d && cur.t === t;
-              return `<td class="cell${list.length > 1 ? ' multi' : ''}${isCur ? ' cur' : ''}">${list.map((s) => chip(s, st.slots.get(s.id))).join('')}</td>`;
+              return `<td class="cell${list.length > 1 ? ' multi' : ''}${isCur ? ' cur' : ''}" data-d="${d}" data-t="${t}">${list.map((s) => chip(s, st.slots.get(s.id))).join('')}</td>`;
             }).join('')}</tr>`).join('')}
         </tbody>
       </table>`;
@@ -168,11 +182,45 @@ export async function renderCoaching(body) {
       ${out.length ? `<div class="side-sec"><h4 class="red">재배정 필요 ${out.length}</h4>
         <p class="sub-s">현재 설정 밖의 시간에 배정되어 있습니다.</p>
         <div class="stu-list">${out.map((s) => { const sl = st.slots.get(s.id); return chip(s) + `<span class="was">${DOW[sl.weekday]} ${hm(sl.start_time)}</span>`; }).join('')}</div></div>` : ''}
-      <div class="side-sec"><h4>미배정 ${none.length}</h4>
+      <div class="side-sec co-none" id="co-none"><h4>미배정 ${none.length}</h4>
         <div class="stu-list">${none.map((s) => chip(s)).join('') || '<p class="sub-s">모든 학생이 배정되었습니다.</p>'}</div></div>
-      <p class="sub-s">이름을 누르면 상담이 열립니다. 코칭 시간 변경은 학생 관리에서 합니다.</p>`;
+      <p class="sub-s">이름을 누르면 상담이 열립니다. 코칭 시간은 위 [시간 변경]으로 바꿉니다.</p>`;
 
     $$('#grid .stu, #side .stu').forEach(wireChip);
+    if (st.edit) wireEdit();
+  }
+
+  /* ---------- 시간 변경 (편집 모드) ---------- */
+  async function moveTo(sid, slot) {
+    if (st.busy) return;
+    const s = st.students.find((x) => x.id === sid); if (!s) return;
+    const cur = st.slots.get(sid);
+    if (slot && cur && cur.weekday === slot.weekday && hm(cur.start_time) === slot.start) { st.sel = null; draw(); return; }
+    if (!slot && !cur) { st.sel = null; draw(); return; }
+    st.busy = true;
+    try {
+      await setCoachingSlot(sid, slot, st.cfg);
+      st.slots = await loadCoachingSlots();
+      const c = slot && conflict(sid, { weekday: slot.weekday, start_time: slot.start, end_time: toTime(toMin(slot.start) + st.cfg.minutes) });
+      toast(slot ? `${s.name} → ${DOW[slot.weekday]} ${slot.start}${c ? ` · ${c.title}와 겹쳐요` : ''}` : `${s.name} 코칭 배정 해제`, c ? 'bad' : undefined);
+    } catch (e) { toast('저장 실패: ' + e.message, 'bad'); }
+    st.busy = false; st.sel = null; draw();
+  }
+  function wireEdit() {
+    $$('#grid .stu, #side .stu').forEach((b) => {
+      b.draggable = true;
+      if (b.dataset.sid === st.sel) b.classList.add('sel');
+      b.addEventListener('dragstart', (e) => { st.sel = b.dataset.sid; e.dataTransfer.setData('text/plain', b.dataset.sid); e.dataTransfer.effectAllowed = 'move'; b.classList.add('drag'); });
+      b.addEventListener('dragend', () => b.classList.remove('drag'));
+    });
+    const drop = (el, slotOf) => {
+      el.addEventListener('dragover', (e) => { e.preventDefault(); el.classList.add('over'); });
+      el.addEventListener('dragleave', () => el.classList.remove('over'));
+      el.addEventListener('drop', (e) => { e.preventDefault(); el.classList.remove('over'); const sid = e.dataTransfer.getData('text/plain') || st.sel; if (sid) moveTo(sid, slotOf()); });
+      el.addEventListener('click', (e) => { if (e.target.closest('.stu') || !st.sel) return; moveTo(st.sel, slotOf()); });
+    };
+    $$('#grid td.cell').forEach((td) => drop(td, () => ({ weekday: Number(td.dataset.d), start: td.dataset.t })));
+    const none = $('#co-none'); if (none) drop(none, () => null);
   }
 
   // 1분마다 이전/현재/다음 갱신 (탭을 떠나면 자동 중지)

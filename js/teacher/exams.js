@@ -256,11 +256,8 @@ function openPicker(stu, exams, allMap, onChanged) {
       <div class="drawer-body" id="xp-body"></div>
     </div>`, 'center');
   const bodyEl = $('#xp-body', m);
-  const names = () => {
-    const l = examNames(allMap, year);
-    exams.filter((e) => e.school_year === year && !l.includes(e.exam_type)).forEach((e) => l.push(e.exam_type));
-    return l;
-  };
+  // 기본 4개 + 이 학생이 추가한 시험만 (다른 학생이 추가한 모의고사는 안 보임)
+  const names = () => examNames(new Map([[stu.id, exams]]), year);
   function draw() {
     const now = recentExam();
     bodyEl.innerHTML = `

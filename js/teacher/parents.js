@@ -24,14 +24,16 @@ const CHEV_L = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 
 const CHEV_R = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 const EXPAND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>';
 const STATE = {
-  wait: ['상담 전', 'pill-gray'], miss: ['미상담', 'pill-red'], draft: ['미전송 · 미공개', 'pill-orange'],
-  pub: ['미전송', 'pill-blue'], sent: ['전송 완료', 'pill-green'], none: ['', ''],
+  // draft = 보고서를 아직 학부모 앱에 안 보냄 · pub = 보고서는 보냈는데 안내 문자(카톡)는 아직
+  wait: ['상담 전', 'pill-gray'], miss: ['미상담', 'pill-red'], draft: ['보고서 미전송', 'pill-orange'],
+  pub: ['안내 미전송', 'pill-red'], sent: ['전송 완료', 'pill-green'], none: ['', ''],
 };
-const ORDER = { miss: 0, pub: 1, draft: 2, wait: 3, sent: 4, none: 5 };
+const ORDER = { miss: 0, draft: 1, pub: 2, wait: 3, sent: 4, none: 5 };
 const TILES = [
-  ['done', '상담 완료', (x) => !!x.c],
-  ['pub', '미전송', (x) => x.state === 'pub' || x.state === 'draft'],
-  ['sent', '전송 완료', (x) => x.state === 'sent'],
+  ['done', '상담 완료', (x) => !!x.c, ''],
+  ['draft', '보고서 미전송', (x) => x.state === 'draft', 'hot-o'],
+  ['pub', '안내 미전송', (x) => x.state === 'pub', 'hot-r'],
+  ['sent', '전송 완료', (x) => x.state === 'sent', ''],
 ];
 
 export async function renderParents(body, { me, onUnread } = {}) {
@@ -88,9 +90,9 @@ export async function renderParents(body, { me, onUnread } = {}) {
   }
 
   function drawTiles() {
-    $('#pg-tiles').innerHTML = TILES.map(([k, label, fn]) => {
+    $('#pg-tiles').innerHTML = TILES.map(([k, label, fn, hot]) => {
       const n = st.rows.filter(fn).length;
-      return `<button type="button" class="pg-tile${st.f === k ? ' on' : ''}${k === 'pub' && n ? ' hot' : ''}" data-f="${k}" aria-pressed="${st.f === k}">
+      return `<button type="button" class="pg-tile${st.f === k ? ' on' : ''}${hot && n ? ' ' + hot : ''}" data-f="${k}" aria-pressed="${st.f === k}">
         <span>${label}</span><b class="cu">${n}</b></button>`;
     }).join('');
   }

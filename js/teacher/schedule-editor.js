@@ -63,7 +63,7 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
           </div>
           <div class="spacer"></div>
           <div class="wk-legend">${['학교', '학원', '기타', '코칭'].map((c) => `<span class="lg lg-${c}">${c}</span>`).join('')}</div>
-          <button type="button" class="btn-mk" data-makeup="${mon === thisMon ? t : mon}">+ 보강·일정</button>
+          ${mon >= thisMon ? `<button type="button" class="btn-mk" data-makeup="${mon === thisMon ? t : mon}">+ 보강·일정</button>` : '<span class="wk-lock">지난 주 · 보기만</span>'}
         </div>
         <div class="wk-scroll">${weekGrid(rows, mon, t, HOUR_PX, { fitH: Math.round(Math.min(520, Math.max(300, innerHeight * 0.46))), squeezeSchool: true })}</div>
       </section>
@@ -136,7 +136,7 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
   $('#wkPrev', root).addEventListener('click', () => again({ week: addDays(mon, -7) }));
   $('#wkNext', root).addEventListener('click', () => again({ week: addDays(mon, 7) }));
   // 시간표 블럭 · 빈 칸 눌러서 휴강 · 보강
-  wireGridEdit($('.wk', root), { rows, stu, isStudent: student, onChanged: () => again() });
+  if (mon >= thisMon) wireGridEdit($('.wk', root), { rows, stu, isStudent: student, onChanged: () => again() });   // 지난 주는 잠금
 
   /* ---------- 코칭 타임 배정 ---------- */
   if (canCoach) {

@@ -24,13 +24,13 @@ export function matches(item, r) {
 }
 export const hasAcademy = (item, rows) => (rows || []).some((r) => matches(item, r));
 
-// 계획 기간 [start, end) 안에서 그 과목 학원 가는 날
+// 계획 기간 [start, end) 안에서 그 과목 학원 가는 날 — 정규 일정 기준 (휴강이어도 숙제는 하니까 칸 유지 · 보강은 칸 안 늘림)
 export function academyDates(item, start, end, rows) {
   const last = end || addDays(start, 7);
   const ac = rows.filter((r) => matches(item, r));
   const out = [];
   for (let d = start; d < last; d = addDays(d, 1)) {
-    if (ac.some((r) => r.weekday === isoDow(d) && r.valid_from <= d && (!r.valid_to || r.valid_to >= d) && !r._off?.has(d) && (!r.term || !rows.termAt || r.term === rows.termAt(d)))) out.push(d);
+    if (ac.some((r) => r.weekday === isoDow(d) && !r.makeup && r.valid_from <= d && (!r.valid_to || r.valid_to >= d) && (!r.term || !rows.termAt || r.term === rows.termAt(d)))) out.push(d);
   }
   return out;
 }

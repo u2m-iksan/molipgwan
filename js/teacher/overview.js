@@ -49,7 +49,7 @@ export async function renderOverview(body, { me } = {}) {
     const when = (t) => !t ? '' : new Date(t).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
     box.innerHTML = `<section class="card ov-req"><div class="ov-req-h"><h3>학원 일정 변경 <span>${reqs.length}</span></h3>
         <button type="button" class="btn btn-gray btn-sm" id="req-all">모두 확인</button></div>
-      <ul>${reqs.map((r) => `<li><span class="pill ${r.action === '삭제' ? 'pill-red' : r.action === '변경' ? 'pill-orange' : 'pill-blue'}">${esc(r.action)}</span>
+      <ul>${reqs.map((r) => `<li><span class="pill ${/취소|삭제/.test(r.action) ? 'pill-red' : r.action === '변경' || r.action === '휴강' ? 'pill-orange' : 'pill-blue'}">${esc(r.action)}</span>
         <b>${esc(name(r.student_id))}</b><span class="ov-req-s">${esc(r.summary)}</span><time>${when(r.created_at)}</time>
         <button type="button" class="link-s" data-req="${esc(r.id)}">확인</button></li>`).join('')}</ul></section>`;
     const done = async (ids) => { try { await checkRequests(ids, me?.name || '선생님'); loadReq(); } catch (e) { toast('저장 실패: ' + e.message); } };

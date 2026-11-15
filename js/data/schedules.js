@@ -181,6 +181,7 @@ export async function setCoachingSlot(studentId, slot, cfg) {
 /* ---------- 학원 일정 변경 알림 (학생이 바꾸면 바로 반영 + 선생님 확인 목록) ---------- */
 export async function logScheduleRequest(student_id, action, summary) {
   check(await sb.from('schedule_requests').insert({ student_id, action, summary }));
+  import('../push.js').then((m) => m.kickPush()).catch(() => {});   // 선생님 폰 알림 바로 (SQL 31)
 }
 export async function loadOpenRequests() {
   return check(await sb.from('schedule_requests').select('*').is('checked_at', null).order('created_at'));

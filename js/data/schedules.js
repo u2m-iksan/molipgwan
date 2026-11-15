@@ -137,7 +137,7 @@ let evCache = null;
 export function loadVacations(force = false) {
   // 방학 + '방학 중 등교일'(겨울·봄방학을 하나로 이었을 때 사이 등교일 — 시간표에 '학교'만 작게)
   if (!evCache || force) evCache = sb.from('school_events').select('school,kind,title,start_date,end_date')
-    .or(`kind.eq.방학,title.eq.${SCHOOL_DAY}`).then(check).catch(() => []);
+    .in('kind', ['방학', '기타']).then(check).then((r) => r.filter((e) => e.kind === '방학' || e.title === SCHOOL_DAY)).catch(() => []);
   return evCache;
 }
 export const SCHOOL_DAY = '방학 중 등교일';

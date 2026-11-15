@@ -1,6 +1,6 @@
 // 일정 · 코칭 시간 · 설정
 import { sb } from '../sb.js';
-import { today, addDays, mondayOf, toMin, toTime, hm } from '../date.js';
+import { today, addDays, mondayOf, toMin, toTime, hm, isoDow } from '../date.js';
 
 function check(res) { if (res.error) throw res.error; return res.data; }
 
@@ -135,12 +135,18 @@ export async function savePeriods(list) {
 // 일정 적용 시기(term): null = 항상 / '학기' / '방학'. 학생 학교의 방학 일정(설정 탭 학사일정)으로 그날이 방학인지 판단
 let evCache = null;
 export function loadVacations(force = false) {
-  if (!evCache || force) evCache = sb.from('school_events').select('school,kind,title,start_date,end_date').eq('kind', '방학').then(check).catch(() => []);
+  // 방학 + '방학 중 등교일'(겨울·봄방학을 하나로 이었을 때 사이 등교일 — 시간표에 '학교'만 작게)
+  if (!evCache || force) evCache = sb.from('school_events').select('school,kind,title,start_date,end_date')
+    .or(`kind.eq.방학,title.eq.${SCHOOL_DAY}`).then(check).catch(() => []);
   return evCache;
 }
-export const isVacation = (school, date, evs) => !!school && (evs || []).some((e) => e.school === school && e.start_date <= date && e.end_date >= date);
+export const SCHOOL_DAY = '방학 중 등교일';
+export const isVacation = (school, date, evs) => !!school && (evs || []).some((e) => e.kind === '방학' && e.school === school && e.start_date <= date && e.end_date >= date);
+// 방학으로 묶였지만 실제로는 학교 가는 날 (주중만)
+export const isSchoolDay = (school, date, evs) => !!school && isoDow(date) <= 5
+  && (evs || []).some((e) => e.title === SCHOOL_DAY && e.school === school && e.start_date <= date && e.end_date >= date);
 // 그날의 시기 판정 함수: date → '방학' | '학기'
 export const termFn = (school, evs) => (date) => (isVacation(school, date, evs) ? '방학' : '학기');
 export const termOk = (r, term) => !r.term || r.term === term;
 // 일정 목록에 시기 판정 붙이기 (시간표 · 학원 숙제 날짜 계산에서 사용)
-export function withTerm(rows, school, evs) { rows.termAt = termFn(school, evs); return rows; }
+export function withTerm(rows, school, evs) { rows.termAt = termFn(school, evs); rows.schoolAt = (d) => isSchoolDay(school, d, evs); return rows; }

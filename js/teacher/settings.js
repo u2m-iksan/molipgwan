@@ -8,7 +8,7 @@ import { loadTeachers, addTeacher, removeTeacher, updateTeacher, changeMyPasswor
 import { toMin, today, short } from '../date.js';
 import { getKakao, saveKakao } from '../data/chat.js';
 import { LINKS } from '../app-role.js';
-import { getSync, setVacMode, runSync } from '../data/school-sync.js';
+import { getSync, setVacMode, setJoin, runSync } from '../data/school-sync.js';
 
 export async function renderSettings(body, { me } = {}) {
   body.innerHTML = `
@@ -220,6 +220,7 @@ export async function renderSettings(body, { me } = {}) {
       <div class="sync-opt"><span class="lbl">방학 기준</span>
         <div class="seg" id="sy-vac"><button type="button" data-v="neis" class="${sync.vac !== 'est' ? 'on' : ''}">나이스 등록</button><button type="button" data-v="est" class="${sync.vac === 'est' ? 'on' : ''}">추정치</button></div>
         <span class="sub-s">방학 확정이 있으면 확정이 먼저예요</span></div>
+      <label class="sync-join"><input type="checkbox" id="sy-join"${sync.join !== false ? ' checked' : ''}><span><b>겨울·봄방학 이어서 보기</b> 사이 등교일도 방학으로 · 학생 시간표가 중간에 학기용으로 안 바뀜</span></label>
       ${sync.result?.length ? `<p class="sync-sum">학교 <b>${sync.result.length}</b>곳 · 방학 <b>${sync.result.reduce((a, r) => a + (r.vac || 0), 0)}</b>개
         ${others.length || cal.all ? `<button type="button" class="link-s" id="sy-all">${cal.all ? '학생 학교만 보기' : `모든 학교 보기 (+${others.length})`}</button>` : ''}</p>` : ''}
     </div>`;
@@ -255,6 +256,9 @@ export async function renderSettings(body, { me } = {}) {
     };
     $('#sy-run', el)?.addEventListener('click', (e) => doSync(e.currentTarget));
     $('#sy-all', el)?.addEventListener('click', () => { cal.all = !cal.all; drawCal(); });
+    $('#sy-join', el)?.addEventListener('change', async (e) => {
+      try { await setJoin(e.target.checked); doSync($('#sy-run', el)); } catch (x) { toast('저장 실패: ' + x.message, 'bad'); }
+    });
     $('#sy-vac', el)?.addEventListener('click', async (e) => {
       const b = e.target.closest('[data-v]'); if (!b || b.classList.contains('on')) return;
       $$('#sy-vac button', el).forEach((x) => x.classList.toggle('on', x === b));

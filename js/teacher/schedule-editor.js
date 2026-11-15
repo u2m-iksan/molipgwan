@@ -331,7 +331,7 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
     }
     return `<div class="wk-col${date === t ? ' today-col' : ''}${d === 6 && !split ? ' wk-wkend' : ''}">
       <div class="wk-day">${DOW[d]}<span>${Number(date.slice(8))}</span></div>
-      <div class="wk-body" style="height:${H}px">${lines(S)}${blocks}${now}</div></div>`;
+      <div class="wk-body" style="height:${H}px">${lines(S)}${blocks}${now}${rows.schoolAt?.(date) ? '<i class="wk-school" title="방학 중 등교일">학교</i>' : ''}</div></div>`;
   };
 
   return `<div class="wk-grid${split ? ' split' : ''}">

@@ -4,6 +4,7 @@
 //  · 방학: 확정이 있으면 확정 → 없으면 고른 기준(나이스 등록 / 추정치) → 그것도 없으면 나머지 하나
 //  · 가져온 일정은 source = 'sync' — 다시 가져오면 이것만 지우고 새로 넣음
 import { sb } from '../sb.js';
+import { SCHOOL_DAY } from './schedules.js';
 
 const KEY = 'school_sync';
 export const SYNC_URL = 'https://script.google.com/macros/s/AKfycbwC-Bg0gqtitt4vhRXq4MtJBveajy496yeYDKbth6UKpEaOF5H8i1LlorgRUuW0jXh28w/exec';
@@ -11,10 +12,11 @@ const check = (r) => { if (r.error) throw r.error; return r.data; };
 
 export async function getSync() {
   const { data } = await sb.from('app_settings').select('value').eq('key', KEY).maybeSingle();
-  return { url: SYNC_URL, vac: 'neis', last: null, result: [], schools: [], custom: [], ...(data?.value || {}) };
+  return { url: SYNC_URL, vac: 'neis', join: true, last: null, result: [], schools: [], custom: [], ...(data?.value || {}) };
 }
 async function saveSync(v) { check(await sb.from('app_settings').upsert({ key: KEY, value: v })); }
 export async function setVacMode(vac) { const v = await getSync(); await saveSync({ ...v, vac }); }
+export async function setJoin(join) { const v = await getSync(); await saveSync({ ...v, join }); }
 
 // 익산고등학교 → 익산고 · 남성여자고등학교 → 남성여고 (띄어쓰기 무시)
 export const schoolKey = (n) => String(n || '').replace(/\s+/g, '')
@@ -22,6 +24,8 @@ export const schoolKey = (n) => String(n || '').replace(/\s+/g, '')
   .replace(/고등학교$/, '고').replace(/중학교$/, '중').replace(/초등학교$/, '초');
 
 const SEASON = (s) => (s.endsWith('S') ? '여름방학' : '겨울방학');
+const gapDays = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+const addD = (d, n) => new Date(Date.parse(d) + n * 86400000).toISOString().slice(0, 10);
 
 export async function runSync() {
   const cfg = await getSync();
@@ -41,24 +45,38 @@ export async function runSync() {
     // 방학: 시즌마다 확정 → 고른 기준 → 다른 기준
     const neis = of(data.vac.neis), est = of(data.vac.est), fixed = of(data.vac.fixed);
     const seasons = [...new Set([...neis, ...est, ...fixed].map((v) => v.season))].sort();
-    let nv = 0;
+    const vr = [];   // 이 학교 방학 { sea, tag, a, b }
     for (const sea of seasons) {
       const fx = fixed.find((v) => v.season === sea);
       if (fx) {
         String(fx.segs).split(',').forEach((seg) => {
           const [a, b] = seg.split('~');
-          if (a && b) { rows.push({ school, kind: '방학', title: `${SEASON(sea)} · 확정`, start_date: a, end_date: b, source: 'sync' }); fixedSegs.push({ school, a, b }); nv++; }
+          if (a && b) { vr.push({ sea, tag: '확정', a, b }); fixedSegs.push({ school, a, b }); }
         });
         continue;
       }
       const first = cfg.vac === 'est' ? est : neis, second = cfg.vac === 'est' ? neis : est;
       const pick = first.filter((v) => v.season === sea).length ? first : second;
       const tag = pick === est ? '추정' : '나이스';
-      pick.filter((v) => v.season === sea).forEach((v) => {
-        rows.push({ school, kind: '방학', title: `${SEASON(sea)} · ${tag}`, start_date: v.a, end_date: v.b, source: 'sync' }); nv++;
-      });
+      pick.filter((v) => v.season === sea).forEach((v) => vr.push({ sea, tag, a: v.a, b: v.b }));
     }
-    result.push({ school, full: sc.n, vac: nv });
+    // 몰입관은 겨울방학 ~ 봄방학 사이 등교일도 방학으로 (사이 3주 이내면 하나로) — 학원 시간표가 중간에 학기용으로 안 바뀌게
+    vr.sort((x, y) => x.a.localeCompare(y.a));
+    const out = [];
+    for (const v of vr) {
+      const last = out[out.length - 1];
+      if (cfg.join !== false && last && last.sea === v.sea && v.sea.endsWith('W') && gapDays(last.b, v.a) <= 21) {
+        const from = addD(last.b, 1), to = addD(v.a, -1);
+        if (from <= to) rows.push({ school, kind: '기타', title: SCHOOL_DAY, start_date: from, end_date: to, source: 'sync' });
+        if (v.b > last.b) last.b = v.b;
+        last.joined = true;
+        if (v.tag === '확정') last.tag = '확정';
+        continue;
+      }
+      out.push({ ...v });
+    }
+    out.forEach((v) => rows.push({ school, kind: '방학', title: `${v.joined ? '겨울·봄방학' : SEASON(v.sea)} · ${v.tag}`, start_date: v.a, end_date: v.b, source: 'sync' }));
+    result.push({ school, full: sc.n, vac: out.length });
   }
 
   const ok = result.filter((r) => !r.error).map((r) => r.school);

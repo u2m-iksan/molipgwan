@@ -1231,7 +1231,7 @@ body.is-preview .push-gate{display:none!important}
 .blk.mk{border-style:dashed;border-width:1.5px;border-color:#7FAEF5;background:#F5F9FF}
 .blk-tag{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.02em;line-height:1;opacity:.85}
 .blk.off .blk-tag{color:var(--sub)}
-.wk-grid.can-edit .blk-학원,.wk-grid.can-edit .wk-body{cursor:pointer}
+.wk-grid.can-edit .blk-학원{cursor:pointer}
 .wk-grid{position:relative}
 /* 말풍선 (휴강 · 보강) */
 .gp{position:fixed;z-index:1200;width:236px;padding:12px;border-radius:14px;background:#fff;box-shadow:0 12px 32px rgba(0,27,55,.16),0 0 0 1px rgba(0,27,55,.06);
@@ -1253,3 +1253,40 @@ body.is-preview .push-gate{display:none!important}
 .sched-term+.sched-term{margin-top:14px}
 .sched-term h5{display:flex;align-items:center;gap:6px;margin:4px 0 2px;font-size:13px;font-weight:700;color:var(--sub)}
 .sched-term h5 em{font-style:normal;font-size:11px;font-weight:700;color:var(--blue,#3182F6);background:var(--blue-soft,#EAF2FE);border-radius:5px;padding:1px 6px}
+
+.gp{padding-top:14px}
+.gp-x{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--sub)}
+.gp-x:hover{background:var(--surface)}
+.gp-x svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.gp h5{padding-right:28px}
+.gp .gp-go.gp-go-s{width:auto;margin:0;padding:0 14px;flex:none}
+/* 시간표 위 버튼: [+ 보강] · 동그란 연필 */
+.tt-acts{display:flex;align-items:center;gap:6px;flex:none}
+.btn-mk{height:30px;padding:0 11px;border-radius:999px;background:var(--blue-soft,#EAF2FE);color:var(--blue-dark,#1B64DA);font-size:13px;font-weight:700;white-space:nowrap}
+.btn-mk:hover{background:#DCEAFD}
+.btn-pen{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--sub);flex:none}
+.btn-pen:hover{background:#E9ECF0;color:var(--text)}
+.btn-pen svg{width:15px;height:15px}
+/* 일정 목록: 칸 위치 고정 (화면 크기가 바뀌어도 줄 안 바뀜) */
+.sched-row{display:grid;grid-template-columns:44px minmax(0,1fr) auto 72px;align-items:center;gap:10px}
+.sched-row .pill{justify-self:start;white-space:nowrap}
+.sched-main b{display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.sched-main .sched-t{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sched-main .sched-sub{flex:none}
+.sched-main .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-feature-settings:"tnum"}
+.sched-tags{display:flex;gap:4px;justify-content:flex-end}
+.tg{display:inline-flex;align-items:center;height:24px;padding:0 8px;border-radius:7px;font-size:12px;font-weight:700;white-space:nowrap}
+.tg-all{background:var(--surface);color:var(--sub)}
+.tg-sem{background:#F2F4F6;color:#4E5968}
+.tg-vac{background:#EAF6EF;color:#1E7B4C}
+.tg-lim{background:#FFF4E6;color:#C26100}
+.sched-acts{display:flex;justify-content:flex-end;gap:2px}
+.wk-head{flex-wrap:nowrap}
+.wk-head .wk-label{white-space:nowrap}
+@media (max-width:900px){.wk-head .wk-legend{display:none}}
+.sa-h:has(.tt-acts){align-items:center}
+.sa-h h3{white-space:nowrap}
+.sa-h span{white-space:nowrap}
+.sa-h .tt-acts{margin-left:12px}
+.sched-row:has(#c-warn){display:flex}
+.blk.off{background:repeating-linear-gradient(135deg,var(--bg) 0 6px,rgba(0,27,55,.1) 6px 7.5px)}

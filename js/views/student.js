@@ -5,6 +5,7 @@ import { PREVIEW } from '../app-role.js';
 import { DOW, today, mondayOf, short, isoDow, toMin, toTime, hm, addDays } from '../date.js';
 import { loadStudentSchedules, loadVacations, withTerm, termOk } from '../data/schedules.js';
 import { wireGridEdit } from './grid-edit.js';
+const PEN_I = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
 import { weekGrid, renderScheduleEditor } from '../teacher/schedule-editor.js';
 import { academyStat, dayLabel, AC_MARK, AC_CLS, AC_PCT, acOf } from '../data/academy.js';
 import { segBar } from './progress-bar.js';
@@ -171,7 +172,7 @@ ${SUM}
         if (key === lastKey && el.querySelector('.wk-grid')) return;   // 크기 그대로면 다시 그리지 않음
         lastKey = key;
         // 학교 있는 주중은 학교 시간을 줄이고 오후·저녁을 크게 (주말·학교 없는 주는 고르게)
-        const paint = (h) => { el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주${rows.termAt?.(today()) === '방학' ? ' · 방학' : ''}</span><button type="button" class="link-s sa-edit" id="tt-edit">학원 일정</button></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true, nowLine: true })}`; };
+        const paint = (h) => { el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주${rows.termAt?.(today()) === '방학' ? ' · 방학' : ''}</span><div class="tt-acts"><button type="button" class="btn-mk" data-makeup="${today()}">+ 보강</button><button type="button" class="btn-pen" id="tt-edit" aria-label="학원 일정 수정" title="학원 일정 수정">${PEN_I}</button></div></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true, nowLine: true })}`; };
         const min = innerWidth <= 820 ? 200 : 330;
         let h = Math.max(min, el.clientHeight - 100);
         paint(h);
@@ -191,7 +192,7 @@ ${SUM}
       addEventListener('resize', draw);
       // 학원 일정 변경 (바로 반영 + 선생님 알림)
       el.addEventListener('click', (e) => {
-        if (e.target.id !== 'tt-edit') return;
+        if (!e.target.closest('#tt-edit')) return;
         const panel = sheet(`<div class="modal modal-lg" role="dialog" aria-label="학원 일정">
           <div class="drawer-head"><h3>학원 일정</h3><button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
           <div class="pane" id="se"></div></div>`, 'center');

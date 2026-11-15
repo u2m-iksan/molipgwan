@@ -345,7 +345,7 @@ export function parseGpt(text) {
   };
 }
 
-export const APP_URL = 'https://u2m-iksan.github.io/molipgwan/';
+export const APP_URL = 'https://u2m-iksan.github.io/molipgwan/p/';   // 학부모 전용 링크
 export function noticeText(student, report) {
   const d = report.period_end ? short(report.period_end) : '';
   if (report.stats?.is_new) {

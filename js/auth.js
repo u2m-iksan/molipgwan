@@ -1,7 +1,8 @@
 // 로그인 · 로그아웃 · "누구세요?" 프로필 기억
+import { KEY_SUFFIX } from './app-role.js';
 import { sb, teacherEmail, familyEmail, familyPassword, isTeacherEmail, isFamilyEmail, parentEmail, parentPassword } from './sb.js';
 
-const PROFILE_KEY = 'molip-profile';   // { role, email, pick }
+const PROFILE_KEY = 'molip-profile' + KEY_SUFFIX;   // { role, email, pick } · 역할별 링크면 따로
 const LOCK_KEY = 'molip-lock';         // { fails, until }
 const MAX_FAILS = 5, LOCK_MS = 10 * 60 * 1000;
 

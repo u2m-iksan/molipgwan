@@ -2,6 +2,7 @@
 //  · 안드로이드 크롬: 바로 가능 · 아이폰: '홈 화면에 추가'한 앱에서만 (iOS 16.4+)
 //  · 알림 보내기는 Edge Function 'send-push' (SQL 21 + 함수 배포 필요). 없으면 조용히 '지원 안 함'
 import { sb, SUPABASE_URL } from './sb.js';
+import { ROOT } from './app-role.js';
 
 const FN = `${SUPABASE_URL}/functions/v1/send-push`;
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -41,7 +42,7 @@ export async function enablePush(email, studentId = null) {
     key = r?.publicKey;
   }
   if (!key) throw new Error('알림 서버가 아직 준비되지 않았습니다. (send-push 함수 배포 필요)');
-  const reg = await navigator.serviceWorker.register('sw.js');
+  const reg = await navigator.serviceWorker.register(ROOT + 'sw.js');
   await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(key) });

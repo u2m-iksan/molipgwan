@@ -10,6 +10,7 @@ import { renderStudentHome } from './views/student.js';
 import { renderParentHome } from './views/parent.js';
 import { renderTeacher } from './teacher/shell.js';
 import { inAppGate } from './views/inapp-gate.js';
+import { FIXED_ROLE } from './app-role.js';
 
 async function logout() {
   await signOut();
@@ -17,6 +18,12 @@ async function logout() {
 }
 
 function showLogin() {
+  // 역할별 링크: 고르기 없이 바로 그 로그인 ('처음으로' = 이 로그인 처음부터)
+  if (FIXED_ROLE) {
+    setRole(FIXED_ROLE);
+    if (FIXED_ROLE === 'teacher') return renderTeacherLogin({ onDone: route, onBack: showLogin });
+    return renderFamilyLogin({ role: FIXED_ROLE, onDone: route, onBack: showLogin });
+  }
   renderRole({
     onPick: (role) => {
       setRole(role);
@@ -46,12 +53,16 @@ async function route() {
   }
 
   if (!me) return showLogin();
+  // 역할별 링크에 다른 역할 계정이 남아 있으면 그 링크의 로그인으로
+  if (FIXED_ROLE === 'teacher' && me.role !== 'teacher') return logout();
+  if (FIXED_ROLE && FIXED_ROLE !== 'teacher' && me.role === 'teacher') return logout();
   if (me.role === 'teacher') return renderTeacher({ me, onLogout: logout });
   if (me.role !== 'family') return renderUnknown({ onLogout: logout });
 
   const { email, students } = me;
   // 학부모 계정(p…)은 항상 학부모 화면 · 학생 번호 계정으로 학부모 화면은 SQL 21 이후엔 다시 로그인(비밀번호 분리)
-  let role = isParentEmail(email) ? 'parent' : getRole();
+  let role = isParentEmail(email) ? 'parent' : FIXED_ROLE || getRole();
+  if (FIXED_ROLE && role !== FIXED_ROLE) return logout();   // 학생 링크에 학부모 계정 등
   if (role === 'parent' && !isParentEmail(email)) {
     const { error } = await sb.rpc('parent_mode');
     if (!error) return logout();

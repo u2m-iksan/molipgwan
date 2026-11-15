@@ -13,14 +13,15 @@ self.addEventListener('push', (e) => {
   }));
 });
 
-// 알림 누르면: 열려 있는 앱으로 가서 그 화면, 없으면 새로 열기
+// 알림 누르면: 그 역할 앱(s/ · p/ · t/)이 열려 있으면 그 창으로, 없으면 새로 열기
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
   const url = new URL(e.notification.data?.url || './', self.registration.scope).href;
+  const path = new URL(url).pathname;
   e.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const w of wins) {
-      if (w.url.startsWith(self.registration.scope)) { await w.focus(); w.postMessage({ type: 'open', url }); return; }
+      if (new URL(w.url).pathname === path) { await w.focus(); w.postMessage({ type: 'open', url }); return; }
     }
     await self.clients.openWindow(url);
   })());

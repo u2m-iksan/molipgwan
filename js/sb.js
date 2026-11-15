@@ -1,11 +1,12 @@
 // Supabase 연결 + 로그인 이메일 규칙
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { KEY_SUFFIX } from './app-role.js';
 
 export const SUPABASE_URL = 'https://pnefvpudosqdadwegrof.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_RrxJqy32HMExcQb28ZJPRg_zJErWNXI'; // 공개용 키 (권한은 RLS가 결정)
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'molip-auth' },
+  auth: { persistSession: true, autoRefreshToken: true, storageKey: 'molip-auth' + KEY_SUFFIX },
 });
 
 // 다른 계정 만들기용 (내 로그인 상태는 그대로 두고 새 계정만 가입)

@@ -1290,3 +1290,7 @@ body.is-preview .push-gate{display:none!important}
 .sa-h .tt-acts{margin-left:12px}
 .sched-row:has(#c-warn){display:flex}
 .blk.off{background:repeating-linear-gradient(135deg,var(--bg) 0 6px,rgba(0,27,55,.1) 6px 7.5px)}
+.sched-term{margin-top:6px}
+.sched-term+.sched-term{margin-top:18px}
+.sched-term h5{padding-bottom:6px;border-bottom:1px solid var(--line)}
+.sched-term .sched-row:last-child{border-bottom:0}

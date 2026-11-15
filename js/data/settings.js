@@ -1,5 +1,5 @@
 // 설정: 선생님 관리 · 학년 올리기
-import { sb, sbSide, teacherEmail } from '../sb.js';
+import { sb, sbSide, teacherEmail, SUPABASE_URL } from '../sb.js';
 
 const check = (r) => { if (r.error) throw r.error; return r.data; };
 export const teacherId = (email) => String(email || '').replace(/^t-/, '').replace(/@.*/, '');
@@ -68,4 +68,22 @@ export async function addSchoolEvents(rows) {
 }
 export async function deleteSchoolEvent(id) {
   return check(await sb.from('school_events').delete().eq('id', id));
+}
+
+/* ---------- 나이스 학사일정 자동 가져오기 (SQL 28 · Edge Function neis-sync) ---------- */
+// null = SQL 28 전
+export async function getNeis() {
+  const { data, error } = await sb.from('neis_config').select('api_key,last_sync,last_result').eq('id', 1).maybeSingle();
+  if (error) return null;
+  return { hasKey: !!data?.api_key, last: data?.last_sync || null, result: data?.last_result || [] };
+}
+export async function saveNeisKey(key) {
+  check(await sb.from('neis_config').upsert({ id: 1, api_key: key.trim() || null }));
+}
+export async function runNeis() {
+  const r = await fetch(`${SUPABASE_URL}/functions/v1/neis-sync`, { method: 'POST' });
+  let body = null; try { body = await r.json(); } catch { /* 없음 */ }
+  if (!r.ok && !body) throw new Error(r.status === 404 ? 'neis-sync 함수가 아직 없습니다 (Edge Functions에 올려 주세요)' : `오류 ${r.status}`);
+  if (!body?.ok) throw new Error(body?.error || '가져오지 못했습니다');
+  return body.schools || [];
 }

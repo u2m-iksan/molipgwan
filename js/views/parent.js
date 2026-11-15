@@ -69,7 +69,7 @@ export async function renderParentHome({ students, onLogout }) {
     // 지금 일정 중(끝 + 이동 시간 포함)이면 '외출 · 학원명' — 선생님 현황판과 같은 기준
     //  학생 입력 우선: 토요일은 출결 기록, 주중은 스톱워치를 켜 두었으면 그걸 따름
     const t0 = today(), n = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' })), nowMin = n.getHours() * 60 + n.getMinutes();
-    const todayRows = (st.sched.get(s.id) || []).filter((r) => r.weekday === isoDow(t0) && r.valid_from <= t0 && (!r.valid_to || r.valid_to >= t0));
+    const todayRows = (st.sched.get(s.id) || []).filter((r) => r.weekday === isoDow(t0) && r.valid_from <= t0 && (!r.valid_to || r.valid_to >= t0) && !r._off?.has(t0) && (!r.term || !st.sched.get(s.id).termAt || r.term === st.sched.get(s.id).termAt(t0)));
     const closed = isClosedNow(isoDow(t0), nowMin);   // 운영 시간 밖(주중 23시~다음 날 6시) → 하원
     const nb = closed ? null : nowBlock(s, todayRows, nowMin);
     const autoOut = !!nb && (sat ? !at : !a);   // 토: 등원 찍어야 몰입 중 · 주중: 스톱워치 켜면 몰입 중

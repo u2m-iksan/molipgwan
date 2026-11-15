@@ -37,8 +37,9 @@ export function periodLabel(row) {
 /* ---------- 학생 일정 ---------- */
 export async function loadStudentSchedules(studentId) {
   const [rows, ovs] = await Promise.all([
-    activeFilter(sb.from('schedules').select('*').eq('student_id', studentId)).order('weekday').order('start_time').then(check),
-    loadOverrides([studentId], addDays(mondayOf(today()), -14)),
+    // 지난 4주도 볼 수 있게 (끝난 일정 · 휴강 · 보강까지)
+    sb.from('schedules').select('*').eq('student_id', studentId).or(`valid_to.is.null,valid_to.gte.${addDays(mondayOf(today()), -28)}`).order('weekday').order('start_time').then(check),
+    loadOverrides([studentId], addDays(mondayOf(today()), -28)),
   ]);
   return applyOverrides(rows, ovs);
 }

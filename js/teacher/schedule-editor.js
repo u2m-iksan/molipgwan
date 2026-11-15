@@ -32,9 +32,9 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
 
   const t = today();
   const thisMon = mondayOf(t);
-  const mon = week && week >= thisMon ? week : thisMon;
+  const mon = week && week >= addDays(thisMon, -28) ? week : thisMon;
   const coach = rows.filter((r) => r.category === '코칭' && r.valid_from <= t).sort((a, b) => b.valid_from.localeCompare(a.valid_from))[0];
-  const groups = groupSchedules(rows.filter((r) => r.category !== '코칭' && !r.makeup));
+  const groups = groupSchedules(rows.filter((r) => r.category !== '코칭' && !r.makeup && (!r.valid_to || r.valid_to >= t)));
   // 기간이 정해진 일정만 따로: 이번 주만 · ~12/31까지 · 12/1부터
   const md2 = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
   const curTerm = isVacation(stu.school, t, vac) ? '방학' : '학기';
@@ -56,13 +56,13 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
         <div class="wk-head">
           <h4>주간 시간표</h4>
           <div class="wk-nav2">
-            <button type="button" class="icon-btn sm" id="wkPrev" aria-label="이전 주"${mon <= thisMon ? ' disabled' : ''}>${CHEV_L}</button>
-            <span class="wk-label">${mon === thisMon ? '이번 주' : mon === addDays(thisMon, 7) ? '다음 주' : ''} ${short(mon)} ~ ${short(addDays(mon, 6))}</span>
+            <button type="button" class="icon-btn sm" id="wkPrev" aria-label="이전 주"${mon <= addDays(thisMon, -28) ? ' disabled' : ''}>${CHEV_L}</button>
+            <span class="wk-label">${mon === thisMon ? '이번 주' : mon === addDays(thisMon, 7) ? '다음 주' : mon === addDays(thisMon, -7) ? '지난 주' : ''} ${short(mon)} ~ ${short(addDays(mon, 6))}</span>
             <button type="button" class="icon-btn sm" id="wkNext" aria-label="다음 주">${CHEV_R}</button>
             ${[0, 1, 2, 3, 4, 5, 6].some((i) => isVacation(stu.school, addDays(mon, i), vac)) ? '<span class="pill pill-green">방학</span>' : ''}
           </div>
           <div class="spacer"></div>
-          <div class="wk-legend">${['학교', '학원', '기타', '코칭'].map((c) => `<span class="lg lg-${c}">${c}</span>`).join('')}</div>
+          <div class="wk-legend">${['학교', '학원', '기타', '코칭'].map((c) => `<span class="lg lg-${c}">${c}</span>`).join('')}<span class="lg lg-mk">보강</span><span class="lg lg-off">휴강</span></div>
           <button type="button" class="btn-mk" data-makeup="${mon === thisMon ? t : mon}">+ 보강</button>
         </div>
         <div class="wk-scroll">${weekGrid(rows, mon, t, HOUR_PX, { fitH: Math.round(Math.min(520, Math.max(300, innerHeight * 0.46))), squeezeSchool: true })}</div>
@@ -306,7 +306,7 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
     const sch = items.slice(0, 5).flat().filter((r) => r.category === '학교');
     if (sch.length) sq = {
       from: Math.max(DAY_START, Math.min(...sch.map((r) => toMin(r.start_time)))),
-      to: Math.min(DAY_END, Math.max(...sch.map((r) => toMin(r.end_time)))), ratio: 0.35,
+      to: Math.min(DAY_END, Math.max(...sch.map((r) => toMin(r.end_time)))), ratio: 0.22,
     };
   }
   const W = mkScale(sq), E = opt.splitWeekend ? mkScale(null) : W;
@@ -325,7 +325,9 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
     // 겹치는 일정끼리만 나란히 (겹침 묶음별로 칸 나누기)
     let cluster = [], clusterEnd = -1;
     const flush = () => { const n = Math.max(...cluster.map((c) => c._lane)) + 1; cluster.forEach((c) => { c._n = n; }); cluster = []; };
+    const offAt = (it) => !!it._off?.has(date);
     for (const it of its) {
+      if (offAt(it)) { it._lane = 0; it._n = 1; continue; }   // 휴강은 뒤에 옅게 깔고, 같은 시간 보강이 칸을 다 씀
       const s0 = toMin(it.start_time);
       if (cluster.length && s0 >= clusterEnd) flush();
       const used = cluster.filter((c) => toMin(c.end_time) > s0).map((c) => c._lane);
@@ -337,10 +339,14 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
     const blocks = its.map((it) => {
       const n = it._n || 1;
       const top = S.y(toMin(it.start_time)), h = Math.max(16, S.y(toMin(it.end_time)) - top);
-      const off = !!it._off?.has(date);
-      return `<div class="blk blk-${it.category}${it.valid_to && !it.makeup ? ' temp' : ''}${h < 40 ? ' thin' : ''}${off ? ' off' : ''}${it.makeup ? ' mk' : ''}" data-sid="${esc(String(it.id))}" data-date="${date}" style="top:${top}px;height:${h - 2}px;left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)"
+      const off = offAt(it), thin = h < 40;
+      const tag = off ? '<em class="blk-tag">휴강</em>' : it.makeup ? '<em class="blk-tag">보강</em>' : '';
+      const name = it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title;
+      // 학교는 이름 + 끝나는 시각만 한 줄 (하교 시각이 중요)
+      const time = it.category === '학교' ? `~${hm(it.end_time)}` : `${hm(it.start_time)}~<wbr>${hm(it.end_time)}`;
+      return `<div class="blk blk-${it.category}${it.valid_to && !it.makeup ? ' temp' : ''}${thin ? ' thin' : ''}${off ? ' off' : ''}${it.makeup ? ' mk' : ''}" data-sid="${esc(String(it.id))}" data-date="${date}" style="top:${top}px;height:${h - 2}px;left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)"
         title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">
-        ${off ? '<em class="blk-tag">휴강</em>' : it.makeup ? '<em class="blk-tag">보강</em>' : ''}<b>${esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title)}</b>${h >= 40 ? `<span>${hm(it.start_time)}~<wbr>${hm(it.end_time)}</span>` : ''}</div>`;
+        ${thin ? `<b>${tag}${esc(name)}</b>` : `${tag}<b>${esc(name)}</b><span>${time}</span>`}</div>`;
     }).join('');
     // 지금 시각 파란 줄 (오늘 칸, 시간표 범위 안일 때)
     let now = '';

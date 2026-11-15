@@ -1304,3 +1304,22 @@ body.is-preview .push-gate{display:none!important}
 .wk-nav2 .wk-label{min-width:0;font-feature-settings:"tnum"}
 .wk-nav2 .pill{margin-left:4px}
 .wk-head .wk-legend{margin-right:8px}
+
+/* ---------- 시간표 v2 ---------- */
+/* '이번 주만' 같은 기간 일정은 점선 빼고 (점선 = 보강) */
+.blk.temp{border-style:solid}
+.blk.temp:not(.mk){box-shadow:inset 3px 0 0 var(--bd)}
+/* 휴강: 뒤에 옅게 깔림 · 보강은 그 위로 */
+.blk{z-index:1}
+.blk.off{z-index:0}
+/* 짧은 블럭: 표시 + 이름 한 줄 */
+.blk.thin b{display:flex;align-items:center;gap:4px;min-width:0}
+.blk.thin .blk-tag{flex:none}
+/* 범례: 보강 · 휴강 */
+.lg-mk::before{background:#F5F9FF;border:1.5px dashed #7FAEF5}
+.lg-off::before{background:repeating-linear-gradient(135deg,#F0F6FF 0 3px,rgba(0,27,55,.18) 3px 4px);border:1px solid #C6DCFC}
+/* 좁은 시간표(폰 · 학부모): 이름은 줄바꿈 없이 한 줄, 넘치면 잘림 */
+.sa-tt .blk b,.pa-tt .blk b,.wk-scroll .blk b{display:block!important;white-space:nowrap!important;word-break:keep-all!important;-webkit-line-clamp:unset!important;
+  overflow:hidden;text-overflow:clip;letter-spacing:-.04em}
+.sa-tt .blk .blk-tag,.pa-tt .blk .blk-tag{display:block;font-size:8.5px;margin-bottom:1px}
+.sa-tt .blk.thin .blk-tag,.pa-tt .blk.thin .blk-tag{display:none}

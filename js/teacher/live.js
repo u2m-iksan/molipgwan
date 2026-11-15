@@ -8,7 +8,7 @@ import { sb } from '../sb.js';
 import { DOW, today, mondayOf, isoDow, toMin, toTime, hm } from '../date.js';
 import { settleStale } from '../data/student.js';
 import { satAlert, nowBlock, outInfo, isClosedNow } from '../data/att-rules.js';
-import { loadVacations, isVacation, termOk } from '../data/schedules.js';
+import { loadVacations, isVacation, termOk, todayWithOverrides } from '../data/schedules.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 const kst = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -30,7 +30,7 @@ async function loadLive() {
     sb.from('students').select('id,name,grade,school,seat_no,status,sat_arrive,return_on').in('status', ['재원', '휴원']).then(check),
     sb.from('study_sessions').select('id,student_id,subject,started_at,ended_at,paused_at,pause_seconds,net_seconds,checked_net,study_date').gte('study_date', mon).then(check),
     sb.from('attendance').select('*').eq('on_date', t).order('at').then(check).catch(() => []),
-    sb.from('schedules').select('student_id,category,title,weekday,start_time,end_time,valid_from,valid_to,term').eq('weekday', isoDow(t)).then(check),
+    sb.from('schedules').select('id,student_id,category,title,weekday,start_time,end_time,valid_from,valid_to,term').eq('weekday', isoDow(t)).then(check).then((r) => todayWithOverrides(r, t)),
     loadVacations(true),
   ]);
   return { t, students: students.filter((x) => x.status === '재원' || (x.return_on && x.return_on >= t)), sessions: await settleStale(sessions), att, vac,

@@ -4,6 +4,7 @@ import { mount, $, $$, esc, toast, sheet, BRAND, X } from '../ui.js';
 import { PREVIEW } from '../app-role.js';
 import { DOW, today, mondayOf, short, isoDow, toMin, toTime, hm, addDays } from '../date.js';
 import { loadStudentSchedules, loadVacations, withTerm, termOk } from '../data/schedules.js';
+import { wireGridEdit } from './grid-edit.js';
 import { weekGrid, renderScheduleEditor } from '../teacher/schedule-editor.js';
 import { academyStat, dayLabel, AC_MARK, AC_CLS, AC_PCT, acOf } from '../data/academy.js';
 import { segBar } from './progress-bar.js';
@@ -179,7 +180,12 @@ ${SUM}
         const pb = parseFloat(getComputedStyle(el).paddingBottom) || 0;
         const over = g.getBoundingClientRect().bottom - (el.getBoundingClientRect().bottom - pb);
         if (Math.abs(over) > 1) { h = Math.max(min, h - over); paint(h); }
+        // 시간표에서 바로 휴강 · 보강 (선생님께 알림)
+        wireGridEdit(el, { rows, stu: student, isStudent: true, onChanged: refresh });
       };
+      const refresh = () => loadStudentSchedules(student.id).then((r) => {
+        rows.splice(0, rows.length, ...r); rows.offs = r.offs; rows.offAt = r.offAt; lastKey = ''; draw();
+      }).catch(() => {});
       draw();
       new ResizeObserver(() => draw()).observe($('.sa-main'));
       addEventListener('resize', draw);
@@ -191,7 +197,7 @@ ${SUM}
           <div class="pane" id="se"></div></div>`, 'center');
         renderScheduleEditor($('#se', panel), student, { student: true });
         const close = panel.close;
-        panel.close = () => { close(); loadStudentSchedules(student.id).then((r) => { rows.splice(0, rows.length, ...r); draw(); }).catch(() => {}); };
+        panel.close = () => { close(); refresh(); };
       });
     } catch (e) { el.innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`; }
   }

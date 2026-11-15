@@ -9,6 +9,7 @@ import {
 } from '../data/schedules.js';
 import { subjectLabel, ACADEMY_DETAILS } from '../data/academy.js';
 import { SUBJECTS } from '../data/students.js';
+import { wireGridEdit } from '../views/grid-edit.js';
 
 const CATS = ['학교', '학원', '기타'];
 const CAT_PILL = { 학교: 'pill-gray', 학원: 'pill-blue', 기타: 'pill-orange', 코칭: 'pill-green' };
@@ -33,7 +34,8 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
   const thisMon = mondayOf(t);
   const mon = week && week >= thisMon ? week : thisMon;
   const coach = rows.filter((r) => r.category === '코칭' && r.valid_from <= t).sort((a, b) => b.valid_from.localeCompare(a.valid_from))[0];
-  const groups = groupSchedules(rows.filter((r) => r.category !== '코칭'));
+  const groups = groupSchedules(rows.filter((r) => r.category !== '코칭' && !r.makeup));
+  const curTerm = isVacation(stu.school, t, vac) ? '방학' : '학기';
   const f = { category: '학원', weekdays: [], period: 'always', term: '', same: true, time: { start: '', end: '' }, times: {} };
   const again = (opts = {}) => renderScheduleEditor(root, stu, { canCoach, student, week: mon, ...opts });
   const editing = editIdx != null ? groups[editIdx] : null;
@@ -49,7 +51,7 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
           <h4>주간 시간표</h4>
           <div class="spacer"></div>
           <button type="button" class="icon-btn sm" id="wkPrev" aria-label="이전 주"${mon <= thisMon ? ' disabled' : ''}>${CHEV_L}</button>
-          <span class="wk-label">${mon === thisMon ? '이번 주' : mon === addDays(thisMon, 7) ? '다음 주' : ''} ${short(mon)} ~ ${short(addDays(mon, 6))}</span>${[0, 1, 2, 3, 4, 5, 6].some((i) => isVacation(stu.school, addDays(mon, i), vac)) ? '<span class="pill pill-blue">방학</span>' : ''}
+          <span class="wk-label">${mon === thisMon ? '이번 주' : mon === addDays(thisMon, 7) ? '다음 주' : ''} ${short(mon)} ~ ${short(addDays(mon, 6))}</span>${[0, 1, 2, 3, 4, 5, 6].some((i) => isVacation(stu.school, addDays(mon, i), vac)) ? '<span class="pill pill-green">방학</span>' : ''}
           <button type="button" class="icon-btn sm" id="wkNext" aria-label="다음 주">${CHEV_R}</button>
           <div class="wk-legend">${['학교', '학원', '기타', '코칭'].map((c) => `<span class="lg lg-${c}">${c}</span>`).join('')}</div>
         </div>
@@ -75,15 +77,19 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
 
           <div class="sched-sec">
             <h4>학교 · 학원 일정</h4>${student ? '<p class="sub-s">학원 일정은 바꾸면 바로 반영되고 선생님께 알림이 갑니다.</p>' : ''}
-            ${groups.length ? groups.map((g, i) => `
+            ${['학기', '방학'].map((tm) => {
+              const list = groups.map((g, i) => [g, i]).filter(([g]) => !g.term || g.term === tm);
+              return `<div class="sched-term"><h5>${tm === '학기' ? '학기 중' : '방학 중'}${curTerm === tm ? '<em>지금</em>' : ''}</h5>
+                ${list.length ? list.map(([g, i]) => `
               <div class="sched-row">
                 <span class="pill ${CAT_PILL[g.category]}">${esc(g.category)}</span>
                 <div class="sched-main"><b>${esc(g.title)}${g.category === '학원' ? (g.subject ? `<em class="sched-sub">${esc(subjectLabel(g))}</em>` : g.subject === '' ? '' : '<em class="sched-sub none">과목 미지정</em>') : ''}</b>
                   <span class="sub">${g.weekdays.map((d) => DOW[d]).join('·')} ${hm(g.start_time)}~${hm(g.end_time)}</span></div>
-                ${g.term ? `<span class="pill ${g.term === '방학' ? 'pill-blue' : 'pill-gray'} term-pill">${g.term === '방학' ? '방학' : '학기'}</span>` : ''}<span class="period${g.valid_to ? ' temp' : ''}">${esc(periodLabel(g))}</span>
+<span class="period${g.valid_to ? ' temp' : ''}">${esc(periodLabel(g))}</span>
                 ${mine(g) ? `<button type="button" class="icon-btn sm${editIdx === i ? ' on' : ''}" data-edit="${i}" aria-label="일정 변경">${PEN}</button>
                 <button type="button" class="icon-btn sm" data-del="${i}" aria-label="일정 삭제">${TRASH}</button>` : ''}
-              </div>`).join('') : '<p class="sub-s">등록된 일정이 없습니다.</p>'}
+              </div>`).join('') : '<p class="sub-s">등록된 일정이 없습니다.</p>'}</div>`;
+            }).join('')}
           </div>
         </div>
 
@@ -116,6 +122,8 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
   $('.drawer-body', root).scrollTop = keepScroll;
   $('#wkPrev', root).addEventListener('click', () => again({ week: addDays(mon, -7) }));
   $('#wkNext', root).addEventListener('click', () => again({ week: addDays(mon, 7) }));
+  // 시간표 블럭 · 빈 칸 눌러서 휴강 · 보강
+  wireGridEdit($('.wk', root), { rows, stu, isStudent: student, onChanged: () => again() });
 
   /* ---------- 코칭 타임 배정 ---------- */
   if (canCoach) {
@@ -316,9 +324,10 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
     const blocks = its.map((it) => {
       const n = it._n || 1;
       const top = S.y(toMin(it.start_time)), h = Math.max(16, S.y(toMin(it.end_time)) - top);
-      return `<div class="blk blk-${it.category}${it.valid_to ? ' temp' : ''}${h < 40 ? ' thin' : ''}" style="top:${top}px;height:${h - 2}px;left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)"
+      const off = !!it._off?.has(date);
+      return `<div class="blk blk-${it.category}${it.valid_to && !it.makeup ? ' temp' : ''}${h < 40 ? ' thin' : ''}${off ? ' off' : ''}${it.makeup ? ' mk' : ''}" data-sid="${esc(String(it.id))}" data-date="${date}" style="top:${top}px;height:${h - 2}px;left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)"
         title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">
-        <b>${esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title)}</b>${h >= 40 ? `<span>${hm(it.start_time)}~<wbr>${hm(it.end_time)}</span>` : ''}</div>`;
+        ${off ? '<em class="blk-tag">휴강</em>' : it.makeup ? '<em class="blk-tag">보강</em>' : ''}<b>${esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title)}</b>${h >= 40 ? `<span>${hm(it.start_time)}~<wbr>${hm(it.end_time)}</span>` : ''}</div>`;
     }).join('');
     // 지금 시각 파란 줄 (오늘 칸, 시간표 범위 안일 때)
     let now = '';
@@ -329,9 +338,12 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
         now = `<i class="wk-now" style="top:${y0}px" data-m0="${m}" data-y0="${y0}" data-rate="${rate}" data-max="${H}" aria-hidden="true"></i>`;
       }
     }
-    return `<div class="wk-col${date === t ? ' today-col' : ''}${d === 6 && !split ? ' wk-wkend' : ''}">
+    const ticks = [];
+    for (let m = DAY_START; m <= DAY_END; m += 30) ticks.push([m, Math.round(S.y(m))]);
+    const vac = termAt?.(date) === '방학';
+    return `<div class="wk-col${date === t ? ' today-col' : ''}${d === 6 && !split ? ' wk-wkend' : ''}${vac ? ' vac' : ''}">
       <div class="wk-day">${DOW[d]}<span>${Number(date.slice(8))}</span></div>
-      <div class="wk-body" style="height:${H}px">${lines(S)}${blocks}${now}${rows.schoolAt?.(date) ? '<i class="wk-school" title="방학 중 등교일">학교</i>' : ''}</div></div>`;
+      <div class="wk-body" style="height:${H}px" data-date="${date}" data-ticks="${ticks.map((x) => x.join(':')).join(',')}">${lines(S)}${blocks}${now}${rows.schoolAt?.(date) ? '<i class="wk-school" title="방학 중 등교일">학교</i>' : ''}</div></div>`;
   };
 
   return `<div class="wk-grid${split ? ' split' : ''}">

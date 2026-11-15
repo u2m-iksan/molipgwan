@@ -36,8 +36,68 @@ export function periodLabel(row) {
 
 /* ---------- 학생 일정 ---------- */
 export async function loadStudentSchedules(studentId) {
-  return check(await activeFilter(sb.from('schedules').select('*').eq('student_id', studentId))
-    .order('weekday').order('start_time'));
+  const [rows, ovs] = await Promise.all([
+    activeFilter(sb.from('schedules').select('*').eq('student_id', studentId)).order('weekday').order('start_time').then(check),
+    loadOverrides([studentId], addDays(mondayOf(today()), -14)),
+  ]);
+  return applyOverrides(rows, ovs);
+}
+
+/* ---------- 휴강 · 보강 (SQL 29 · schedule_overrides) ---------- */
+// 휴강 = action '취소' (schedule_id · 날짜) / 보강 = action '추가' (그날 하루 학원)
+export async function loadOverrides(studentIds, from) {
+  if (!studentIds.length) return [];
+  let q = sb.from('schedule_overrides').select('*').in('student_id', studentIds).in('action', ['취소', '추가']);
+  if (from) q = q.gte('on_date', from);
+  const r = await q;
+  return r.error ? [] : r.data || [];   // SQL 29 전이어도 시간표는 그대로
+}
+// 일정 목록에 휴강 표시(rows.offAt) + 보강을 그날 하루짜리 일정으로 끼워 넣기 (makeup: true)
+export function applyOverrides(rows, ovs) {
+  const offs = new Map();
+  for (const o of ovs || []) {
+    if (o.action === '취소' && o.schedule_id) offs.set(`${o.schedule_id}|${o.on_date}`, o.id);
+    if (o.action === '추가' && o.start_time && o.end_time) rows.push({
+      id: 'ov:' + o.id, ov_id: o.id, student_id: o.student_id, category: o.category || '학원', title: o.title || '보강',
+      subject: o.subject ?? null, subject_detail: o.subject_detail ?? null, weekday: isoDow(o.on_date),
+      start_time: o.start_time, end_time: o.end_time, valid_from: o.on_date, valid_to: o.on_date, term: null, makeup: true,
+    });
+  }
+  // 각 일정에 휴강 날짜 붙이기 (목록을 걸러도 따라감)
+  for (const r of rows) {
+    if (r.makeup) continue;
+    const ds = (ovs || []).filter((o) => o.action === '취소' && o.schedule_id === r.id).map((o) => o.on_date);
+    r._off = ds.length ? new Set(ds) : null;
+  }
+  rows.offs = offs;
+  rows.offAt = (id, d) => offs.has(`${id}|${d}`);
+  return rows;
+}
+// 휴강: 같은 요일로 date 부터 until 까지 (그 일정이 유효한 날만)
+export async function addOffs(row, date, until) {
+  const out = [];
+  for (let d = date; d <= until; d = addDays(d, 7)) {
+    if (row.valid_from <= d && (!row.valid_to || row.valid_to >= d)) out.push({ student_id: row.student_id, schedule_id: row.id, on_date: d, action: '취소', category: row.category, title: row.title });
+  }
+  if (out.length) check(await sb.from('schedule_overrides').upsert(out, { onConflict: 'schedule_id,on_date', ignoreDuplicates: true }));
+  return out.length;
+}
+export async function removeOverride(id) { check(await sb.from('schedule_overrides').delete().eq('id', id)); }
+export async function addMakeup({ student_id, date, title, subject = null, subject_detail = null, start, end }) {
+  check(await sb.from('schedule_overrides').insert({ student_id, on_date: date, action: '추가', category: '학원', title, subject, subject_detail, start_time: start, end_time: end }));
+}
+// 하루치 일정에 휴강 · 보강 반영 (전체 현황 · 출결용): rows 는 그날 요일 일정
+export async function todayWithOverrides(rows, date) {
+  const ids = [...new Set(rows.map((r) => r.student_id))];
+  const r = await sb.from('schedule_overrides').select('*').eq('on_date', date).in('action', ['취소', '추가']);
+  if (r.error) return rows;
+  const offs = new Set(r.data.filter((o) => o.action === '취소').map((o) => o.schedule_id));
+  const adds = r.data.filter((o) => o.action === '추가' && o.start_time && o.end_time).map((o) => ({
+    id: 'ov:' + o.id, student_id: o.student_id, category: o.category || '학원', title: o.title || '보강', weekday: isoDow(date),
+    start_time: o.start_time, end_time: o.end_time, valid_from: date, valid_to: date, term: null, makeup: true,
+  }));
+  void ids;
+  return [...rows.filter((x) => !offs.has(x.id)), ...adds];
 }
 
 // 같은 내용·같은 기간의 요일별 행을 하나로 묶어서 보여주기

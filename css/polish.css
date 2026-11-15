@@ -1197,3 +1197,16 @@ body.is-preview .push-gate{display:none!important}
 .sync-res li span{color:var(--sub)}
 .sync-res li.bad span{color:var(--red)}
 .cal-auto{font-style:normal;font-size:10.5px;font-weight:700;color:var(--blue,#3182F6);background:var(--blue-soft,#EAF2FE);border-radius:5px;padding:1px 5px;margin-left:-2px}
+
+/* 학생 정보: 학교 고르기 */
+.sp-wrap{position:relative}
+.sp-box{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:50;max-height:280px;overflow:auto;padding:6px;border-radius:14px;background:#fff;
+  box-shadow:0 12px 32px rgba(0,27,55,.14),0 0 0 1px rgba(0,27,55,.06);animation:spIn .16s ease}
+@keyframes spIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.sp-opt{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border-radius:10px;text-align:left;font-size:15px}
+.sp-opt b{font-weight:600}
+.sp-opt small{flex:1;min-width:0;font-size:12.5px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp-opt i{font-style:normal;font-size:11px;font-weight:700;color:var(--blue,#3182F6);background:var(--blue-soft,#EAF2FE);border-radius:5px;padding:1px 6px}
+.sp-opt:hover,.sp-opt.on{background:var(--surface)}
+.sp-add b{color:var(--blue,#3182F6)}
+.sp-none{padding:12px;font-size:13px;color:var(--sub)}

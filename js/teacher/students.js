@@ -7,6 +7,8 @@ import {
   loadStudents, createStudent, updateStudent, deleteStudent, parseSheet,
 } from '../data/students.js';
 import { renderScheduleEditor } from './schedule-editor.js';
+import { mountSchoolPicker } from '../views/school-picker.js';
+import { addCustomSchool, schoolKey } from '../data/school-sync.js';
 
 const STATUS_PILL = { 재원: 'pill-green', 휴원: 'pill-orange', 퇴원: 'pill-gray' };
 
@@ -102,7 +104,7 @@ export async function renderStudents(body) {
     const panel = sheet(`
       <div class="modal ${stu ? 'modal-lg' : 'modal-m'}" role="dialog" aria-label="${stu ? esc(stu.name) : '학생 등록'}">
         <div class="drawer-head"><h3>${stu ? `${esc(stu.name)} <span class="h-sub">${esc(stu.grade)}${stu.seat_no ? ' · 자리 ' + esc(stu.seat_no) : ''}</span>` : '학생 등록'}</h3>
-          ${stu ? `<div class="pv-links"><a class="btn btn-gray btn-sm" href="#/as/s/${stu.id}" data-pv>학생 화면<span class="m-hide"> 보기</span></a><a class="btn btn-gray btn-sm" href="#/as/p/${stu.family_id}" data-pv>학부모 화면<span class="m-hide"> 보기</span></a></div>` : ''}
+          ${stu ? `<div class="pv-links"><a class="btn btn-gray btn-sm" href="#/as/s/${stu.id}" data-pv>학생 화면<span class="m-hide">보기</span></a><a class="btn btn-gray btn-sm" href="#/as/p/${stu.family_id}" data-pv>학부모 화면<span class="m-hide">보기</span></a></div>` : ''}
           <button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
         ${stu ? `<div class="drawer-tabs seg seg-wide" id="d-tabs"><button type="button" data-v="sched" class="on">일정</button><button type="button" data-v="info">기본 정보</button></div>` : ''}
         <form class="pane" id="ed" novalidate${stu ? ' hidden' : ''}>
@@ -113,7 +115,7 @@ export async function renderStudents(body) {
               <p class="hint" id="f-seat-hint"></p></div>
           </div>
           <div class="field"><span class="lbl">학년</span><div class="seg seg-wide" id="f-grade">${GRADES.map((g) => `<button type="button" data-v="${g}">${g}</button>`).join('')}</div></div>
-          <div class="field"><label for="f-school">학교</label><div class="input"><input id="f-school" value="${esc(f.school || '')}" autocomplete="off"></div></div>
+          <div class="field"><label for="f-school">학교</label><div class="input"><input id="f-school" value="${esc(f.school || '')}" autocomplete="off" placeholder="학교 검색 · 없으면 새로 추가"></div></div>
           <div class="field"><label for="f-pp">학부모 휴대폰</label><div class="input"><input id="f-pp" inputmode="numeric" value="${esc(f.parent_phone)}" autocomplete="off" placeholder="010-0000-0000"></div>
             <p class="hint" id="f-pp-hint"></p>
             ${stu ? '<div class="devs" id="f-devs" hidden></div>' : ''}</div>
@@ -248,9 +250,10 @@ export async function renderStudents(body) {
       });
     }
 
+    mountSchoolPicker($('#f-school', panel));
     $('#ed', panel).addEventListener('submit', async (e) => {
       e.preventDefault();
-      f.name = $('#f-name', panel).value; f.school = $('#f-school', panel).value; f.seat_no = $('#f-seat', panel).value;
+      f.name = $('#f-name', panel).value; f.school = schoolKey($('#f-school', panel).value); f.seat_no = $('#f-seat', panel).value;
       f.parent_phone = pp.value; f.student_phone = $('#f-sp', panel).value;
       f.avoid_subject = $('#f-avoid', panel).value; f.trait_note = $('#f-note', panel).value;
       f.goal = $('#f-goal', panel).value;
@@ -264,6 +267,7 @@ export async function renderStudents(body) {
       if (digits(f.student_phone) && !validPhone(f.student_phone)) return (err.textContent = '학생 휴대폰 번호를 확인하세요.');
       const btn = $('#f-save', panel); btn.disabled = true; err.textContent = '';
       try {
+        if (f.school) addCustomSchool(f.school).catch(() => {});   // 목록에 없던 학교면 직접 추가 목록에
         if (stu) await updateStudent(stu.id, f, stu); else await createStudent(f);
         panel.close(); toast(stu ? '저장되었습니다' : `${f.name.trim()} 등록됨`); reload();
       } catch (ex) { err.textContent = '저장 실패: ' + ex.message; btn.disabled = false; }

@@ -204,6 +204,7 @@ export async function renderSettings(body, { me } = {}) {
     const count = new Map();
     for (const s of stu.filter((x) => x.status === '재원' && x.school)) count.set(s.school, (count.get(s.school) || 0) + 1);
     for (const e of evs) if (!count.has(e.school)) count.set(e.school, 0);
+    for (const c of sync?.custom || []) if (!count.has(c)) count.set(c, 0);   // 직접 추가한 학교 (학사일정 직접 입력)
     const schools = [...count.keys()].sort((a, b) => a.localeCompare(b, 'ko'));
     const md = (d) => short(d).replace(/\(.\)/, '');
     const dday = (e) => (e.end_date < t ? '' : e.start_date <= t ? '<em class="cal-now">진행 중</em>'

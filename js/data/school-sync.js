@@ -11,7 +11,7 @@ const check = (r) => { if (r.error) throw r.error; return r.data; };
 
 export async function getSync() {
   const { data } = await sb.from('app_settings').select('value').eq('key', KEY).maybeSingle();
-  return { url: SYNC_URL, vac: 'neis', last: null, result: [], ...(data?.value || {}) };
+  return { url: SYNC_URL, vac: 'neis', last: null, result: [], schools: [], custom: [], ...(data?.value || {}) };
 }
 async function saveSync(v) { check(await sb.from('app_settings').upsert({ key: KEY, value: v })); }
 export async function setVacMode(vac) { const v = await getSync(); await saveSync({ ...v, vac }); }
@@ -37,7 +37,7 @@ export async function runSync() {
   const mine = [...new Set((stu || []).map((s) => (s.school || '').trim()).filter(Boolean))];
   const byKey = new Map(data.schools.map((s) => [schoolKey(s.n), s]));
 
-  const rows = [], result = [];
+  const rows = [], result = [], fixedSegs = [];
   for (const school of mine) {
     const sc = byKey.get(schoolKey(school));
     if (!sc) { result.push({ school, error: '학사일정 앱에 없음 (수집 체크 확인)' }); continue; }
@@ -53,7 +53,7 @@ export async function runSync() {
       if (fx) {
         String(fx.segs).split(',').forEach((seg) => {
           const [a, b] = seg.split('~');
-          if (a && b) { rows.push({ school, kind: '방학', title: `${SEASON(sea)} · 확정`, start_date: a, end_date: b, source: 'sync' }); nv++; }
+          if (a && b) { rows.push({ school, kind: '방학', title: `${SEASON(sea)} · 확정`, start_date: a, end_date: b, source: 'sync' }); fixedSegs.push({ school, a, b }); nv++; }
         });
         continue;
       }
@@ -72,8 +72,15 @@ export async function runSync() {
     const del = await sb.from('school_events').delete().eq('source', 'sync').in('school', ok);
     if (del.error) throw new Error(/source/.test(del.error.message) ? 'SQL 28을 먼저 실행해 주세요' : del.error.message);
     if (rows.length) check(await sb.from('school_events').insert(rows));
+    // 방학 확정이 생기면: 그 기간과 겹치는 직접 입력 방학도 확정으로 정리 (지움)
+    for (const f of fixedSegs) {
+      await sb.from('school_events').delete().eq('school', f.school).eq('kind', '방학').neq('source', 'sync')
+        .lte('start_date', f.b).gte('end_date', f.a);
+    }
   }
-  await saveSync({ ...cfg, last: new Date().toISOString(), result });
+  // 학교 목록 (학생 등록 때 고르기용): 학사일정 앱에서 수집 켜진 학교 전부
+  const schools = data.schools.map((s) => ({ k: schoolKey(s.n), n: s.n })).sort((a, b) => a.k.localeCompare(b.k, 'ko'));
+  await saveSync({ ...cfg, last: new Date().toISOString(), result, schools });
   return result;
 }
 
@@ -86,4 +93,20 @@ export async function autoSync() {
     if (cfg.last && Date.now() - new Date(cfg.last) < 20 * 3600e3) return;
     await runSync();
   } catch { /* 다음에 */ }
+}
+
+/* ---------- 학교 목록 (학생 등록 · 수정 때 고르기) ---------- */
+// [{ k: '익산고', n: '익산고등학교', auto: true }] + 직접 추가한 학교 [{ k, n: k, auto: false }]
+export async function schoolList() {
+  const v = await getSync();
+  const out = (v.schools || []).map((s) => ({ ...s, auto: true }));
+  for (const c of v.custom || []) if (!out.some((s) => s.k === schoolKey(c))) out.push({ k: c, n: c, auto: false });
+  return out.sort((a, b) => a.k.localeCompare(b.k, 'ko'));
+}
+// 목록에 없는 학교 → 직접 추가 (학사일정은 설정에서 따로 입력)
+export async function addCustomSchool(name) {
+  const k = schoolKey(name); if (!k) return;
+  const v = await getSync();
+  if ((v.schools || []).some((s) => s.k === k) || (v.custom || []).includes(k)) return;
+  await saveSync({ ...v, custom: [...(v.custom || []), k] });
 }

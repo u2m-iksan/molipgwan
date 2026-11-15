@@ -172,7 +172,7 @@ ${SUM}
         if (key === lastKey && el.querySelector('.wk-grid')) return;   // 크기 그대로면 다시 그리지 않음
         lastKey = key;
         // 학교 있는 주중은 학교 시간을 줄이고 오후·저녁을 크게 (주말·학교 없는 주는 고르게)
-        const paint = (h) => { el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주${rows.termAt?.(today()) === '방학' ? ' · 방학' : ''}</span><div class="tt-acts"><button type="button" class="btn-mk" data-makeup="${today()}">+ 보강</button><button type="button" class="btn-pen" id="tt-edit" aria-label="학원 일정 수정" title="학원 일정 수정">${PEN_I}</button></div></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true, nowLine: true })}`; };
+        const paint = (h) => { el.innerHTML = `<div class="sa-h"><h3>이번 주 시간표</h3><span>${md(mondayOf(today()))} 주${rows.termAt?.(today()) === '방학' ? ' · 방학' : ''}</span><div class="tt-acts"><button type="button" class="btn-mk" data-makeup="${today()}">+ 보강·일정</button><button type="button" class="btn-pen" id="tt-edit" aria-label="학원 일정 수정" title="학원 일정 수정">${PEN_I}</button></div></div>${weekGrid(rows, mondayOf(today()), today(), 40, { fitH: h, squeezeSchool: true, nowLine: true })}`; };
         const min = innerWidth <= 820 ? 200 : 330;
         let h = Math.max(min, el.clientHeight - 100);
         paint(h);

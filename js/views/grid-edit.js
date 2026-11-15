@@ -1,12 +1,12 @@
 // 주간 시간표에서 바로 휴강 · 보강 (말풍선 · 모달 아님)
 //  · 학원 블럭 누름 → 휴강: 이번 주만 / 다음 주까지 (더 길면 2주 뒤 다시)
 //  · 휴강된 블럭 → 휴강 취소 · 보강 블럭 → 보강 취소
-//  · 시간표 위 [+ 보강] → 학원 고르기 · 날짜 · 시간 (휴강 없이도)
+//  · 시간표 위 [+ 보강·일정] → 보강(학원 고르기) 또는 기타 일정(그날만) · 휴강 없이도
 //  · 빈 칸은 눌러도 아무 일 없음 (잘못 눌러 생기는 것 방지)
 //  학생이 바꾸면 선생님 확인 목록(schedule_requests)에 기록
 import { esc, toast } from '../ui.js';
 import { DOW, addDays, isoDow, toMin, toTime, hm, short } from '../date.js';
-import { addOffs, removeOverride, addMakeup, logScheduleRequest } from '../data/schedules.js';
+import { addOffs, removeOverride, addMakeup, addOneDay, logScheduleRequest } from '../data/schedules.js';
 
 let pop = null;
 const close = () => { const f = pop?._onClose; pop?.remove(); pop = null; f?.(); };
@@ -83,7 +83,37 @@ export function wireGridEdit(root, { rows, stu, isStudent = false, onChanged }) 
   mkBtn?.addEventListener('click', (e) => {
     e.stopPropagation();
     const d0 = mkBtn.dataset.makeup;
-    open(mkBtn, `<h5>보강 추가</h5><p class="gp-sub">학원을 고르고 날짜 · 시간을 정하세요</p>${makeupForm(null, d0, '', '')}`, (p) => wireMakeup(p, null));
+    // [보강 | 기타 일정] — 기타는 병원 · 학교 행사처럼 그날 하루만 있는 일정
+    open(mkBtn, `<h5>이번 주 일정 추가</h5>
+      <div class="seg gp-seg" id="gp-kind"><button type="button" data-k="mk" class="on">보강</button><button type="button" data-k="etc">기타 일정</button></div>
+      <div id="gp-body">${makeupForm(null, d0, '', '')}</div>`, (p) => {
+      wireMakeup(p, null);
+      p.querySelectorAll('#gp-kind [data-k]').forEach((b) => b.addEventListener('click', () => {
+        if (b.classList.contains('on')) return;
+        p.querySelectorAll('#gp-kind button').forEach((x) => x.classList.toggle('on', x === b));
+        const body = p.querySelector('#gp-body');
+        if (b.dataset.k === 'mk') { body.innerHTML = makeupForm(null, d0, '', ''); wireMakeup(p, null); return; }
+        body.innerHTML = `
+          <span class="gp-lbl">이름</span>
+          <div class="gp-row"><input type="text" id="gp-t" placeholder="예: 병원, 학교 행사" maxlength="20" autocomplete="off"></div>
+          <span class="gp-lbl">날짜 · 시간</span>
+          <div class="gp-row"><input type="date" id="gp-d" value="${d0}"></div>
+          <div class="gp-row"><input type="time" id="gp-s"><span>~</span><input type="time" id="gp-e"></div>
+          <button type="button" class="gp-go" id="gp-add">추가</button>`;
+        p.querySelector('#gp-t').focus();
+        p.querySelector('#gp-add').addEventListener('click', async (ev) => {
+          const t = p.querySelector('#gp-t').value.trim(), d = p.querySelector('#gp-d').value, st = p.querySelector('#gp-s').value, en = p.querySelector('#gp-e').value;
+          if (!t) return toast('이름을 입력하세요', 'bad');
+          if (!d || !st || !en || en <= st) return toast('날짜 · 시간을 확인하세요', 'bad');
+          ev.currentTarget.disabled = true;
+          try {
+            await addOneDay({ student_id: stu.id, date: d, title: t, start: st, end: en });
+            log('일정 추가', `${t} ${md(d)} ${st}~${en} (그날만)`);
+            done(`${t} ${md(d)} ${st} 추가`);
+          } catch (x) { fail(x); ev.currentTarget.disabled = false; }
+        });
+      }));
+    });
   });
 
   grid.addEventListener('click', (e) => {
@@ -91,13 +121,14 @@ export function wireGridEdit(root, { rows, stu, isStudent = false, onChanged }) 
     if (blk) {
       const date = blk.dataset.date, id = blk.dataset.sid;
       const r = rows.find((x) => String(x.id) === id);
-      if (!r || r.category !== '학원') return;
+      if (!r || (r.category !== '학원' && !r.makeup)) return;
       e.stopPropagation();
       const when = `${md(date)} ${hm(r.start_time)}~${hm(r.end_time)}`;
       if (r.makeup) {
-        return open(blk, `<h5>${esc(r.title)} · 보강</h5><p class="gp-sub">${when}</p><button type="button" class="gp-link danger" id="gp-del">보강 취소</button>`, (p) => {
+        const mk = r.category === '학원', what = mk ? '보강' : '일정';
+        return open(blk, `<h5>${esc(r.title)} · ${mk ? '보강' : '그날만'}</h5><p class="gp-sub">${when}</p><button type="button" class="gp-link danger" id="gp-del">${what} 취소</button>`, (p) => {
           p.querySelector('#gp-del').addEventListener('click', async () => {
-            try { await removeOverride(r.ov_id); log('보강 취소', `${r.title} 보강 ${when} 취소`); done('보강을 취소했어요'); } catch (x) { fail(x); }
+            try { await removeOverride(r.ov_id); log(`${what} 취소`, `${r.title} ${when} 취소`); done(`${what}을 취소했어요`); } catch (x) { fail(x); }
           });
         });
       }

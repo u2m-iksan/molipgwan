@@ -95,6 +95,10 @@ export async function addMakeup({ student_id, date, title, subject = null, subje
   if (r.error && /subject/.test(r.error.message || '')) r = await sb.from('schedule_overrides').insert(row);
   check(r);
 }
+// 그날 하루만 있는 기타 일정 (병원 · 학교 행사 등)
+export async function addOneDay({ student_id, date, title, start, end }) {
+  check(await sb.from('schedule_overrides').insert({ student_id, on_date: date, action: '추가', category: '기타', title, start_time: start, end_time: end }));
+}
 // 하루치 일정에 휴강 · 보강 반영 (전체 현황 · 출결용): rows 는 그날 요일 일정
 export async function todayWithOverrides(rows, date) {
   const ids = [...new Set(rows.map((r) => r.student_id))];

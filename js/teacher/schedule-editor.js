@@ -62,8 +62,8 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
             ${[0, 1, 2, 3, 4, 5, 6].some((i) => isVacation(stu.school, addDays(mon, i), vac)) ? '<span class="pill pill-green">방학</span>' : ''}
           </div>
           <div class="spacer"></div>
-          <div class="wk-legend">${['학교', '학원', '기타', '코칭'].map((c) => `<span class="lg lg-${c}">${c}</span>`).join('')}<span class="lg lg-mk">보강</span><span class="lg lg-off">휴강</span></div>
-          <button type="button" class="btn-mk" data-makeup="${mon === thisMon ? t : mon}">+ 보강</button>
+          <div class="wk-legend">${['학교', '학원', '기타', '코칭'].map((c) => `<span class="lg lg-${c}">${c}</span>`).join('')}</div>
+          <button type="button" class="btn-mk" data-makeup="${mon === thisMon ? t : mon}">+ 보강·일정</button>
         </div>
         <div class="wk-scroll">${weekGrid(rows, mon, t, HOUR_PX, { fitH: Math.round(Math.min(520, Math.max(300, innerHeight * 0.46))), squeezeSchool: true })}</div>
       </section>
@@ -306,7 +306,7 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
     const sch = items.slice(0, 5).flat().filter((r) => r.category === '학교');
     if (sch.length) sq = {
       from: Math.max(DAY_START, Math.min(...sch.map((r) => toMin(r.start_time)))),
-      to: Math.min(DAY_END, Math.max(...sch.map((r) => toMin(r.end_time)))), ratio: 0.22,
+      to: Math.min(DAY_END, Math.max(...sch.map((r) => toMin(r.end_time)))), ratio: 0.35,
     };
   }
   // 주말은 학교가 없으니 아침까지 고르게 (주중만 학교 시간 접기)
@@ -328,8 +328,12 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
     let cluster = [], clusterEnd = -1;
     const flush = () => { const n = Math.max(...cluster.map((c) => c._lane)) + 1; cluster.forEach((c) => { c._n = n; }); cluster = []; };
     const offAt = (it) => !!it._off?.has(date);
+    const ovl = (a, b) => toMin(a.start_time) < toMin(b.end_time) && toMin(b.start_time) < toMin(a.end_time);
+    const offs = its.filter(offAt);
     for (const it of its) {
-      if (offAt(it)) { it._lane = 0; it._n = 1; continue; }   // 휴강은 뒤에 옅게 깔고, 같은 시간 보강이 칸을 다 씀
+      // 휴강 블럭은 칸 나누기에서 빼고, 겹치는 일정이 있으면 서로 80% 로 엇갈려 쌓음
+      if (offAt(it)) { it._lane = 0; it._n = 1; it._stack = its.some((o) => o !== it && !offAt(o) && ovl(o, it)) ? 'under' : null; continue; }
+      it._stack = offs.some((o) => ovl(o, it)) ? 'over' : null;
       const s0 = toMin(it.start_time);
       if (cluster.length && s0 >= clusterEnd) flush();
       const used = cluster.filter((c) => toMin(c.end_time) > s0).map((c) => c._lane);
@@ -342,13 +346,14 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
       const n = it._n || 1;
       const top = S.y(toMin(it.start_time)), h = Math.max(16, S.y(toMin(it.end_time)) - top);
       const off = offAt(it), thin = h < 40;
-      const tag = off ? '<em class="blk-tag">휴강</em>' : it.makeup ? '<em class="blk-tag">보강</em>' : '';
-      const name = it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title;
-      // 학교는 이름 + 끝나는 시각만 한 줄 (하교 시각이 중요)
-      const time = it.category === '학교' ? `~${hm(it.end_time)}` : `${hm(it.start_time)}~<wbr>${hm(it.end_time)}`;
-      return `<div class="blk blk-${it.category}${it.valid_to && !it.makeup ? ' temp' : ''}${thin ? ' thin' : ''}${off ? ' off' : ''}${it.makeup ? ' mk' : ''}" data-sid="${esc(String(it.id))}" data-date="${date}" style="top:${top}px;height:${h - 2}px;left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)"
+      // 겹칠 때: 휴강(아래) 왼쪽 80% · 새 일정(위) 오른쪽 80% · 안 겹치면 그대로
+      const geo = it._stack === 'under' ? 'left:2px;width:calc(80% - 4px)'
+        : it._stack === 'over' ? `left:calc(20% + ${(it._lane / n) * 80}% + 2px);width:calc(${80 / n}% - 4px)`
+        : `left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)`;
+      return `<div class="blk blk-${it.category}${it.valid_to && !(it.makeup && it.category === '학원') ? ' temp' : ''}${thin ? ' thin' : ''}${off ? ' off' : ''}${it._stack ? ' st-' + it._stack : ''}${it.makeup && it.category === '학원' ? ' mk' : ''}" data-sid="${esc(String(it.id))}" data-date="${date}" style="top:${top}px;height:${h - 2}px;${geo}"
         title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">
-        ${thin ? `<b>${tag}${esc(name)}</b>` : `${tag}<b>${esc(name)}</b><span>${time}</span>`}</div>`;
+        ${(() => { const tag = off ? '<em class="blk-tag">휴강</em>' : it.makeup && it.category === '학원' ? '<em class="blk-tag">보강</em>' : ''; const name = esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title);
+          return thin ? `<b>${tag}${name}</b>` : `${tag}<b>${name}</b><span>${hm(it.start_time)}~<wbr>${hm(it.end_time)}</span>`; })()}</div>`;
     }).join('');
     // 지금 시각 파란 줄 (오늘 칸, 시간표 범위 안일 때)
     let now = '';

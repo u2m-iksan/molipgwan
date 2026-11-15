@@ -27,7 +27,7 @@ export async function runSync() {
   const cfg = await getSync();
   let res;
   try { res = await fetch(cfg.url + (cfg.url.includes('?') ? '&' : '?') + 'json=1'); }
-  catch { throw new Error('학사일정 앱에 연결하지 못했습니다'); }
+  catch { throw new Error('학사일정 앱이 아직 예전 화면만 줘요 · doGet 수정 후 "새 버전"으로 배포했는지 확인'); }
   let data = null; try { data = await res.json(); } catch { /* html */ }
   if (!data) throw new Error('학사일정 앱이 아직 json 을 안 줍니다 (MolipSync 추가 · 새 버전 배포 확인)');
   if (!data.ok) throw new Error('학사일정 앱 오류: ' + (data.error || ''));

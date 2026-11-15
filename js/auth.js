@@ -41,7 +41,7 @@ export async function signInFamily(code) {
   return { ok: true };
 }
 
-/* ---------- 학부모 (SQL 21): 4자리 → 가족 → 학부모 비밀번호 6자리 ---------- */
+/* ---------- 학부모: 4자리 → (가족 여럿이면 고르기) → 바로 로그인 · 처음이면 계정 자동 생성 (SQL 27) ---------- */
 // null = SQL 21 전(예전 방식으로) · [] = 없는 번호 · [{ family_id, kids, has_pin }]
 export async function parentLookup(code) {
   if (lockedFor()) return { locked: true };
@@ -50,22 +50,19 @@ export async function parentLookup(code) {
   if (!data?.length) addFail();
   return data || [];
 }
-export async function signInParent(code, fid, pin) {
+export async function signInParent(code, fid) {
   if (lockedFor()) return { ok: false, locked: true };
-  const { error } = await sb.auth.signInWithPassword({ email: parentEmail(code, fid), password: parentPassword(pin) });
-  if (error) { addFail(); return { ok: false, error }; }
-  clearFails();
-  return { ok: true };
+  const { error } = await sb.auth.signInWithPassword({ email: parentEmail(code, fid), password: parentPassword(code) });
+  if (!error) { clearFails(); return { ok: true }; }
+  return createParent(code, fid);   // 처음 들어오는 학부모
 }
 // 처음: 학부모 계정 만들고 그 가족에 연결
-export async function createParent(code, fid, pin) {
-  const email = parentEmail(code, fid), password = parentPassword(pin);
+export async function createParent(code, fid) {
+  const email = parentEmail(code, fid), password = parentPassword(code);
   let { data, error } = await sb.auth.signUp({ email, password });
   if (error && /already|registered|exists/i.test(error.message || '')) ({ data, error } = await sb.auth.signInWithPassword({ email, password }));
   if (error || !data?.session) return { ok: false, error: error || new Error('계정을 만들지 못했습니다.') };
-  // 비밀번호도 같이 저장 → 선생님이 학생 목록에서 볼 수 있음 (SQL 22 · 전이면 예전 함수로)
-  let { error: e2 } = await sb.rpc('claim_parent', { code, fid, pin });
-  if (e2 && (e2.code === 'PGRST202' || /claim_parent/.test(e2.message || ''))) ({ error: e2 } = await sb.rpc('claim_parent', { code, fid }));
+  const { error: e2 } = await sb.rpc('claim_parent', { code, fid });
   if (e2) { await sb.auth.signOut(); return { ok: false, error: e2 }; }
   clearFails();
   return { ok: true };

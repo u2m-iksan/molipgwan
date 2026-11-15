@@ -10,7 +10,8 @@ import { renderStudentHome } from './views/student.js';
 import { renderParentHome } from './views/parent.js';
 import { renderTeacher } from './teacher/shell.js';
 import { inAppGate } from './views/inapp-gate.js';
-import { FIXED_ROLE } from './app-role.js';
+import { FIXED_ROLE, PREVIEW } from './app-role.js';
+import { esc } from './ui.js';
 
 async function logout() {
   await signOut();
@@ -56,7 +57,11 @@ async function route() {
   // 역할별 링크에 다른 역할 계정이 남아 있으면 그 링크의 로그인으로
   if (FIXED_ROLE === 'teacher' && me.role !== 'teacher') return logout();
   if (FIXED_ROLE && FIXED_ROLE !== 'teacher' && me.role === 'teacher') return logout();
-  if (me.role === 'teacher') return renderTeacher({ me, onLogout: logout });
+  if (me.role === 'teacher') {
+    const pv = location.hash.match(/^#\/as\/(s|p)\/([0-9a-f-]{36})/);
+    if (pv) return renderPreview(pv[1], pv[2]);
+    return renderTeacher({ me, onLogout: logout });
+  }
   if (me.role !== 'family') return renderUnknown({ onLogout: logout });
 
   const { email, students } = me;
@@ -94,6 +99,24 @@ async function route() {
     })),
     onPick: choose, onLogout: logout,
   });
+}
+
+/* 선생님: 학생 · 학부모 화면 그대로 열어보기 (#/as/s/학생id · #/as/p/가족id) */
+async function renderPreview(kind, id) {
+  const back = () => {
+    let h = '';
+    try { h = sessionStorage.getItem('molip-pv-back') || ''; } catch { /* */ }
+    location.hash = /^#\/as\//.test(h) ? '' : h; location.reload();
+  };
+  const q = sb.from('students').select('id,name,grade,school,status,family_id');
+  const { data, error } = await (kind === 's' ? q.eq('id', id) : q.eq('family_id', id).neq('status', '퇴원').order('name'));
+  if (error || !data?.length) { back(); return; }
+  PREVIEW.on = true;
+  if (kind === 's') await renderStudentHome({ student: data[0], onLogout: back });
+  else await renderParentHome({ students: data, onLogout: back });
+  document.body.classList.add('is-preview');
+  document.body.insertAdjacentHTML('beforeend', `<div class="pv-bar" role="status"><span><b>${esc(data.map((s) => s.name).join(' · '))}</b> ${kind === 's' ? '학생' : '학부모'} 화면</span><button type="button" id="pv-x">선생님 화면으로</button></div>`);
+  document.getElementById('pv-x').addEventListener('click', back);
 }
 
 if (!inAppGate()) route();   // 카톡 등 앱 안 브라우저면 크롬 · 사파리로 열게

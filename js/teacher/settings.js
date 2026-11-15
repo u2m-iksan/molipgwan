@@ -7,6 +7,7 @@ import { getPeriods, savePeriods, DEFAULT_PERIODS } from '../data/schedules.js';
 import { loadTeachers, addTeacher, removeTeacher, updateTeacher, changeMyPassword, teacherId, promoteGrades, lastPromoted, NEXT_GRADE, EVENT_KINDS, loadSchoolEvents, addSchoolEvents, deleteSchoolEvent } from '../data/settings.js';
 import { toMin, today, short } from '../date.js';
 import { getKakao, saveKakao } from '../data/chat.js';
+import { LINKS } from '../app-role.js';
 
 export async function renderSettings(body, { me } = {}) {
   body.innerHTML = `
@@ -17,6 +18,9 @@ export async function renderSettings(body, { me } = {}) {
         <section class="card set-sec" id="s-grade"><div class="set-h"><h3>학년 올리기</h3><span>새 학년도 시작 때 1회</span></div></section>
       </div>
       <div class="set-col">
+        <section class="card set-sec" id="s-links"><div class="set-h"><h3>앱 링크</h3><button type="button" class="link-s" id="lk-all">전체 복사</button></div>
+          <ul class="lk-list">${LINKS.map((l, i) => `<li><b>${l.label}</b><span class="lk-url">${esc(l.url.replace(/^https?:\/\//, ''))}</span><button type="button" class="btn btn-gray btn-sm" data-lk="${i}">복사</button></li>`).join('')}</ul>
+          <p class="sub-s">각자 자기 링크로 들어가 홈 화면에 추가하면 됩니다.</p></section>
         <section class="card set-sec" id="s-push"><div class="set-h"><h3>이 기기 알림</h3><span>학부모 문의 푸시</span></div><div id="s-push-c"></div></section>
         <section class="card set-sec" id="s-kakao"><div class="set-h"><h3>카카오톡 채널</h3><span>학습 문의 창에서 운영 문의 안내</span></div>
           <div class="field"><label for="k-url">채널 주소</label><div class="k-row"><div class="input"><input id="k-url" placeholder="예: https://pf.kakao.com/_xxxx" autocomplete="off"></div>
@@ -26,6 +30,14 @@ export async function renderSettings(body, { me } = {}) {
       </div>
       <section class="card set-sec set-wide" id="s-cal"><div class="set-h"><h3>학교별 학사일정</h3><span>방학 · 시험 · 휴업</span></div><div class="empty">불러오는 중</div></section>
     </div>`;
+  // 앱 링크 복사
+  const copy = async (text, msg) => {
+    try { await navigator.clipboard.writeText(text); }
+    catch { const t = document.createElement('textarea'); t.value = text; document.body.append(t); t.select(); document.execCommand('copy'); t.remove(); }
+    toast(msg);
+  };
+  $$('[data-lk]', body).forEach((b) => b.addEventListener('click', () => { const l = LINKS[Number(b.dataset.lk)]; copy(l.url, `${l.label} 링크를 복사했어요`); }));
+  $('#lk-all', body).addEventListener('click', () => copy('[U2M 몰입관 앱]\n' + LINKS.map((l) => `${l.label}: ${l.url}`).join('\n'), '링크 3개를 복사했어요'));
   let per = [], editing = null;
   const PEN = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg>';
   drawTeachers(); drawPeriods(); drawGrade(); drawCal(); mountPushCard($('#s-push-c'), 'teacher');

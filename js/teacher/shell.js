@@ -85,5 +85,12 @@ export function renderTeacher({ me, onLogout }) {
   paintUnread();
 
   window.addEventListener('hashchange', show);
+  // 학생 · 학부모 화면 보기(#/as/…)는 앱을 그 화면으로 새로 띄움
+  window.addEventListener('hashchange', function pv(e) {
+    if (!/^#\/as\//.test(location.hash)) return;
+    window.removeEventListener('hashchange', pv);
+    try { sessionStorage.setItem('molip-pv-back', new URL(e.oldURL).hash); } catch { /* */ }
+    location.reload();
+  });
   show();
 }

@@ -70,7 +70,7 @@ export async function renderStudents(body) {
     }
     $('#tbl').innerHTML = `
       <table class="tbl">
-        <thead><tr><th>자리</th><th>이름</th><th>학년</th><th class="m-hide">학교</th><th class="m-hide">학부모 번호</th><th>로그인</th>${state.list.some((x) => x.parent_pin != null) ? '<th>학부모 비번</th>' : ''}<th class="m-hide">학생 번호</th><th class="m-hide">특성</th><th>상태</th></tr></thead>
+        <thead><tr><th>자리</th><th>이름</th><th>학년</th><th class="m-hide">학교</th><th class="m-hide">학부모 번호</th><th>로그인</th><th class="m-hide">학생 번호</th><th class="m-hide">특성</th><th>상태</th></tr></thead>
         <tbody>${rows.map((s) => `
           <tr data-id="${esc(s.id)}" tabindex="0">
             <td><span class="seat${s.seat_no ? '' : ' none'}">${esc(s.seat_no || '-')}</span></td>
@@ -79,7 +79,6 @@ export async function renderStudents(body) {
             <td class="m-hide">${esc(s.school || '')}</td>
             <td class="m-hide">${esc(s.parent_phone)}</td>
             <td><span class="code">${esc(s.login_code)}</span></td>
-            ${s.parent_pin != null ? `<td>${s.parent_pin ? `<span class="code${/^\d+$/.test(s.parent_pin) ? '' : ' none'}">${esc(s.parent_pin)}</span>` : '<span class="sub">아직 없음</span>'}</td>` : ''}
             <td class="sub m-hide">${esc(s.student_phone || '')}</td>
             <td class="sub m-hide">${esc((s.traits || []).join(', '))}</td>
             <td><span class="pill ${STATUS_PILL[s.status]}">${esc(s.status)}</span></td>
@@ -103,6 +102,7 @@ export async function renderStudents(body) {
     const panel = sheet(`
       <div class="modal ${stu ? 'modal-lg' : 'modal-m'}" role="dialog" aria-label="${stu ? esc(stu.name) : '학생 등록'}">
         <div class="drawer-head"><h3>${stu ? `${esc(stu.name)} <span class="h-sub">${esc(stu.grade)}${stu.seat_no ? ' · 자리 ' + esc(stu.seat_no) : ''}</span>` : '학생 등록'}</h3>
+          ${stu ? `<div class="pv-links"><a class="btn btn-gray btn-sm" href="#/as/s/${stu.id}" data-pv>학생 화면<span class="m-hide"> 보기</span></a><a class="btn btn-gray btn-sm" href="#/as/p/${stu.family_id}" data-pv>학부모 화면<span class="m-hide"> 보기</span></a></div>` : ''}
           <button type="button" class="icon-btn" data-close aria-label="닫기">${X}</button></div>
         ${stu ? `<div class="drawer-tabs seg seg-wide" id="d-tabs"><button type="button" data-v="sched" class="on">일정</button><button type="button" data-v="info">기본 정보</button></div>` : ''}
         <form class="pane" id="ed" novalidate${stu ? ' hidden' : ''}>
@@ -116,7 +116,6 @@ export async function renderStudents(body) {
           <div class="field"><label for="f-school">학교</label><div class="input"><input id="f-school" value="${esc(f.school || '')}" autocomplete="off"></div></div>
           <div class="field"><label for="f-pp">학부모 휴대폰</label><div class="input"><input id="f-pp" inputmode="numeric" value="${esc(f.parent_phone)}" autocomplete="off" placeholder="010-0000-0000"></div>
             <p class="hint" id="f-pp-hint"></p>
-            ${stu ? '<p class="hint ppin" id="f-ppin" hidden></p>' : ''}
             ${stu ? '<div class="devs" id="f-devs" hidden></div>' : ''}</div>
           <div class="field"><label for="f-sp">학생 휴대폰 <span class="opt">선택</span></label><div class="input"><input id="f-sp" inputmode="numeric" value="${esc(f.student_phone || '')}" autocomplete="off"></div></div>
           <div class="field"><span class="lbl">상태</span><div class="seg seg-wide" id="f-status">${STATUSES.map((s) => `<button type="button" data-v="${s}">${s}</button>`).join('')}</div></div>
@@ -206,27 +205,6 @@ export async function renderStudents(body) {
     autoFormat(pp); autoFormat($('#f-sp', panel));
     pp.addEventListener('input', phoneHint);
     phoneHint();
-
-    // 학부모 비밀번호 (SQL 21): 만들었는지 · 잊었을 때 초기화 (두 번 눌러 확인)
-    const ppin = $('#f-ppin', panel);
-    if (ppin) (async () => {
-      const { data, error } = await sb.from('parent_accounts').select('created_at').eq('family_id', stu.family_id).maybeSingle();   // 있는지만
-      if (error) return;   // SQL 21 전
-      ppin.hidden = false;
-      if (!data) { ppin.innerHTML = '학부모 비밀번호 <b>아직 안 만듦</b> · 학부모가 처음 로그인할 때 직접 만듭니다'; return; }
-      const pinTxt = stu.parent_pin && /^\d+$/.test(stu.parent_pin) ? stu.parent_pin : '설정됨';
-      ppin.innerHTML = `학부모 비밀번호 <b>${esc(pinTxt)}</b> <button type="button" class="link-s" id="f-ppin-reset">초기화</button>`;
-      let armed = false;
-      $('#f-ppin-reset', panel).addEventListener('click', async (e) => {
-        const b = e.currentTarget;
-        if (!armed) { armed = true; b.textContent = '한 번 더 누르면 초기화'; setTimeout(() => { armed = false; b.textContent = '초기화'; }, 3000); return; }
-        b.disabled = true;
-        const { error: e2 } = await sb.rpc('reset_parent', { fid: stu.family_id });
-        if (e2) { b.disabled = false; return toast('초기화 실패: ' + e2.message, 'bad'); }
-        toast('초기화했습니다 · 다음 로그인 때 새 비밀번호를 만듭니다');
-        ppin.innerHTML = '학부모 비밀번호 <b>아직 안 만듦</b> · 학부모가 처음 로그인할 때 직접 만듭니다';
-      });
-    })();
 
     // 로그인된 학생 기기 (SQL 25): 학생 앱엔 로그아웃이 없으니 여기서 기기별로 풀어줌
     const devs = $('#f-devs', panel);

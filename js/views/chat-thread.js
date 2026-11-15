@@ -5,6 +5,7 @@
 //  선생님: 보고서 옆 ⋯ → 채팅에서 삭제(공개 취소)
 //  학부모: 학원비 등 운영 문의로 보이면 카카오 채널 안내
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
+import { PREVIEW } from '../app-role.js';
 import { short } from '../date.js';
 import { mountReport, BADGES, BADGE_ORDER, badgesOf } from './report-card.js';
 import { openReportViewer } from './report-viewer.js';
@@ -16,6 +17,7 @@ const dayOf = (iso) => kst(iso).slice(0, 10);
 const timeOf = (iso) => { const t = kst(iso).slice(11, 16); const h = Number(t.slice(0, 2)); return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${t.slice(3)}`; };
 
 export function mountThread(el, { student, me, meName = '', kakao = '', onActivity }) {
+  const peek = PREVIEW.on && me === 'parent';   // 선생님이 학부모 화면 보는 중: 읽음 표시 · 보내기 안 함
   const token = {}; el._thread = token;
   el.classList.add('ct');
   el.innerHTML = `
@@ -23,7 +25,7 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
     ${me === 'parent' ? `<p class="ct-note">학습 관련 문의 창구입니다. 대화와 보고서는 ${KEEP_DAYS}일 동안 보관됩니다.
       학원비 · 수강 등 운영 문의는 ${kakao ? `<a href="${esc(kakao)}" target="_blank" rel="noopener">몰입관 카카오톡 채널</a>` : '몰입관 카카오톡 채널'}로 부탁드립니다.</p>` : ''}
     <div class="ct-ops" id="ct-ops" hidden>학원비 · 수강 관련 문의는 ${kakao ? `<a href="${esc(kakao)}" target="_blank" rel="noopener">카카오톡 채널</a>` : '카카오톡 채널'}로 보내 주세요. 이 창은 학습 문의 전용입니다.</div>
-    <form class="ct-input" id="ct-form" autocomplete="off">
+    <form class="ct-input" id="ct-form" autocomplete="off"${peek ? ' hidden' : ''}>
       <textarea id="ct-text" rows="1" maxlength="1000" placeholder="${me === 'parent' ? '학습 관련 궁금한 점을 남겨 주세요' : '답장 입력'}"></textarea>
       <button type="submit" class="ct-send" id="ct-send" aria-label="보내기" disabled>${SEND}</button>
     </form>`;
@@ -71,7 +73,7 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
       mountReport($('.msg-thumb-in', b), r, student);
       b.addEventListener('click', () => {
         openReportViewer(r, student, `${short(r.period_end || r.published_at.slice(0, 10))} 보고서`);
-        if (me === 'parent' && !r.read_at) { r.read_at = new Date().toISOString(); markReportRead(r.id).then(() => onActivity?.()).catch(() => {}); draw(); }
+        if (me === 'parent' && !peek && !r.read_at) { r.read_at = new Date().toISOString(); markReportRead(r.id).then(() => onActivity?.()).catch(() => {}); draw(); }
       });
     });
     $$('[data-m]', list).forEach((b) => b.addEventListener('click', () => openMsgMenu(items[Number(b.dataset.m)].m)));
@@ -93,13 +95,13 @@ export function mountThread(el, { student, me, meName = '', kakao = '', onActivi
       const next = await loadThread(student.id);
       // 상대 메시지 읽음 처리
       const other = me === 'parent' ? 'teacher' : 'parent';
-      if (next.some((x) => x.type === 'msg' && x.m.sender === other && !x.m.read_at)) {
+      if (!peek && next.some((x) => x.type === 'msg' && x.m.sender === other && !x.m.read_at)) {
         await markRead(student.id, me).catch(() => {});
         next.forEach((x) => { if (x.type === 'msg' && x.m.sender === other && !x.m.read_at) x.m.read_at = new Date().toISOString(); });
         onActivity?.();
       }
       // 학부모: 대화방에 보고서가 보이면 읽은 것으로 (자세히 안 눌러도)
-      if (me === 'parent') {
+      if (me === 'parent' && !peek) {
         const unreadReps = next.filter((x) => x.type === 'report' && x.r && !x.r.read_at);
         if (unreadReps.length) {
           await Promise.all(unreadReps.map((x) => markReportRead(x.r.id).catch(() => {})));

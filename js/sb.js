@@ -26,4 +26,5 @@ export const isFamilyEmail = (email) => /^(f\d{4}(\d{4})?|p\d{4}-[0-9a-f]{8})@/.
 // 학부모 계정 (SQL 21): 번호 4자리 + 가족 → p1234-89f030d7@molipgwan.app · 비밀번호는 학부모가 정한 숫자 6자리
 export const isParentEmail = (email) => /^p\d{4}-[0-9a-f]{8}@/.test(email || '');
 export const parentEmail = (code, fid) => `p${code}-${String(fid).slice(0, 8)}@molipgwan.app`;
-export const parentPassword = (pin) => `molip-p-${pin}-u2m`;
+// 학부모 비밀번호 따로 없음 — 학부모 번호 4자리로 바로 (SQL 27)
+export const parentPassword = (code) => `molip-pa-${code}-u2m`;

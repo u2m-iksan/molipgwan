@@ -11,6 +11,7 @@ import { loadOpenPlan } from '../data/student.js';
 import { loadParentUnread, purgeOld, getKakao } from '../data/chat.js';
 import { openHistory } from './history.js';
 import { mountPushCard } from './push-card.js';
+import { PREVIEW } from '../app-role.js';
 import { weekGrid } from '../teacher/schedule-editor.js';
 import { loadStudentSchedules, loadVacations, withTerm } from '../data/schedules.js';
 import { nowBlock, outInfo, isClosedNow } from '../data/att-rules.js';
@@ -22,9 +23,9 @@ export async function renderParentHome({ students, onLogout }) {
   const st = { cur: 0, view: 'home', sched: new Map(), live: new Map(), unread: new Map(), kakao: '' };
   mount(`<div class="pa">
     <header class="top"><div class="top-in">${BRAND}<div class="spacer"></div>
-      <button type="button" class="chip muted" id="lo">로그아웃</button></div></header>
+      ${PREVIEW.on ? '' : '<button type="button" class="chip muted" id="lo">로그아웃</button>'}</div></header>
     <main class="pa-page" id="pa"></main></div>`);
-  $('#lo').addEventListener('click', onLogout);
+  $('#lo')?.addEventListener('click', onLogout);
   const root = $('#pa'); const token = {}; root._view = token;
   const kid = () => students[st.cur];
 
@@ -95,7 +96,7 @@ export async function renderParentHome({ students, onLogout }) {
         <div id="pa-grid"><div class="pa-empty">불러오는 중</div></div></section>`;
     $('#pa-rep').addEventListener('click', drawChat);
     $('#pa-hist').addEventListener('click', () => openHistory(kid()));
-    mountPushCard($('#pa-push'), 'parent');
+    if (!PREVIEW.on) mountPushCard($('#pa-push'), 'parent');
     paintUnread(); drawPlan();
     $$('.pa-kid', root).forEach((b) => b.addEventListener('click', () => { st.cur = Number(b.dataset.k); drawHome(); }));
     try {

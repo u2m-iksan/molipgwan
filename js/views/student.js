@@ -1,6 +1,7 @@
 // 학생 앱 (태블릿 가로 우선): 위 = 등원 체크 · 이름 / 왼쪽 = 시간표 / 오른쪽 = 이번주 계획 + 오늘 진행률 / 오른쪽 아래 = 스톱워치
 // 폰: 오늘 공부시간(누르면 스톱워치) + [시간표 | 이번주 계획] 옆으로 넘기기, 세로 스크롤 없음
 import { mount, $, $$, esc, toast, sheet, BRAND, X } from '../ui.js';
+import { PREVIEW } from '../app-role.js';
 import { DOW, today, mondayOf, short, isoDow, toMin, toTime, hm, addDays } from '../date.js';
 import { loadStudentSchedules, loadVacations, withTerm, termOk } from '../data/schedules.js';
 import { weekGrid, renderScheduleEditor } from '../teacher/schedule-editor.js';
@@ -58,8 +59,8 @@ ${SUM}
     } catch { /* 연결 안 되면 다음에 */ }
     return false;
   };
-  beat();
-  const hb = setInterval(async () => {
+  if (!PREVIEW.on) beat();
+  const hb = PREVIEW.on ? 0 : setInterval(async () => {
     if (root._view !== token || !document.body.contains(root)) return clearInterval(hb);
     if (await beat()) clearInterval(hb);
   }, 60000);
@@ -71,7 +72,7 @@ ${SUM}
     try {
       await purgeOld();   // 토요일 20:00 자동 하원 등 정리 (앱 열 때 1번)
       // 알림 받기 (등원 시간 · 공부 1시간마다) — SQL 23
-      pushGate(student.id);   // 알림 안 켜져 있으면 켤 때까지 팝업 (강제)
+      if (!PREVIEW.on) pushGate(student.id);   // 알림 안 켜져 있으면 켤 때까지 팝업 (강제)
       st.att = await loadAttendance(student.id);
       if (await autoCheckout(student.id, st.att)) st.att = await loadAttendance(student.id);
     } catch { st.att = []; }

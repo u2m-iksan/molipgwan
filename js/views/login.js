@@ -1,6 +1,6 @@
 // 로그인: ① 역할 고르기 → ② 학생·학부모는 4자리 키패드 / 선생님은 아이디·비밀번호
 import { mount, $, $$, esc, BRAND, ICON, flash, wait, busyOverlay } from '../ui.js';
-import { signInFamily, signInTeacher, lockedFor, parentLookup, signInParent, createParent } from '../auth.js';
+import { signInFamily, signInTeacher, lockedFor, parentLookup, signInParent } from '../auth.js';
 
 const ROLE_LABEL = { student: '학생', parent: '학부모', teacher: '선생님' };
 
@@ -123,12 +123,16 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
   function askCode(errMsg) {
     step({ title: `${ROLE_LABEL[role]} 로그인`, desc: '학부모 휴대폰 번호 뒷 4자리', len: 4, err: errMsg,
       onComplete: role === 'student' ? codeOnly : async (c) => {
-        const fams = await run(() => parentLookup(c));
+        // 가족이 하나면 찾기 + 로그인을 한 번의 로딩으로
+        const { fams, r } = await run(async () => {
+          const f = await parentLookup(c);
+          return Array.isArray(f) && f.length === 1 ? { fams: f, r: await signInParent(c, f[0].family_id) } : { fams: f };
+        });
         if (fams === null) return codeOnly(c);   // SQL 21 전: 예전 방식
         if (fams.locked) return fail('로그인이 10분간 제한되었습니다.');
         if (fams.error) return fail('잠시 후 다시 시도하세요.');
         if (!fams.length) return fail('번호가 일치하지 않습니다.');
-        if (fams.length === 1) return askPin(c, fams[0]);
+        if (r) return parentDone(r);
         // 같은 번호를 쓰는 가족이 여럿 → 자녀 고르기
         $('#ttl').textContent = '자녀 선택'; $('#desc').textContent = '우리 아이를 골라 주세요';
         dots.hidden = true; pad.hidden = true; pickEl.hidden = false; say('');
@@ -136,27 +140,17 @@ export function renderFamilyLogin({ role, onDone, onBack }) {
         $$('[data-i]', pickEl).forEach((b) => b.addEventListener('click', () => askPin(c, fams[Number(b.dataset.i)])));
       } });
   }
-  function askPin(c, fam, errMsg) {
-    if (!fam.has_pin) return makePin(c, fam);
-    step({ title: '학부모 비밀번호', desc: '숫자 6자리', len: 6, err: errMsg,
-      onComplete: async (pin) => {
-        const r = await run(() => signInParent(c, fam.family_id, pin));
-        if (r.ok) return success();
-        fail(r.locked ? '로그인이 10분간 제한되었습니다.' : '비밀번호가 일치하지 않습니다. 잊으셨으면 선생님께 초기화를 요청하세요.');
-      } });
+  // 학부모: 비밀번호 없이 바로 (SQL 27)
+  async function askPin(c, fam) {
+    pickEl.hidden = true; dots.hidden = false;
+    $('#ttl').textContent = '학부모 로그인'; $('#desc').textContent = fam.kids;
+    parentDone(await run(() => signInParent(c, fam.family_id)));
   }
-  function makePin(c, fam, errMsg) {
-    step({ title: '학부모 비밀번호 만들기', desc: '처음 한 번만 · 자녀와 다른 숫자 6자리', len: 6, err: errMsg,
-      onComplete: async (pin) => {
-        await wait(150);
-        step({ title: '한 번 더 입력', desc: '방금 만든 비밀번호 6자리', len: 6,
-          onComplete: async (pin2) => {
-            if (pin2 !== pin) { await wait(150); return makePin(c, fam, '비밀번호가 서로 달라요. 다시 만들어 주세요.'); }
-            const r = await run(() => createParent(c, fam.family_id, pin));
-            if (r.ok) return success();
-            fail(r.error?.message || '만들지 못했습니다.');
-          } });
-      } });
+  function parentDone(r) {
+    if (r.ok) return success();
+    const msg = r.locked ? '로그인이 10분간 제한되었습니다.' : '로그인하지 못했습니다. 잠시 후 다시 시도하세요.';
+    if (pad.hidden) return askCode(msg);   // 자녀 고른 뒤 실패 → 번호부터 다시
+    fail(msg);
   }
 
   function press(k) {

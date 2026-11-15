@@ -272,6 +272,13 @@ setInterval(() => {
   });
 }, 60000);
 
+// 점선 = 처음부터 기간을 정한 일정(이번 주만 · 기간 지정 · 그날만 기타). 시간을 바꾸느라 끝낸 일정(나중에 끝 날짜를 넣은 것)은 점선 아님
+const isTemp = (it) => {
+  if (!it.valid_to || (it.makeup && it.category === '학원')) return false;
+  if (it.makeup) return true;
+  const ended = it.created_at && it.updated_at && Date.parse(it.updated_at) - Date.parse(it.created_at) > 60000;
+  return !ended;
+};
 export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
   const RANGE = DAY_END - DAY_START;
   const termAt = opt.termAt || rows.termAt;
@@ -282,9 +289,11 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
     // 그 날짜에 유효한 일정. '계속' 일정은 그 주 안에 시작했으면 주 전체에 표시(주간 패턴으로 보기)
     return rows
       .filter((r) => r.weekday === d && (r.valid_to ? r.valid_from <= date && r.valid_to >= date : r.valid_from <= sun))
-      // 이번 주 중간에 시간을 바꾼 일정(코칭 · 같은 이름 학원 등): 바꾸기 전 날짜엔 새 일정을 미리 안 보여줌 (두 개로 보이는 것 방지)
-      .filter((r) => r.valid_to || r.valid_from <= date || !rows.some((o) => o !== r && o.category === r.category
-        && (r.category === '코칭' || o.title === r.title) && o.valid_to && o.valid_to >= mon && o.valid_to < r.valid_from))
+      // 이번 주 중간에 바꾼 일정: 바꾸기 전 날짜엔 새 일정을 미리 안 보여줌 (두 개로 보이는 것 방지)
+      //  바꾼 것으로 보는 경우 — 이번 주에 끝난 같은 종류 일정이 있고, 코칭이거나 · 이름이 같거나 · 같은 요일에 그날 실제로 있던 일정
+      .filter((r) => r.valid_to || r.valid_from <= date || !rows.some((o) => o !== r && !o.makeup && o.category === r.category
+        && o.valid_to && o.valid_to >= mon && o.valid_to < r.valid_from
+        && (r.category === '코칭' || o.title === r.title || (o.weekday === r.weekday && o.valid_from <= date && o.valid_to >= date))))
       .filter((r) => !r.term || !termAt || r.term === termAt(date))   // 학기 / 방학
       .filter((r) => toMin(r.end_time) > DAY_START && toMin(r.start_time) < DAY_END)
       .sort((a, b) => toMin(a.start_time) - toMin(b.start_time));
@@ -349,7 +358,7 @@ export function weekGrid(rows, mon, t, hourPx = HOUR_PX, opt = {}) {
       const off = offAt(it), thin = h < 40;
       // 겹칠 때: 휴강은 제자리에서 같은 비율로 90% 축소(가운데) + 흐리게, 겹친 일정은 원래 자리 그대로 그 위에
       const geo = `left:calc(${(it._lane / n) * 100}% + 2px);width:calc(${100 / n}% - 4px)`;
-      return `<div class="blk blk-${it.category}${it.valid_to && !(it.makeup && it.category === '학원') ? ' temp' : ''}${thin ? ' thin' : ''}${off ? ' off' : ''}${it._stack ? ' st-' + it._stack : ''}${it.makeup && it.category === '학원' ? ' mk' : ''}" data-sid="${esc(String(it.id))}" data-date="${date}" style="top:${top}px;height:${h - 2}px;${geo}"
+      return `<div class="blk blk-${it.category}${isTemp(it) ? ' temp' : ''}${thin ? ' thin' : ''}${off ? ' off' : ''}${it._stack ? ' st-' + it._stack : ''}${it.makeup && it.category === '학원' ? ' mk' : ''}" data-sid="${esc(String(it.id))}" data-date="${date}" style="top:${top}px;height:${h - 2}px;${geo}"
         title="${esc(`${it.title} ${hm(it.start_time)}~${hm(it.end_time)}`)}">
         ${(() => { const tag = off ? '<em class="blk-tag">휴강</em>' : it.makeup && it.category === '학원' ? '<em class="blk-tag">보강</em>' : ''; const name = esc(it.category === '코칭' ? `코칭 ${hm(it.start_time)}` : it.title);
           return thin ? `<b>${tag}${name}</b>` : `${tag}<b>${name}</b><span>${hm(it.start_time)}~<wbr>${hm(it.end_time)}</span>`; })()}</div>`;

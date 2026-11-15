@@ -1183,17 +1183,3 @@ body.is-preview .push-gate{display:none!important}
 .brand-link{color:inherit;text-decoration:none;border-radius:10px;transition:opacity .15s}
 .brand-link:hover{opacity:.7}
 .brand-link:active{opacity:.5}
-
-/* 설정: 나이스 자동 가져오기 */
-.neis{margin:4px 0 18px;padding:14px 16px;border-radius:14px;background:var(--surface)}
-.neis-top{display:flex;align-items:center;gap:12px}
-.neis-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.neis-t b{font-size:15px}
-.neis-t span{font-size:13px;color:var(--sub)}
-.neis-key{display:flex;gap:8px;margin-top:12px}
-.neis-key .input{flex:1;background:#fff}
-.neis-res{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
-.neis-res li{display:flex;gap:6px;align-items:center;padding:6px 10px;border-radius:10px;background:#fff;font-size:13px}
-.neis-res li span{color:var(--sub)}
-.neis-res li.bad span{color:var(--red)}
-.cal-auto{font-style:normal;font-size:10.5px;font-weight:700;color:var(--blue,#3182F6);background:var(--blue-soft,#EAF2FE);border-radius:5px;padding:1px 5px;margin-left:-2px}

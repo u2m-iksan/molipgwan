@@ -4,7 +4,7 @@ import { mountPushCard } from '../views/push-card.js';
 import { $, $$, esc, toast, X, fadeOut } from '../ui.js';
 import { loadStudents } from '../data/students.js';
 import { getPeriods, savePeriods, DEFAULT_PERIODS } from '../data/schedules.js';
-import { loadTeachers, addTeacher, removeTeacher, updateTeacher, changeMyPassword, teacherId, promoteGrades, lastPromoted, NEXT_GRADE, EVENT_KINDS, loadSchoolEvents, addSchoolEvents, deleteSchoolEvent, getNeis, saveNeisKey, runNeis } from '../data/settings.js';
+import { loadTeachers, addTeacher, removeTeacher, updateTeacher, changeMyPassword, teacherId, promoteGrades, lastPromoted, NEXT_GRADE, EVENT_KINDS, loadSchoolEvents, addSchoolEvents, deleteSchoolEvent } from '../data/settings.js';
 import { toMin, today, short } from '../date.js';
 import { getKakao, saveKakao } from '../data/chat.js';
 import { LINKS } from '../app-role.js';
@@ -196,8 +196,7 @@ export async function renderSettings(body, { me } = {}) {
   async function drawCal() {
     const el = $('#s-cal'); if (!el) return;
     let stu = [], evs = [];
-    let neis = null;
-    try { [stu, evs, neis] = await Promise.all([loadStudents(), loadSchoolEvents(), getNeis()]); }
+    try { [stu, evs] = await Promise.all([loadStudents(), loadSchoolEvents()]); }
     catch (e) { el.innerHTML = `<div class="set-h"><h3>학교별 학사일정</h3></div><div class="empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
     const t = today();
     const count = new Map();
@@ -207,17 +206,7 @@ export async function renderSettings(body, { me } = {}) {
     const md = (d) => short(d).replace(/\(.\)/, '');
     const dday = (e) => (e.end_date < t ? '' : e.start_date <= t ? '<em class="cal-now">진행 중</em>'
       : `<em>D-${Math.round((new Date(e.start_date) - new Date(t)) / 86400000)}</em>`);
-    const ago = (iso) => { const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 1 ? '방금' : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.round(m / 60)}시간 전` : `${Math.round(m / 1440)}일 전`; };
-    const neisBox = !neis ? '' : `<div class="neis">
-      <div class="neis-top"><div class="neis-t"><b>나이스 자동 가져오기</b>
-        <span>${neis.hasKey ? `매주 월요일 새벽 자동 · ${neis.last ? `마지막 ${ago(neis.last)}` : '아직 안 가져옴'}` : '인증키를 넣으면 학생 학교의 방학 · 시험 · 휴업을 자동으로 채웁니다'}</span></div>
-        ${neis.hasKey ? `<button type="button" class="link-s" id="nk-edit">키 변경</button><button type="button" class="btn btn-primary btn-sm" id="nk-run">지금 가져오기</button>` : ''}</div>
-      <div class="neis-key" id="nk-form"${neis.hasKey ? ' hidden' : ''}><div class="input"><input id="nk-key" placeholder="나이스 교육정보 개방 포털 인증키" autocomplete="off" spellcheck="false"></div>
-        <button type="button" class="btn btn-gray btn-sm" id="nk-save">저장</button></div>
-      ${neis.result?.length ? `<ul class="neis-res">${neis.result.map((r) => `<li class="${r.error ? 'bad' : ''}"><b>${esc(r.school)}</b><span>${r.error ? esc(r.error) : `${esc(r.full_name || '')} · ${r.added}개`}</span></li>`).join('')}</ul>` : ''}
-    </div>`;
     el.innerHTML = `<div class="set-h"><h3>학교별 학사일정</h3><span>방학 · 시험 · 휴업</span></div>
-      ${neisBox}
       <div class="cal-form">
         <div class="field"><span class="lbl">학교 <span class="opt">여러 개 선택 가능</span></span>
           <div class="chips" id="c-sch">${schools.map((x) => `<button type="button" class="chip-t" data-v="${esc(x)}">${esc(x)}${count.get(x) ? ` <small>${count.get(x)}</small>` : ''}</button>`).join('') || '<span class="sub-s">학생 정보에 학교가 없습니다.</span>'}</div></div>
@@ -233,25 +222,10 @@ export async function renderSettings(body, { me } = {}) {
       <div class="cal-grid">${schools.map((x) => {
         const list = evs.filter((e) => e.school === x);
         return `<div class="cal-sch"><h4>${esc(x)}</h4>${list.length ? `<ul>${list.map((e) => `<li class="${e.end_date < t ? 'past' : ''}">
-          <span class="cal-k k-${esc(e.kind)}">${esc(e.kind)}</span>${e.source === 'neis' ? '<i class="cal-auto" title="나이스에서 자동으로 가져옴">자동</i>' : ''}
+          <span class="cal-k k-${esc(e.kind)}">${esc(e.kind)}</span>
           <div class="cal-t"><b>${esc(e.title || e.kind)}</b><span>${md(e.start_date)}${e.end_date !== e.start_date ? ` – ${md(e.end_date)}` : ''}</span></div>
           ${dday(e)}<button type="button" class="icon-btn sm" data-del="${esc(e.id)}" aria-label="삭제">${X}</button></li>`).join('')}</ul>` : '<p class="sub-s">등록된 일정이 없습니다.</p>'}</div>`;
       }).join('')}</div>`;
-    // 나이스
-    $('#nk-edit', el)?.addEventListener('click', () => { $('#nk-form', el).hidden = false; $('#nk-key', el).focus(); });
-    $('#nk-save', el)?.addEventListener('click', async () => {
-      const k = $('#nk-key', el).value.trim(); if (!k) return toast('인증키를 넣어 주세요', 'bad');
-      try { await saveNeisKey(k); toast('저장했습니다 · 가져오는 중'); drawCal().then(() => $('#nk-run')?.click()); } catch (x) { toast('저장 실패: ' + x.message, 'bad'); }
-    });
-    $('#nk-run', el)?.addEventListener('click', async (e) => {
-      const b = e.currentTarget; b.disabled = true; b.textContent = '가져오는 중…';
-      try {
-        const res = await runNeis();
-        const ok = res.filter((r) => !r.error), n = ok.reduce((a, r) => a + (r.added || 0), 0);
-        toast(`${ok.length}개 학교 · 일정 ${n}개 가져옴${res.length > ok.length ? ` · ${res.length - ok.length}개 학교 실패` : ''}`, res.length > ok.length ? 'bad' : undefined);
-      } catch (x) { toast(x.message, 'bad'); }
-      drawCal();
-    });
     const paint = () => {
       $$('#c-sch [data-v]', el).forEach((b) => b.classList.toggle('on', cal.schools.includes(b.dataset.v)));
       $$('#c-kind button', el).forEach((b) => b.classList.toggle('on', b.dataset.v === cal.kind));

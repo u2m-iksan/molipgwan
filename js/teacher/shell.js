@@ -1,5 +1,6 @@
 // 선생님 화면 틀: 상단바(메뉴) + 본문. 메뉴는 주소 #/xxx 로 이동.
 import { mount, $, $$, esc, BRAND } from '../ui.js';
+import { autoSync } from '../data/school-sync.js';
 import { renderCoaching } from './coaching.js';
 import { renderConsultPage } from './consult-page.js';
 import { openBoard } from './board.js';
@@ -24,6 +25,7 @@ const PARENT = { consult: 'coaching', students: 'overview', reports: 'parents', 
 const DEFAULT_TAB = 'overview';
 
 export function renderTeacher({ me, onLogout }) {
+  autoSync().then(() => {}).catch(() => {});   // 학사일정 앱에서 시험 · 방학 (하루 한 번)
   purgeOld();   // 정리 작업: 토요일 자동 하원 · 30일 지난 채팅 (SQL 20)
   const current = () => {
     const id = location.hash.replace(/^#\//, '').split('?')[0];

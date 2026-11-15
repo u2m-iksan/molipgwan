@@ -8,6 +8,7 @@ import { loadTeachers, addTeacher, removeTeacher, updateTeacher, changeMyPasswor
 import { toMin, today, short } from '../date.js';
 import { getKakao, saveKakao } from '../data/chat.js';
 import { LINKS } from '../app-role.js';
+import { getSync, setVacMode, runSync } from '../data/school-sync.js';
 
 export async function renderSettings(body, { me } = {}) {
   body.innerHTML = `
@@ -196,7 +197,8 @@ export async function renderSettings(body, { me } = {}) {
   async function drawCal() {
     const el = $('#s-cal'); if (!el) return;
     let stu = [], evs = [];
-    try { [stu, evs] = await Promise.all([loadStudents(), loadSchoolEvents()]); }
+    let sync = null;
+    try { [stu, evs, sync] = await Promise.all([loadStudents(), loadSchoolEvents(), getSync().catch(() => null)]); }
     catch (e) { el.innerHTML = `<div class="set-h"><h3>학교별 학사일정</h3></div><div class="empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
     const t = today();
     const count = new Map();
@@ -206,7 +208,18 @@ export async function renderSettings(body, { me } = {}) {
     const md = (d) => short(d).replace(/\(.\)/, '');
     const dday = (e) => (e.end_date < t ? '' : e.start_date <= t ? '<em class="cal-now">진행 중</em>'
       : `<em>D-${Math.round((new Date(e.start_date) - new Date(t)) / 86400000)}</em>`);
+    const ago = (iso) => { const m = Math.round((Date.now() - new Date(iso)) / 60000); return m < 1 ? '방금' : m < 60 ? `${m}분 전` : m < 1440 ? `${Math.round(m / 60)}시간 전` : `${Math.round(m / 1440)}일 전`; };
+    const syncBox = !sync ? '' : `<div class="sync">
+      <div class="sync-top"><div class="sync-t"><b>학사일정 앱에서 가져오기</b>
+        <span>시험 · 방학만 · 하루 한 번 자동 · ${sync.last ? `마지막 ${ago(sync.last)}` : '아직 안 가져옴'}</span></div>
+        <button type="button" class="btn btn-primary btn-sm" id="sy-run">지금 가져오기</button></div>
+      <div class="sync-opt"><span class="lbl">방학 기준</span>
+        <div class="seg" id="sy-vac"><button type="button" data-v="neis" class="${sync.vac !== 'est' ? 'on' : ''}">나이스 등록</button><button type="button" data-v="est" class="${sync.vac === 'est' ? 'on' : ''}">추정치</button></div>
+        <span class="sub-s">방학 확정이 있으면 확정이 먼저예요</span></div>
+      ${sync.result?.length ? `<ul class="sync-res">${sync.result.map((r) => `<li class="${r.error ? 'bad' : ''}"><b>${esc(r.school)}</b><span>${r.error ? esc(r.error) : `시험 ${r.exams} · 방학 ${r.vac}`}</span></li>`).join('')}</ul>` : ''}
+    </div>`;
     el.innerHTML = `<div class="set-h"><h3>학교별 학사일정</h3><span>방학 · 시험 · 휴업</span></div>
+      ${syncBox}
       <div class="cal-form">
         <div class="field"><span class="lbl">학교 <span class="opt">여러 개 선택 가능</span></span>
           <div class="chips" id="c-sch">${schools.map((x) => `<button type="button" class="chip-t" data-v="${esc(x)}">${esc(x)}${count.get(x) ? ` <small>${count.get(x)}</small>` : ''}</button>`).join('') || '<span class="sub-s">학생 정보에 학교가 없습니다.</span>'}</div></div>
@@ -222,10 +235,25 @@ export async function renderSettings(body, { me } = {}) {
       <div class="cal-grid">${schools.map((x) => {
         const list = evs.filter((e) => e.school === x);
         return `<div class="cal-sch"><h4>${esc(x)}</h4>${list.length ? `<ul>${list.map((e) => `<li class="${e.end_date < t ? 'past' : ''}">
-          <span class="cal-k k-${esc(e.kind)}">${esc(e.kind)}</span>
+          <span class="cal-k k-${esc(e.kind)}">${esc(e.kind)}</span>${e.source === 'sync' ? '<i class="cal-auto" title="학사일정 앱에서 가져옴">자동</i>' : ''}
           <div class="cal-t"><b>${esc(e.title || e.kind)}</b><span>${md(e.start_date)}${e.end_date !== e.start_date ? ` – ${md(e.end_date)}` : ''}</span></div>
           ${dday(e)}<button type="button" class="icon-btn sm" data-del="${esc(e.id)}" aria-label="삭제">${X}</button></li>`).join('')}</ul>` : '<p class="sub-s">등록된 일정이 없습니다.</p>'}</div>`;
       }).join('')}</div>`;
+    // 학사일정 앱 가져오기
+    const doSync = async (b) => {
+      if (b) { b.disabled = true; b.textContent = '가져오는 중…'; }
+      try {
+        const res = await runSync(), bad = res.filter((r) => r.error).length;
+        toast(`${res.length - bad}개 학교 가져옴${bad ? ` · ${bad}개 학교 못 찾음` : ''}`, bad ? 'bad' : undefined);
+      } catch (x) { toast(x.message, 'bad'); }
+      drawCal();
+    };
+    $('#sy-run', el)?.addEventListener('click', (e) => doSync(e.currentTarget));
+    $('#sy-vac', el)?.addEventListener('click', async (e) => {
+      const b = e.target.closest('[data-v]'); if (!b || b.classList.contains('on')) return;
+      $$('#sy-vac button', el).forEach((x) => x.classList.toggle('on', x === b));
+      try { await setVacMode(b.dataset.v); doSync($('#sy-run', el)); } catch (x) { toast('저장 실패: ' + x.message, 'bad'); }
+    });
     const paint = () => {
       $$('#c-sch [data-v]', el).forEach((b) => b.classList.toggle('on', cal.schools.includes(b.dataset.v)));
       $$('#c-kind button', el).forEach((b) => b.classList.toggle('on', b.dataset.v === cal.kind));

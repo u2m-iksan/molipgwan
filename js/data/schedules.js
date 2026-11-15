@@ -79,12 +79,20 @@ export async function addOffs(row, date, until) {
   for (let d = date; d <= until; d = addDays(d, 7)) {
     if (row.valid_from <= d && (!row.valid_to || row.valid_to >= d)) out.push({ student_id: row.student_id, schedule_id: row.id, on_date: d, action: '취소', category: row.category, title: row.title });
   }
-  if (out.length) check(await sb.from('schedule_overrides').upsert(out, { onConflict: 'schedule_id,on_date', ignoreDuplicates: true }));
+  if (!out.length) return 0;
+  // 이미 휴강인 날은 빼고 넣기 (upsert 는 부분 고유 인덱스와 안 맞아서 안 씀)
+  const have = check(await sb.from('schedule_overrides').select('on_date').eq('schedule_id', row.id).eq('action', '취소').in('on_date', out.map((o) => o.on_date)));
+  const fresh = out.filter((o) => !have.some((h) => h.on_date === o.on_date));
+  if (fresh.length) check(await sb.from('schedule_overrides').insert(fresh));
   return out.length;
 }
 export async function removeOverride(id) { check(await sb.from('schedule_overrides').delete().eq('id', id)); }
 export async function addMakeup({ student_id, date, title, subject = null, subject_detail = null, start, end }) {
-  check(await sb.from('schedule_overrides').insert({ student_id, on_date: date, action: '추가', category: '학원', title, subject, subject_detail, start_time: start, end_time: end }));
+  const row = { student_id, on_date: date, action: '추가', category: '학원', title, start_time: start, end_time: end };
+  let r = await sb.from('schedule_overrides').insert({ ...row, subject, subject_detail });
+  // SQL 29 전(과목 칸 없음)이어도 보강은 저장
+  if (r.error && /subject/.test(r.error.message || '')) r = await sb.from('schedule_overrides').insert(row);
+  check(r);
 }
 // 하루치 일정에 휴강 · 보강 반영 (전체 현황 · 출결용): rows 는 그날 요일 일정
 export async function todayWithOverrides(rows, date) {

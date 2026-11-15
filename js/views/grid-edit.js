@@ -1,5 +1,5 @@
 // 주간 시간표에서 바로 휴강 · 보강 (말풍선 · 모달 아님)
-//  · 학원 블럭 누름 → 휴강: 이번 주만 / 다음 주까지 / 직접(날짜까지)
+//  · 학원 블럭 누름 → 휴강: 이번 주만 / 다음 주까지 (더 길면 2주 뒤 다시)
 //  · 휴강된 블럭 → 휴강 취소 · 보강 블럭 → 보강 취소
 //  · 시간표 위 [+ 보강] → 학원 고르기 · 날짜 · 시간 (휴강 없이도)
 //  · 빈 칸은 눌러도 아무 일 없음 (잘못 눌러 생기는 것 방지)
@@ -107,8 +107,8 @@ export function wireGridEdit(root, { rows, stu, isStudent = false, onChanged }) 
       }
       return open(blk, `<h5>${esc(r.title)}</h5><p class="gp-sub">${when}</p>
         <span class="gp-lbl">휴강</span>
-        <div class="gp-chips"><button type="button" data-w="1">이번 주만</button><button type="button" data-w="2">다음 주까지</button><button type="button" data-w="d">직접</button></div>
-        <div class="gp-row" id="gp-until" hidden><input type="date" id="gp-u" value="${addDays(date, 14)}" min="${date}"><button type="button" class="gp-go gp-go-s" id="gp-u-go">휴강</button></div>`, (p) => {
+        <div class="gp-chips"><button type="button" data-w="1">이번 주만</button><button type="button" data-w="2">다음 주까지</button></div>
+        <p class="gp-note">2주보다 길게 쉬면, 2주 뒤에 한 번 더 눌러 주세요.</p>`, (p) => {
         const doOff = async (until) => {
           try {
             const n = await addOffs(r, date, until);
@@ -116,11 +116,7 @@ export function wireGridEdit(root, { rows, stu, isStudent = false, onChanged }) 
             done(n > 1 ? `${r.title} ${n}회 휴강` : `${r.title} ${md(date)} 휴강`);
           } catch (x) { fail(x); }
         };
-        p.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => {
-          if (b.dataset.w === 'd') { p.querySelector('#gp-until').hidden = false; p.querySelectorAll('[data-w]').forEach((x) => x.classList.toggle('on', x === b)); return; }
-          doOff(addDays(date, b.dataset.w === '2' ? 7 : 0));
-        }));
-        p.querySelector('#gp-u-go').addEventListener('click', () => { const u = p.querySelector('#gp-u').value; if (u >= date) doOff(u); });
+        p.querySelectorAll('[data-w]').forEach((b) => b.addEventListener('click', () => doOff(addDays(date, b.dataset.w === '2' ? 7 : 0))));
       });
     }
   });

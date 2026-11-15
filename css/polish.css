@@ -1294,3 +1294,4 @@ body.is-preview .push-gate{display:none!important}
 .sched-term+.sched-term{margin-top:18px}
 .sched-term h5{padding-bottom:6px;border-bottom:1px solid var(--line)}
 .sched-term .sched-row:last-child{border-bottom:0}
+.gp .gp-note{margin:10px 0 0;font-size:12px;line-height:1.45;color:var(--sub)}

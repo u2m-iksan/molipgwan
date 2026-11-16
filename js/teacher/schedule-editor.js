@@ -237,8 +237,8 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
     if (!multi) f.same = true;
     const sw = $('#a-same', root); sw.hidden = !multi; sw.textContent = f.same ? '요일마다 다르게' : '모두 같은 시간';
     const row = (d) => { const v = tOf(d); return `<div class="t-row">${d ? `<span class="t-day">${DOW[d]}</span>` : ''}
-      <div class="input"><input type="time" step="600" data-t="start" data-d="${d}" value="${v.start}" aria-label="시작"></div><span class="t-sep">~</span>
-      <div class="input"><input type="time" step="600" data-t="end" data-d="${d}" value="${v.end}" aria-label="종료"></div></div>`; };
+      <div class="input"><input type="time" step="600" data-t10 data-t="start" data-d="${d}" value="${v.start}" aria-label="시작"></div><span class="t-sep">~</span>
+      <div class="input"><input type="time" step="600" data-t10 data-t="end" data-d="${d}" value="${v.end}" aria-label="종료"></div></div>`; };
     $('#a-times', root).innerHTML = f.same || !multi ? row(0) : f.weekdays.map(row).join('');
   }
   $('#a-times', root).addEventListener('input', (e) => { const i = e.target.closest('[data-t]'); if (i) tOf(Number(i.dataset.d))[i.dataset.t] = i.value; });

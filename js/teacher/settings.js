@@ -137,8 +137,8 @@ export async function renderSettings(body, { me } = {}) {
       <div class="per-h"><span>이름</span><span>시작</span><span>끝</span><span></span></div>
       <div class="per-list">${per.map((p, i) => `<div class="per-row">
         <div class="input sm"><input data-i="${i}" data-f="label" value="${esc(p.label)}"></div>
-        <div class="input sm"><input type="time" step="600" data-i="${i}" data-f="start" value="${esc(p.start)}"></div>
-        <div class="input sm"><input type="time" step="600" data-i="${i}" data-f="end" value="${esc(p.end)}"></div>
+        <div class="input sm"><input type="time" data-i="${i}" data-f="start" value="${esc(p.start)}"></div>
+        <div class="input sm"><input type="time" data-i="${i}" data-f="end" value="${esc(p.end)}"></div>
         <button type="button" class="icon-btn sm" data-del="${i}" aria-label="삭제">${X}</button></div>`).join('')}</div>
       <div class="set-acts"><button type="button" class="link-s" id="per-add">+ 교시 추가</button>
         <button type="button" class="link-s sub" id="per-reset">기본값으로</button><div class="spacer"></div>

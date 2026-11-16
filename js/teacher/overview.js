@@ -103,8 +103,8 @@ export async function renderOverview(body, { me } = {}) {
           <span>${esc([r.reason, r.expect_back ? r.expect_back.slice(0, 5) + ' 복귀 예정' : '', r.auto ? '자동' : ''].filter(Boolean).join(' · '))}</span>
           <button type="button" class="icon-btn sm" data-del="${esc(r.id)}" aria-label="삭제">${X}</button></li>`).join('') : '<li class="sub">기록이 없습니다.</li>'}</ul>
         <div class="field"><span class="lbl">추가</span><div class="seg seg-wide" id="ae-k">${['등원', '외출', '복귀', '하원'].map((k) => `<button type="button" data-v="${k}" class="${f.kind === k ? 'on' : ''}">${k}</button>`).join('')}</div></div>
-        <div class="row2"><div class="field"><label for="ae-t">시각</label><div class="input"><input type="time" step="600" id="ae-t" value="${f.time}"></div></div>
-          ${f.kind === '외출' ? `<div class="field"><label for="ae-b">복귀 예정</label><div class="input"><input type="time" step="600" id="ae-b" value="${f.back}"></div></div>` : ''}</div>
+        <div class="row2"><div class="field"><label for="ae-t">시각</label><div class="input"><input type="time" id="ae-t" value="${f.time}"></div></div>
+          ${f.kind === '외출' ? `<div class="field"><label for="ae-b">복귀 예정</label><div class="input"><input type="time" id="ae-b" value="${f.back}"></div></div>` : ''}</div>
         ${['외출', '하원'].includes(f.kind) ? `<div class="field"><span class="lbl">사유</span><div class="seg seg-wide" id="ae-r">${['학원', '식사', '기타'].map((r) => `<button type="button" data-v="${r}" class="${f.reason === r ? 'on' : ''}">${r}</button>`).join('')}</div></div>` : ''}
         <p class="err" id="ae-err"></p>
         <button type="button" class="btn btn-primary btn-block" id="ae-go">${f.kind} 기록</button>`;

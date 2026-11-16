@@ -154,7 +154,7 @@ ${SUM}
       }
       back = Math.min(Math.ceil(back / 10) * 10, 23 * 60 + 50);
       $('.drawer-body', m).innerHTML = `<p class="desc-s">${esc(reason)} · 복귀 예정 시각을 확인하세요.</p>
-        <div class="back-row"><div class="input"><input type="time" id="bk" value="${toTime(back)}" step="600"></div>
+        <div class="back-row"><div class="input"><input type="time" step="600" id="bk" value="${toTime(back)}" step="600"></div>
           <div class="chips">${[30, 60, 120].map((x) => `<button type="button" class="chip-t" data-add="${x}">${x < 60 ? x + '분' : x / 60 + '시간'} 후</button>`).join('')}</div></div>
         <button type="button" class="btn btn-primary btn-block" id="bk-go">외출</button>`;
       $$('[data-add]', m).forEach((c) => c.addEventListener('click', () => { $('#bk', m).value = toTime(Math.min(now + Number(c.dataset.add), 23 * 60 + 59)); }));

@@ -432,3 +432,16 @@ export function busyOverlay(text = '잠시만요') {
     close: () => remove(200),
   };
 }
+
+// 모든 시간 입력은 10분 단위: 폰 휠처럼 step 을 무시하는 곳에서도 고른 뒤 가까운 10분으로 맞춤
+if (typeof document !== 'undefined' && !window.__time10) {
+  window.__time10 = true;
+  document.addEventListener('change', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement) || el.type !== 'time' || !el.value) return;
+    const [h, m] = el.value.split(':').map(Number);
+    let t = Math.round((h * 60 + m) / 10) * 10; if (t >= 1440) t = 1430;
+    const v = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+    if (v !== el.value) { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); }
+  }, true);
+}

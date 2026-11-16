@@ -120,7 +120,7 @@ export function wireGridEdit(root, { rows, stu, isStudent = false, onChanged }) 
     ${base ? '' : `<div class="gp-chips" id="gp-ac">${academies().map((r, i) => `<button type="button" data-i="${i}">${esc(r.title)}</button>`).join('') || '<span class="gp-sub">등록된 학원이 없어요</span>'}</div>`}
     ${calHtml()}
     <span class="gp-lbl">시간</span>
-    <div class="gp-row"><input type="time" id="gp-s" value="${start}"><span>~</span><input type="time" id="gp-e" value="${end}"></div>
+    <div class="gp-row"><input type="time" step="600" id="gp-s" value="${start}"><span>~</span><input type="time" step="600" id="gp-e" value="${end}"></div>
     <button type="button" class="gp-go" id="gp-add"${base ? '' : ' disabled'}>보강 추가</button>`;
   const wireMakeup = (p, base, d0) => {
     let pick = base, ds = [d0];
@@ -167,7 +167,7 @@ export function wireGridEdit(root, { rows, stu, isStudent = false, onChanged }) 
           <div class="gp-row"><input type="text" id="gp-t" placeholder="예: 병원, 학교 행사" maxlength="20" autocomplete="off"></div>
           ${calHtml()}
           <span class="gp-lbl">시간</span>
-          <div class="gp-row"><input type="time" id="gp-s"><span>~</span><input type="time" id="gp-e"></div>
+          <div class="gp-row"><input type="time" step="600" id="gp-s"><span>~</span><input type="time" step="600" id="gp-e"></div>
           <button type="button" class="gp-go" id="gp-add">추가</button>`;
         let ds = [d0];
         wireCal(p, d0, (x) => { ds = x; });

@@ -356,9 +356,11 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     });
 
     // 학원 숙제: 그 과목(과학·사회는 세부 과목까지) 학원이 있을 때만 칩 표시, 있으면 기본으로 켜짐 · 끄고 켜기 가능
+    // 같은 과목 학원 숙제 칸이 이미 있으면 새로 넣는 건 자습으로
+    const acTaken = (it) => st.newItems.some((x) => x !== it && x.academy && x.subject === it.subject);
     const acSync = (it, row) => {
       const has = !!st.acHas?.(it);
-      if (!has) { it.academy = false; it.acManual = false; } else if (!it.acManual) it.academy = true;
+      if (!has) { it.academy = false; it.acManual = false; } else if (!it.acManual) it.academy = !acTaken(it);
       const chip = row?.querySelector('[data-ac]');
       if (chip) { chip.hidden = !has; chip.classList.toggle('on', it.academy); }
     };
@@ -416,7 +418,9 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
       }
       if (t.dataset.quick != null) {
         const s = Number(t.dataset.quick) >= 0 ? st.d.subjects[Number(t.dataset.quick)] : { subject: '국어', subject_detail: null };
-        st.newItems.push({ subject: s.subject, subject_detail: s.subject_detail, title: '', detail: '', source: '계획', academy: !!st.acHas?.(s) });
+        const it = { subject: s.subject, subject_detail: s.subject_detail, title: '', detail: '', source: '계획', academy: false };
+        it.academy = !!st.acHas?.(s) && !acTaken(it);
+        st.newItems.push(it);
         keepScroll(drawConsult);
         const last = $$('#next-list .cs-item', panel).pop();
         popIn(last);

@@ -1372,3 +1372,49 @@ body.is-preview .push-gate{display:none!important}
 /* 코칭: 끝나고 10분 지났는데 상담 기록 없음 → 보강 필요 */
 .stu.miss{border-color:#F4C2C7;background:var(--red-soft)}
 .stu.miss .nm{color:var(--red)}
+/* 학생 폰: 이번주 계획을 먼저, 시간표는 옆으로 넘겨서 */
+@media (max-width:820px){ .sa-col>.sa-plan{order:-1} }
+/* 보강 · 일정 날짜 고르기 (하루 / 기간 + 반복 요일) */
+.gp{max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}
+.gp .gp-lbl small{margin-left:6px;font-weight:500;font-size:11px;color:var(--sub2,#8B95A1)}
+.gc{border:1px solid var(--line);border-radius:12px;padding:8px 8px 6px}
+.gc-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.gc-h b{font-size:13px;font-weight:700}
+.gc-h button{width:28px;height:28px;border-radius:8px;font-size:17px;color:var(--sub)}
+.gc-h button:hover{background:var(--surface)}
+.gc-h button:disabled{opacity:.3}
+.gc-g{display:grid;grid-template-columns:repeat(7,1fr);row-gap:2px}
+.gc-g i{font-style:normal;text-align:center;font-size:10.5px;color:var(--sub2,#8B95A1);padding:2px 0 4px}
+.gc-g i:nth-child(6){color:#4E8FF0}.gc-g i:nth-child(7){color:#F04452}
+.gc-g button{height:30px;font-size:12.5px;font-weight:600;color:var(--text);border-radius:0;font-feature-settings:"tnum";position:relative}
+.gc-g button:disabled{color:#C9CED4}
+.gc-g button.td{color:var(--blue,#3182F6)}
+.gc-g button.rng{background:#F2F6FD}
+.gc-g button.on{background:var(--blue-soft,#EAF2FE);color:var(--blue-dark,#1B64DA)}
+.gc-g button.end{background:var(--blue,#3182F6);color:#fff;border-radius:8px}
+.gc-dow .gc-w{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.gc-dow .gc-w button{height:30px;border-radius:8px;background:var(--surface);font-size:12.5px;font-weight:600;color:var(--sub)}
+.gc-dow .gc-w button.on{background:var(--blue,#3182F6);color:#fff}
+.gc-sum{margin:8px 0 0;font-size:12.5px;font-weight:600;color:var(--blue-dark,#1B64DA);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gp .gp-link+.gp-link{margin-top:0;border-top:0;padding-top:8px}
+/* 보고서 이행도: 계획 · 학원 숙제 줄 모두 같은 검정 글씨 */
+.wr-bars p,.wr-bars .wr-ac{color:var(--text,#191F28);font-size:11.5px;font-weight:500}
+/* 학생: 계획 말고 한 공부 */
+.sa-ex{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.sa-ex-h{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+.sa-ex-h b{font-size:14px;font-weight:700}
+.sa-ex-h small{font-size:12px;color:var(--sub)}
+.sa-ex-l{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:6px}
+.sa-ex-l li{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:8px 6px 8px 12px;border-radius:12px;background:var(--surface)}
+.sa-ex-s{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap}
+.sa-ex-n{font-size:13.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sa-ex-l small{font-size:11.5px;color:var(--sub);font-feature-settings:"tnum";white-space:nowrap}
+.sa-ex-add{display:grid;grid-template-columns:86px minmax(0,1fr) auto;gap:6px;align-items:center}
+.sa-ex-add .input{margin:0}
+.sa-ex-add .btn{height:40px;white-space:nowrap}
+.pl-ex{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--surface);display:flex;flex-direction:column;gap:5px}
+.pl-ex-h{font-size:12px;font-weight:700;color:var(--sub)}
+.pl-ex p{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;font-size:13px}
+.pl-ex p b{font-weight:700;white-space:nowrap}
+.pl-ex p span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-ex p small{font-size:11.5px;color:var(--sub);font-feature-settings:"tnum"}

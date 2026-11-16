@@ -17,6 +17,7 @@ import { heartbeat } from '../device.js';
 import { sb } from '../sb.js';
 import { lastDays } from '../data/overview.js';
 import { openHistory } from './history.js';
+import { loadExtra, addExtra, removeExtra } from '../data/extra.js';
 import {
   loadOpenPlan, saveProgress, loadAttendance, attState, isSaturday, checkIn, addAttendance, autoCheckout,
   loadSessions, elapsedSec, needsCheck, loadWeekDone, selfPlanNeed,
@@ -43,7 +44,7 @@ export async function renderStudentHome({ student, onLogout }) {
       <div class="sa-sum" id="sum">
 ${SUM}
       </div>
-      <div class="sa-pg" id="pg"><button type="button" data-p="0" class="on">시간표</button><button type="button" data-p="1">이번주 계획</button></div>
+      <div class="sa-pg" id="pg"><button type="button" data-p="0" class="on">이번주 계획</button><button type="button" data-p="1">시간표</button></div>
     </div>
     <main class="sa-main" id="sam">
       <section class="card sa-tt" id="tt"><div class="empty">불러오는 중</div></section>
@@ -210,6 +211,7 @@ ${SUM}
     if (noCoach) return;
     try { Object.assign(st, await loadOpenPlan(student.id)); }
     catch (e) { $('#plan').innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
+    st.extra = await loadExtra(student.id, exFrom());
     drawPlan();
   }
   /* ---------- 폰: 이번주 한눈 요약 (평균 이행도 · 이번 주 순공 · 다음 코칭) ---------- */
@@ -261,12 +263,30 @@ ${SUM}
   document.addEventListener('click', (e) => {
     if (e.target.closest('#plan [data-hist]') && document.body.contains(root)) return void openHistory(student);
     if (!e.target.closest('[data-nag]') || !document.body.contains(root)) return;
-    const pg = $('#pg [data-p="1"]');
+    const pg = $('#pg [data-p="0"]');
     if (pg && getComputedStyle($('#pg')).display !== 'none') pg.click();
     const first = st.items.find((i) => !i.academy);
     if (first && st.open !== first.id) $(`[data-tg="${first.id}"]`)?.click();
     $('#plan')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
+  // 계획 말고 한 공부: 지금 계획 기간(없으면 이번 주)
+  const exFrom = () => (st.plan?.start_date && st.plan.start_date <= today() ? st.plan.start_date : mondayOf(today()));
+  const EX_SUBS = ['국어', '수학', '영어', '과학', '사회', '한국사', '기타'];
+  function exHtml() {
+    const subs = [...new Set([...st.items.map((i) => i.subject), ...EX_SUBS])];
+    const list = st.extra || [];
+    return `<section class="sa-ex">
+      <div class="sa-ex-h"><b>계획 말고 한 공부</b><small>다른 책으로 했거나, 계획을 다 하고 더 한 공부를 짧게 적어요</small></div>
+      ${list.length ? `<ul class="sa-ex-l">${list.map((x) => `<li><span class="sa-ex-s">${esc(x.subject)}</span><span class="sa-ex-n">${esc(x.note)}</span><small>${md(x.on_date)}</small>
+        <button type="button" class="icon-btn sm" data-ex-del="${esc(x.id)}" aria-label="지우기">${X}</button></li>`).join('')}</ul>` : ''}
+      <form class="sa-ex-add" id="ex-add">
+        <div class="input sm sa-ex-sel"><select id="ex-sub" aria-label="과목">${subs.map((x) => `<option>${esc(x)}</option>`).join('')}</select></div>
+        <div class="input sm grow"><input id="ex-note" maxlength="120" placeholder="예: 마플 p.20–40 (교재 바꿈)" autocomplete="off"></div>
+        <button type="submit" class="btn btn-primary btn-sm">추가</button>
+      </form>
+    </section>`;
+  }
+
   function drawPlan() {
     const el = $('#plan');
     const nag = paintNag();
@@ -276,7 +296,7 @@ ${SUM}
       <span>${need.reason === 'makeup' ? `다음 상담(${md(need.due)})까지의 계획을 직접 세우세요. 토요일 보강 때 함께 점검합니다.` : `다음 상담(${md(need.due)})까지의 계획을 직접 세우세요.`}</span></div>
       <button type="button" class="btn btn-primary btn-sm" id="sp-open">계획 세우기</button></div>` : '';
     if (!st.plan) {
-      el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3><button type="button" class="link-s" data-hist>지난 기록</button></div>${spBtn || '<div class="sa-empty"><b>진행 중인 계획이 없습니다.</b>상담에서 계획을 세웁니다.</div>'}`;
+      el.innerHTML = `<div class="sa-h"><h3>이번주 계획</h3><button type="button" class="link-s" data-hist>지난 기록</button></div>${spBtn || '<div class="sa-empty"><b>진행 중인 계획이 없습니다.</b>상담에서 계획을 세웁니다.</div>'}${exHtml()}`;
       $('#sp-open')?.addEventListener('click', () => openSelfPlan(student, { plan: null, items: [], sched: st.sched, need, onSaved: loadPlan }));
       paintSum();
       return;
@@ -311,11 +331,29 @@ ${SUM}
           ${open ? `<div class="sa-pick"><p>오늘(${DOW[isoDow(today())]}) 어디까지 했나요?</p>
             <div class="sa-steps">${[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((v) => `<button type="button" data-pct="${v}" class="${tp === v ? 'on' : ''}${v < lastPct(i.id) && tp == null ? ' past' : ''}">${v}</button>`).join('')}</div></div>` : ''}
         </li>`;
-      }).join('') || '<div class="sa-empty">계획 항목이 없습니다.</div>'}</ul>`;
+      }).join('') || '<div class="sa-empty">계획 항목이 없습니다.</div>'}</ul>${exHtml()}`;
     $('#sp-open')?.addEventListener('click', () => openSelfPlan(student, { plan: st.plan, items: st.items, sched: st.sched, need, onSaved: loadPlan }));
     paintSum();
   }
+  $('#plan').addEventListener('submit', async (e) => {
+    if (e.target.id !== 'ex-add') return;
+    e.preventDefault();
+    const note = $('#ex-note').value.trim(), subject = $('#ex-sub').value;
+    if (!note) return void $('#ex-note').focus();
+    const btn = e.target.querySelector('button'); btn.disabled = true;
+    try {
+      const row = await addExtra({ student_id: student.id, subject, note });
+      st.extra = [...(st.extra || []), row];
+      toast('적었어요'); drawPlan();
+    } catch (ex) { toast('저장 실패: ' + ex.message); btn.disabled = false; }
+  });
   $('#plan').addEventListener('click', async (e) => {
+    const del = e.target.closest('[data-ex-del]');
+    if (del) {
+      try { await removeExtra(del.dataset.exDel); st.extra = (st.extra || []).filter((x) => x.id !== del.dataset.exDel); drawPlan(); }
+      catch (ex) { toast('삭제 실패: ' + ex.message); }
+      return;
+    }
     const acb = e.target.closest('[data-ac-d]');
     if (acb) {
       // 체크 안 함 → O(해감) → △(반만 · 50%) → X(안 해감) → O …
@@ -401,7 +439,7 @@ ${SUM}
   }); };
   $('#today2').addEventListener('click', openSW);
   $('#today').addEventListener('click', openSW);
-  // 폰: 시간표 | 이번주 계획 옆으로 넘기기
+  // 폰: 이번주 계획 | 시간표 옆으로 넘기기 (계획 실행이 우선이라 계획 먼저)
   const sam = $('#sam'), pg = $('#pg');
   pg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) sam.scrollTo({ left: Number(b.dataset.p) * sam.clientWidth, behavior: 'smooth' }); });
   // 폰: 흰 선택 표시가 손가락으로 넘기는 만큼 실시간으로 따라 움직임

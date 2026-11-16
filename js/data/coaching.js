@@ -258,7 +258,7 @@ export function reportSubjects(report) {
   return [...new Set(src.map((r) => r.subject))];
 }
 
-export function buildPrompt({ student, scheduled, report, prevItems, summary, checkItems }) {
+export function buildPrompt({ student, scheduled, report, prevItems, summary, checkItems, extra = [] }) {
   if (report.stats?.is_new) return buildNewPrompt({ student, scheduled, report, summary });
   const subs = reportSubjects(report);
   const lines = [];
@@ -288,6 +288,10 @@ export function buildPrompt({ student, scheduled, report, prevItems, summary, ch
       } else lines.push(`- ${sub} | ${i.title} | ${i.final_rate ?? '-'}%${i.final_note ? ` | ${i.final_note}` : ''}`);
     }
   } else lines.push('지난 계획 이행도: 없음 (신규생)');
+  if (extra.length) {
+    lines.push('계획 말고 학생이 스스로 더 한 공부 (이행률에는 안 넣음):');
+    for (const x of extra) lines.push(`- ${x.subject} | ${x.note}`);
+  }
   if (report.next_plan?.length) {
     lines.push('다음 계획:');
     for (const i of report.next_plan) lines.push(`- ${i.subject}${i.detail ? `(${i.detail})` : ''} | ${i.academy ? (i.title === '학원 숙제' ? '학원 숙제' : `학원 숙제 · ${i.title}`) : i.title}`);

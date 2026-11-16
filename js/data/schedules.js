@@ -88,16 +88,21 @@ export async function addOffs(row, date, until) {
   return out.length;
 }
 export async function removeOverride(id) { check(await sb.from('schedule_overrides').delete().eq('id', id)); }
-export async function addMakeup({ student_id, date, title, subject = null, subject_detail = null, start, end }) {
-  const row = { student_id, on_date: date, action: '추가', category: '학원', title, start_time: start, end_time: end };
-  let r = await sb.from('schedule_overrides').insert({ ...row, subject, subject_detail });
+// 보강: 날짜 하나 또는 여러 날 (기간 · 요일 반복 → 날마다 하루짜리로 저장, 기본 시간표는 그대로)
+export async function addMakeup({ student_id, date, dates, title, subject = null, subject_detail = null, start, end }) {
+  const rows = (dates || [date]).map((d) => ({ student_id, on_date: d, action: '추가', category: '학원', title, start_time: start, end_time: end }));
+  let r = await sb.from('schedule_overrides').insert(rows.map((x) => ({ ...x, subject, subject_detail })));
   // SQL 29 전(과목 칸 없음)이어도 보강은 저장
-  if (r.error && /subject/.test(r.error.message || '')) r = await sb.from('schedule_overrides').insert(row);
+  if (r.error && /subject/.test(r.error.message || '')) r = await sb.from('schedule_overrides').insert(rows);
   check(r);
 }
-// 그날 하루만 있는 기타 일정 (병원 · 학교 행사 등)
-export async function addOneDay({ student_id, date, title, start, end }) {
-  check(await sb.from('schedule_overrides').insert({ student_id, on_date: date, action: '추가', category: '기타', title, start_time: start, end_time: end }));
+// 기타 일정 (병원 · 학교 행사 등): 날짜 하나 또는 여러 날
+export async function addOneDay({ student_id, date, dates, title, start, end }) {
+  check(await sb.from('schedule_overrides').insert((dates || [date]).map((d) => ({ student_id, on_date: d, action: '추가', category: '기타', title, start_time: start, end_time: end }))));
+}
+// 같이 잡은 보강 · 일정 묶음 (같은 이름 · 시간 · 오늘 이후) 한꺼번에 취소
+export async function removeOverrides(ids) {
+  if (ids.length) check(await sb.from('schedule_overrides').delete().in('id', ids));
 }
 // 하루치 일정에 휴강 · 보강 반영 (전체 현황 · 출결용): rows 는 그날 요일 일정
 export async function todayWithOverrides(rows, date) {

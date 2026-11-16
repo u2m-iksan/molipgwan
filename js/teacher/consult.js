@@ -2,6 +2,7 @@
 import { $, $$, esc, toast, sheet, X, flashDone, saveState, fadeOut, popIn, celebrate } from '../ui.js';
 import { today, short, addDays } from '../date.js';
 import { refPanel } from './ref-panel.js';
+import { loadExtra } from '../data/extra.js';
 import { segBar } from '../views/progress-bar.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
@@ -163,6 +164,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     try {
       const [d, ses, sched0, vac] = await Promise.all([loadConsult(stu.id, scheduled), sb.auth.getSession(), loadStudentSchedules(stu.id).catch(() => []), loadVacations()]);
       st.d = d; st.me = ses?.data?.session?.user?.email || null;
+      st.extra = await loadExtra(stu.id, d.prevPlan?.start_date || addDays(scheduled, -7), scheduled);
       const sched = withTerm(sched0, stu.school, vac);
       st.sched = sched; st.acHas = (i) => hasAcademy(i, sched);
       const c = d.coaching;
@@ -272,7 +274,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
             : `<div class="input sm"><input data-f="final_note" value="${esc(i.final_note || '')}" placeholder="세부 이행도"></div>`}
         </div>`;
       }).join('') || '<div class="cs-empty">항목이 없습니다.</div>'}</div>
-      <button type="button" class="link-s cs-add" id="prev-add">+ 항목 추가</button>`;
+      <button type="button" class="link-s cs-add" id="prev-add">+ 항목 추가</button>
+      ${st.extra?.length ? `<div class="pl-ex cs-ex"><span class="pl-ex-h">학생이 적은 계획 말고 한 공부</span>${st.extra.map((x) => `<p><b>${esc(x.subject)}</b><span>${esc(x.note)}</span><small>${short(x.on_date).replace(/\(.\)/, '')}</small></p>`).join('')}</div>` : ''}`;
   }
 
   function nextHtml() {
@@ -660,7 +663,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
     });
     $('#rp-copy', pane).addEventListener('click', async (e) => {
       const btn = e.currentTarget;
-      const text = buildPrompt({ student: stu, scheduled, report: r, prevItems: st.d.prevItems, summary: st.summary.trim(), checkItems: st.checkItems });
+      const text = buildPrompt({ student: stu, scheduled, report: r, prevItems: st.d.prevItems, summary: st.summary.trim(), checkItems: st.checkItems, extra: st.extra || [] });
       if (await copy(text)) { flashDone(btn); toast('프롬프트를 복사했습니다'); } else toast('복사 실패');
     });
 

@@ -43,7 +43,7 @@ export async function openLive() {
   el.className = 'bd lv';
   el.innerHTML = `<div class="lv-in">
     <div class="lv-top"><span class="bd-logo">U2M</span><span class="lv-date" id="lv-date"></span>
-      <span class="lv-vac" id="lv-vac"></span><span class="lv-count" id="lv-count"></span>
+      <span class="lv-count" id="lv-count"></span>
       <button type="button" class="bd-x" id="lv-x" aria-label="닫기"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
     <div class="lv-main">
       <section class="lv-card lv-stu"><h4>실시간 학생 현황</h4><div class="lv-grid" id="lv-grid"><p class="bd-muted">불러오는 중</p></div></section>

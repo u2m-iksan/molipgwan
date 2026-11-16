@@ -147,6 +147,7 @@ export async function openLive() {
     g.style.gridTemplateColumns = `repeat(${best.cols}, minmax(0, 1fr))`;
     g.style.gridAutoRows = `${Math.floor(best.h)}px`;
     g.style.setProperty('--u', `${Math.max(0.62, Math.min(1.25, best.h / 118))}`);
+    g.classList.toggle('tight', best.w < 230 || best.h < 104);
   }
   window.addEventListener('resize', () => { if (alive && data) paint(); });
 

@@ -283,7 +283,7 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
         <button type="button" class="chip-t" data-quick="-1">+ 과목</button>
 </div>
       <div id="carry"></div>
-      <div class="cs-list" id="next-list">${st.newItems.map((i, k) => `
+      <div class="cs-list" id="next-list">${st.newItems.map((i, k) => (fold(i), `
         <div class="cs-item" data-k="${k}">
           <div class="cs-item-top">
             <div class="input sm cs-subsel"><select data-f="subject">${subOpts(i.subject)}</select></div>
@@ -292,10 +292,12 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
             <button type="button" class="chip-t ac-chip${i.academy ? ' on' : ''}" data-ac="${k}" title="학원 가는 날마다 숙제 해갔는지 체크"${st.acHas?.(i) ? '' : ' hidden'}>학원 숙제</button>
             <button type="button" class="icon-btn sm" data-del-next="${k}" aria-label="삭제">${X}</button>
           </div>
-          <div class="input sm"><input data-f="title" value="${esc(i.title)}" placeholder="${i.academy ? '숙제 범위 (선택)' : '분량 (예: 쎈 B단계 p.40–72)'}"></div>
-          <div class="input sm"><input data-f="detail" value="${esc(i.detail || '')}" placeholder="세부 사항"></div>
-        </div>`).join('') || '<div class="cs-empty">위에서 과목을 눌러 추가하세요.</div>'}</div>`;
+          <div class="input sm"><input data-f="title" value="${esc(i.title)}" placeholder="${i.academy ? '숙제 범위 · 메모 (선택)' : '분량 · 메모 (예: 쎈 B단계 p.40–72, 오답 정리)'}"></div>
+        </div>`)).join('') || '<div class="cs-empty">위에서 과목을 눌러 추가하세요.</div>'}</div>`;
   }
+
+  // 분량 + 세부 사항 → 한 칸으로 (예전에 따로 적은 세부 사항은 뒤에 붙임)
+  function fold(i) { if ((i.detail || '').trim()) { i.title = [i.title, i.detail].map((x) => (x || '').trim()).filter(Boolean).join(', '); } i.detail = ''; }
 
   function drawConsult() {
     const body = $('#p-c', panel);

@@ -108,7 +108,7 @@ async function renderPreview(kind, id) {
     try { h = sessionStorage.getItem('molip-pv-back') || ''; } catch { /* */ }
     location.hash = /^#\/as\//.test(h) ? '' : h; location.reload();
   };
-  const q = sb.from('students').select('id,name,grade,school,status,family_id');
+  const q = sb.from('students').select('*');
   const { data, error } = await (kind === 's' ? q.eq('id', id) : q.eq('family_id', id).neq('status', '퇴원').order('name'));
   if (error || !data?.length) { back(); return; }
   PREVIEW.on = true;

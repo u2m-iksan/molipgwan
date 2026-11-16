@@ -63,7 +63,7 @@ export async function renderCoaching(body) {
     try {
       const [cfg, students, slots, fixed, done, open] = await Promise.all([
         getCoachConfig(), loadStudents(), loadCoachingSlots(), loadAllFixedSchedules(), loadWeekCoachings(st.mon), loadOpenPlans()]);
-      Object.assign(st, { cfg, students: students.filter((s) => s.status === '재원'), slots, fixed, done, open });
+      Object.assign(st, { cfg, students: students.filter((s) => s.status === '재원' && s.coaching !== false), slots, fixed, done, open });
       draw();
     } catch (e) {
       $('#grid').innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`;

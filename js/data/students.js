@@ -61,6 +61,14 @@ async function dropFamilyIfEmpty(familyId) {
   if (!left.length) check(await sb.from('families').delete().eq('id', familyId));
 }
 
+// SQL 32 전(coaching 칸 없음)이어도 저장되게: 그 칸만 빼고 다시
+async function saveRow(q) {
+  let r = await q(true);
+  if (r.error && /coaching/.test(r.error.message || '')) r = await q(false);
+  return check(r);
+}
+const noCoach = (row, keep) => { if (!keep) delete row.coaching; return row; };
+
 function studentRow(f) {
   return {
     name: f.name.trim(), grade: f.grade, school: (f.school || '').trim() || null, status: f.status || '재원',
@@ -70,13 +78,14 @@ function studentRow(f) {
     goal: (f.goal || '').trim() || null, strong_subjects: f.strong_subjects || [], weak_subjects: f.weak_subjects || [],
     habits: (f.habits || []).filter(Boolean),
     return_on: f.return_on || null, sat_arrive: f.sat_arrive || null,
+    ...(f.coaching === false || f.coaching === true ? { coaching: f.coaching } : {}),   // 개인 코칭 (SQL 32)
   };
 }
 
 /* ---------- 등록 · 수정 · 삭제 ---------- */
 export async function createStudent(f) {
   const family_id = await familyForPhone(f.parent_phone, f.name.trim());
-  const s = check(await sb.from('students').insert({ ...studentRow(f), family_id }).select('id').single());
+  const s = await saveRow((k) => sb.from('students').insert(noCoach({ ...studentRow(f), family_id }, k)).select('id').single());
   if (digits(f.student_phone)) {
     check(await sb.from('student_private').insert({ student_id: s.id, student_phone: fmtPhone(f.student_phone) }));
   }
@@ -88,7 +97,7 @@ export async function updateStudent(id, f, prev) {
   if (digits(f.parent_phone) !== digits(prev.parent_phone)) {
     family_id = await familyForPhone(f.parent_phone, f.name.trim());
   }
-  check(await sb.from('students').update({ ...studentRow(f), family_id }).eq('id', id));
+  await saveRow((k) => sb.from('students').update(noCoach({ ...studentRow(f), family_id }, k)).eq('id', id));
   check(await sb.from('student_private').upsert({ student_id: id, student_phone: digits(f.student_phone) ? fmtPhone(f.student_phone) : null }));
   if (family_id !== prev.family_id) await dropFamilyIfEmpty(prev.family_id);
 }

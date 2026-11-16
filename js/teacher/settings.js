@@ -8,7 +8,7 @@ import { loadTeachers, addTeacher, removeTeacher, updateTeacher, changeMyPasswor
 import { toMin, today, short } from '../date.js';
 import { getKakao, saveKakao } from '../data/chat.js';
 import { LINKS } from '../app-role.js';
-import { getSync, setVacMode, setJoin, runSync } from '../data/school-sync.js';
+import { getSync, setVacMode, setJoin, runSync, removeCustomSchool } from '../data/school-sync.js';
 
 export async function renderSettings(body, { me } = {}) {
   body.innerHTML = `
@@ -240,7 +240,9 @@ export async function renderSettings(body, { me } = {}) {
       </div>
       <div class="cal-grid">${schools.map((x) => {
         const list = evs.filter((e) => e.school === x);
-        return `<div class="cal-sch"><h4>${esc(x)}</h4>${list.length ? `<ul>${list.map((e) => `<li class="${e.end_date < t ? 'past' : ''}">
+        // 직접 추가한 학교인데 다니는 학생 · 일정이 없으면 목록에서 뺄 수 있음
+        const canDrop = (sync?.custom || []).includes(x) && !count.get(x) && !list.length;
+        return `<div class="cal-sch"><h4>${esc(x)}${canDrop ? `<button type="button" class="cal-drop" data-drop="${esc(x)}">목록에서 빼기</button>` : ''}</h4>${list.length ? `<ul>${list.map((e) => `<li class="${e.end_date < t ? 'past' : ''}">
           <span class="cal-k k-${esc(e.kind)}">${esc(e.kind)}</span>${e.source === 'sync' ? '<i class="cal-auto" title="학사일정 앱에서 가져옴">자동</i>' : ''}
           <div class="cal-t"><b>${esc(e.title || e.kind)}</b><span>${md(e.start_date)}${e.end_date !== e.start_date ? ` – ${md(e.end_date)}` : ''}</span></div>
           ${dday(e)}<button type="button" class="icon-btn sm" data-del="${esc(e.id)}" aria-label="삭제">${X}</button></li>`).join('')}</ul>` : '<p class="sub-s">등록된 일정이 없습니다.</p>'}</div>`;
@@ -255,6 +257,9 @@ export async function renderSettings(body, { me } = {}) {
       drawCal();
     };
     $('#sy-run', el)?.addEventListener('click', (e) => doSync(e.currentTarget));
+    $$('[data-drop]', el).forEach((b) => b.addEventListener('click', async () => {
+      try { await removeCustomSchool(b.dataset.drop); toast(`${b.dataset.drop} 목록에서 뺐어요`); drawCal(); } catch (x) { toast('실패: ' + x.message, 'bad'); }
+    }));
     $('#sy-all', el)?.addEventListener('click', () => { cal.all = !cal.all; drawCal(); });
     $('#sy-join', el)?.addEventListener('change', async (e) => {
       try { await setJoin(e.target.checked); doSync($('#sy-run', el)); } catch (x) { toast('저장 실패: ' + x.message, 'bad'); }

@@ -116,6 +116,11 @@ export async function schoolList() {
   for (const c of v.custom || []) if (!out.some((s) => s.k === schoolKey(c))) out.push({ k: c, n: c, auto: false });
   return out.sort((a, b) => a.k.localeCompare(b.k, 'ko'));
 }
+// 직접 추가한 학교 빼기 (잘못 넣은 이름 등)
+export async function removeCustomSchool(name) {
+  const v = await getSync();
+  await saveSync({ ...v, custom: (v.custom || []).filter((c) => c !== name) });
+}
 // 목록에 없는 학교 → 직접 추가 (학사일정은 설정에서 따로 입력)
 export async function addCustomSchool(name) {
   const k = schoolKey(name); if (!k) return;

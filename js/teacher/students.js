@@ -122,6 +122,7 @@ export async function renderStudents(body) {
           <div class="field"><label for="f-sp">학생 휴대폰 <span class="opt">선택</span></label><div class="input"><input id="f-sp" inputmode="numeric" value="${esc(f.student_phone || '')}" autocomplete="off"></div></div>
           <div class="field"><span class="lbl">상태</span><div class="seg seg-wide" id="f-status">${STATUSES.map((s) => `<button type="button" data-v="${s}">${s}</button>`).join('')}</div></div>
           <div class="field" id="f-ret-wrap"><label for="f-ret">복귀 예정일 <span class="opt">휴원</span></label><div class="input"><input id="f-ret" type="date" value="${esc(f.return_on || '')}"></div></div>
+          <div class="field"><span class="lbl">개인 코칭 <span class="opt">안 하면 학생 · 학부모 화면에 계획 · 리포트 없이 시간표 · 타이머 · 채팅만</span></span><div class="seg seg-wide" id="f-coach"><button type="button" data-v="y">코칭 함</button><button type="button" data-v="n">코칭 안 함</button></div></div>
           <div class="field"><label for="f-sat">토요일 등원 기준 시각 <span class="opt">비우면 08:00 · 오전 학원은 끝 + 20분 자동</span></label><div class="input"><input id="f-sat" type="time" value="${esc((f.sat_arrive || '').slice(0, 5))}"></div></div>
           <div class="field"><span class="lbl">학생 특성 <span class="opt">복수 선택</span></span>
             <div class="chips" id="f-traits">${TRAITS.map((t) => `<button type="button" class="chip-t" data-v="${t}">${t}</button>`).join('')}</div></div>
@@ -165,6 +166,8 @@ export async function renderStudents(body) {
     };
     pick('#f-grade', 'grade');
     pick('#f-status', 'status');
+    f.coachYN = f.coaching === false ? 'n' : 'y';
+    pick('#f-coach', 'coachYN');
     const retWrap = $('#f-ret-wrap', panel);
     const paintRet = () => { retWrap.hidden = f.status !== '휴원'; };
     $('#f-status', panel).addEventListener('click', () => setTimeout(paintRet));
@@ -259,6 +262,7 @@ export async function renderStudents(body) {
       f.goal = $('#f-goal', panel).value;
       f.return_on = f.status === '휴원' ? $('#f-ret', panel).value : '';
       f.sat_arrive = $('#f-sat', panel).value;
+      f.coaching = f.coachYN !== 'n';
       f.habits = $$('[data-habit]', panel).map((i) => i.value.trim()).filter(Boolean);
       const err = $('#f-err', panel);
       if (!f.name.trim()) return (err.textContent = '이름을 입력하세요.');

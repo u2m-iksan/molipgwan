@@ -30,7 +30,9 @@ const md = (d) => short(d).replace(/\(.\)/, '');
 
 export async function renderStudentHome({ student, onLogout }) {
   const token = {};
-  mount(`<div class="sa" id="sa">
+  // 개인 코칭 안 하는 학생: 시간표 + 타이머만 (SQL 32)
+  const noCoach = student.coaching === false;
+  mount(`<div class="sa${noCoach ? ' no-coach' : ''}" id="sa">
     <header class="top"><div class="top-in">${BRAND}<div class="spacer"></div>
       <div class="sa-att" id="att"></div>
       <span class="chip">${esc(student.name)}</span>
@@ -205,6 +207,7 @@ ${SUM}
 
   /* ---------- 이번 계획 ---------- */
   async function loadPlan() {
+    if (noCoach) return;
     try { Object.assign(st, await loadOpenPlan(student.id)); }
     catch (e) { $('#plan').innerHTML = `<div class="empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
     drawPlan();

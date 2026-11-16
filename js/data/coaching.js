@@ -358,7 +358,7 @@ export function noticeText(student, report) {
 // { students, plans: Map(sid → plan), items: Map(planId → [item]), progress: Map(itemId → [{on_date,pct}]), sched: [학원 일정], coach: Map(sid → 코칭 일정) }
 export async function loadAllPlans() {
   const [students, plans, sched] = await Promise.all([
-    sb.from('students').select('id,name,grade,school,seat_no,status').eq('status', '재원').then(check),
+    sb.from('students').select('*').eq('status', '재원').then(check).then((r) => r.filter((s) => s.coaching !== false)),   // 코칭 안 하는 학생 빼고 (SQL 32)
     sb.from('plans').select('id,student_id,start_date,due_date,author_role,status').neq('status', '마감').then(check),
     sb.from('schedules').select('*').in('category', ['학원', '코칭']).then(check),
   ]);
@@ -388,7 +388,7 @@ export async function loadAllPlans() {
 export async function loadWeekReports(mon) {
   const sun = addDays(mon, 6);
   const [students, slots, coachings] = await Promise.all([
-    sb.from('students').select('id,name,grade,seat_no,status,school').eq('status', '재원').then(check),
+    sb.from('students').select('*').eq('status', '재원').then(check).then((r) => r.filter((s) => s.coaching !== false)),
     sb.from('schedules').select('student_id,weekday,start_time,valid_from,valid_to').eq('category', '코칭').then(check),
     sb.from('coachings').select('id,student_id,scheduled_on,held_on,kind').gte('scheduled_on', mon).lte('scheduled_on', sun).then(check),
   ]);

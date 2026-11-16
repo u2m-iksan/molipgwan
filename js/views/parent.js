@@ -85,19 +85,20 @@ export async function renderParentHome({ students, onLogout }) {
   };
   async function drawHome() {
     st.view = 'home';
+    const nc = kid().coaching === false;   // 개인 코칭 안 하는 학생: 시간표 + 채팅만 (SQL 32)
     root.innerHTML = `
       <section class="pa-kids2">${students.map(statusHtml).join('')}</section>
       <div id="pa-push"></div>
-      <button type="button" class="pa-rep" id="pa-rep"><div><b>리포트 확인하기</b><span>주간 보고서 · 학습 문의 채팅</span></div><i class="pa-n" id="pa-rep-n" hidden></i><em>›</em></button>
-      <section class="card pa-plan" id="pa-plan"><div class="pa-tt-h"><h3>${students.length > 1 ? `${esc(kid().name)} ` : ''}이번 주 계획</h3><span id="pa-plan-p"></span></div><div class="pa-empty">불러오는 중</div></section>
-      <button type="button" class="pa-histbar" id="pa-hist"><span>지난 계획 기록</span><small>최근 8주 이행도</small><em aria-hidden="true">›</em></button>
+      <button type="button" class="pa-rep" id="pa-rep"><div><b>${nc ? '학습 문의하기' : '리포트 확인하기'}</b><span>${nc ? '선생님과 채팅' : '주간 보고서 · 학습 문의 채팅'}</span></div><i class="pa-n" id="pa-rep-n" hidden></i><em>›</em></button>
+      ${nc ? '' : `<section class="card pa-plan" id="pa-plan"><div class="pa-tt-h"><h3>${students.length > 1 ? `${esc(kid().name)} ` : ''}이번 주 계획</h3><span id="pa-plan-p"></span></div><div class="pa-empty">불러오는 중</div></section>
+      <button type="button" class="pa-histbar" id="pa-hist"><span>지난 계획 기록</span><small>최근 8주 이행도</small><em aria-hidden="true">›</em></button>`}
       <section class="card pa-tt"><div class="pa-tt-h"><h3>${students.length > 1 ? `${esc(kid().name)} ` : ''}이번 주 시간표</h3><span>${md(mondayOf(today()))} 주</span></div>
         <div class="pa-coach" id="pa-coach" hidden></div>
         <div id="pa-grid"><div class="pa-empty">불러오는 중</div></div></section>`;
     $('#pa-rep').addEventListener('click', drawChat);
-    $('#pa-hist').addEventListener('click', () => openHistory(kid()));
+    $('#pa-hist')?.addEventListener('click', () => openHistory(kid()));
     if (!PREVIEW.on) mountPushCard($('#pa-push'), 'parent');
-    paintUnread(); drawPlan();
+    paintUnread(); if (!nc) drawPlan();
     $$('.pa-kid', root).forEach((b) => b.addEventListener('click', () => { st.cur = Number(b.dataset.k); drawHome(); }));
     try {
       const rows = await loadSched(kid());

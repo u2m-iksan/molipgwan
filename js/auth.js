@@ -97,7 +97,7 @@ export async function whoAmI() {
 
   if (isFamilyEmail(email)) {
     const { data, error } = await sb.from('students')
-      .select('id,name,grade,school,status,family_id')
+      .select('*')
       .neq('status', '퇴원')
       .order('name');
     if (error) return { role: 'unknown', email };

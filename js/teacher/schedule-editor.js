@@ -38,6 +38,16 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
   // 기간이 정해진 일정만 따로: 이번 주만 · ~12/31까지 · 12/1부터
   const md2 = (d) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
   const curTerm = isVacation(stu.school, t, vac) ? '방학' : '학기';
+  // 요일 줄이기: 3일 이상 이어지면 '월~금'
+  const dayRun = (ws) => {
+    const w = [...ws].sort((a, b) => a - b), out = [];
+    for (let i = 0; i < w.length; ) {
+      let j = i; while (j + 1 < w.length && w[j + 1] === w[j] + 1) j++;
+      out.push(j - i >= 2 ? `${DOW[w[i]]}~${DOW[w[j]]}` : w.slice(i, j + 1).map((d) => DOW[d]).join('·'));
+      i = j + 1;
+    }
+    return out.join('·');
+  };
   const limitLabel = (g) => {
     if (g.valid_to) return g.valid_from >= thisMon && g.valid_to <= addDays(thisMon, 6) ? '이번 주만' : `~${md2(g.valid_to)}까지`;
     return g.valid_from > t ? `${md2(g.valid_from)}부터` : '';
@@ -90,18 +100,36 @@ export async function renderScheduleEditor(root, stu, { canCoach = false, week =
             ${['학기', '방학'].map((tm) => {
               const list = groups.map((g, i) => [g, i]).filter(([g]) => (g.category === '학교' ? tm === '학기' : !g.term || g.term === tm));
               return `<div class="sched-term"><h5>${tm === '학기' ? '학기 중' : '방학 중'}${curTerm === tm ? '<em>지금</em>' : ''}</h5>
-              ${list.length ? list.map(([g, i]) => {
-              const both = g.category !== '학교' && !g.term;   // 학기 · 방학 둘 다 있는 일정
-              const lim = limitLabel(g);
-              return `<div class="sched-row">
-                <span class="pill ${CAT_PILL[g.category]}">${esc(g.category)}</span>
-                <div class="sched-main"><b><span class="sched-t">${esc(g.title)}</span>${g.category === '학원' ? (g.subject ? `<em class="sched-sub">${esc(subjectLabel(g))}</em>` : g.subject === '' ? '' : '<em class="sched-sub none">과목 미지정</em>') : ''}</b>
-                  <span class="sub">${g.weekdays.map((d) => DOW[d]).join('·')} ${hm(g.start_time)}~${hm(g.end_time)}</span></div>
-                <div class="sched-tags">${lim ? `<span class="tg tg-lim">${esc(lim)}</span>` : ''}${both && !lim ? '<span class="tg tg-all">학기·방학</span>' : ''}</div>
-                <div class="sched-acts">${mine(g) ? `<button type="button" class="icon-btn sm${editIdx === i ? ' on' : ''}" data-edit="${i}" aria-label="일정 변경">${PEN}</button>
-                <button type="button" class="icon-btn sm" data-del="${i}" aria-label="일정 삭제">${TRASH}</button>` : ''}</div>
-              </div>`;
-            }).join('') : '<p class="sub-s">등록된 일정이 없습니다.</p>'}</div>`;
+              ${(() => {
+                if (!list.length) return '<p class="sub-s">등록된 일정이 없습니다.</p>';
+                // 같은 학원(이름 · 과목)끼리 한 덩어리로: 왼쪽 이름 고정 · 오른쪽에 요일 · 시간 줄
+                const blocks = new Map();
+                for (const [g, i] of list) {
+                  const k = `${g.category}|${g.title}|${g.subject || ''}|${g.subject_detail || ''}`;
+                  if (!blocks.has(k)) blocks.set(k, []);
+                  blocks.get(k).push([g, i]);
+                }
+                const CAT_ORDER = { 학교: 0, 학원: 1, 기타: 2 };
+                return [...blocks.values()].sort((a, b) => (CAT_ORDER[a[0][0].category] - CAT_ORDER[b[0][0].category]) || (a[0][0].weekdays[0] - b[0][0].weekdays[0]))
+                  .map((bl) => {
+                    const g0 = bl[0][0];
+                    bl.sort((a, b) => a[0].weekdays[0] - b[0].weekdays[0] || (a[0].start_time < b[0].start_time ? -1 : 1));
+                    return `<div class="sg">
+                      <span class="pill ${CAT_PILL[g0.category]}">${esc(g0.category)}</span>
+                      <div class="sg-name"><b>${esc(g0.title)}</b>${g0.category === '학원' ? (g0.subject ? `<em class="sched-sub">${esc(subjectLabel(g0))}</em>` : g0.subject === '' ? '' : '<em class="sched-sub none">과목 미지정</em>') : ''}</div>
+                      <div class="sg-lines">${bl.map(([g, i]) => {
+                        const both = g.category !== '학교' && !g.term;   // 학기 · 방학 둘 다 있는 일정
+                        const lim = limitLabel(g);
+                        return `<div class="sg-line${editIdx === i ? ' on' : ''}">
+                          <span class="sg-d">${dayRun(g.weekdays)}</span>
+                          <span class="sg-t">${hm(g.start_time)}~${hm(g.end_time)}</span>
+                          <span class="sched-tags">${lim ? `<span class="tg tg-lim">${esc(lim)}</span>` : ''}${both && !lim ? '<span class="tg tg-all">학기·방학</span>' : ''}</span>
+                          <span class="sched-acts">${mine(g) ? `<button type="button" class="icon-btn sm${editIdx === i ? ' on' : ''}" data-edit="${i}" aria-label="일정 변경">${PEN}</button><button type="button" class="icon-btn sm" data-del="${i}" aria-label="일정 삭제">${TRASH}</button>` : ''}</span>
+                        </div>`;
+                      }).join('')}</div>
+                    </div>`;
+                  }).join('');
+              })()}</div>`;
             }).join('')}
           </div>
         </div>

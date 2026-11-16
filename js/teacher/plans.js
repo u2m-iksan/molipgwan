@@ -3,9 +3,9 @@
 //  빨간 테두리(맨 앞): 계획 없음 / 기간 지남 / 진행률 최근 2일 미입력 (전체 현황과 같은 기준)
 //  같은 등급 안에서는 학년 순(중1 → 고3) → 이름 가나다순
 import { $, $$, esc } from '../ui.js';
-import { today, short, DOW, hm } from '../date.js';
-import { loadAllPlans } from '../data/coaching.js';
-import { academyStat, AC_CLS } from '../data/academy.js';
+import { today, short, DOW, hm, mondayOf, addDays } from '../date.js';
+import { loadAllPlans, loadWeekCoachings } from '../data/coaching.js';
+import { academyStat, AC_CLS, matches } from '../data/academy.js';
 import { withTerm } from '../data/schedules.js';
 import { segBar } from '../views/progress-bar.js';
 import { lastDays } from '../data/overview.js';
@@ -25,7 +25,8 @@ export async function renderPlans(body) {
     </div>
     <div id="pl-list" class="pl-list"><div class="card empty">불러오는 중</div></div>`;
 
-  try { st.data = await loadAllPlans(); }
+  let week = new Map();
+  try { [st.data, week] = await Promise.all([loadAllPlans(), loadWeekCoachings().catch(() => new Map())]); }
   catch (e) { $('#pl-list').innerHTML = `<div class="card empty">불러오기 실패: ${esc(e.message)}</div>`; return; }
 
   const t = today(), win = lastDays(2);
@@ -43,7 +44,18 @@ export async function renderPlans(body) {
       }
       return { ...i, h, pct: h.length ? h[h.length - 1].pct : 0 };
     });
-    const vals = its.map((i) => i.pct).filter((v) => v != null);
+    // 다니는 학원은 계획에 안 넣었어도 학원 숙제 칸을 자동으로 (보기용 · 체크는 상담에서 계획에 넣은 뒤)
+    const per = plan || { start_date: mondayOf(t), due_date: addDays(mondayOf(t), 7) };
+    const seen = new Set();
+    for (const r of mySched) {
+      if (r.category !== '학원' || !r.subject || r.makeup) continue;
+      const k = `${r.subject}|${r.subject_detail || ''}`; if (seen.has(k)) continue; seen.add(k);
+      const v = { id: 'auto:' + k, subject: r.subject, subject_detail: r.subject_detail || null, title: '학원 숙제', academy: true, auto: true };
+      if (its.some((i) => i.academy && matches(i, r))) continue;
+      const a = academyStat(v, per, mySched, []);
+      its.push({ ...v, h: [], a, pct: null });
+    }
+    const vals = its.filter((i) => !i.auto).map((i) => i.pct).filter((v) => v != null);
     const avg = vals.length ? Math.round(vals.reduce((a, v) => a + v, 0) / vals.length) : null;
     const state = !plan ? 'none' : plan.due_date && plan.due_date < t ? 'over' : 'ok';
     // 진행률 최근 2일 미입력 (계획 시작 이후 날짜만 · 학원 숙제 항목 제외)
@@ -53,8 +65,11 @@ export async function renderPlans(body) {
       const normal = its.filter((i) => !i.academy);
       if (days.length && normal.length && !normal.some((i) => i.h.some((p) => days.includes(p.on_date)))) miss = days.length;
     }
-    const red = state !== 'ok' || miss > 0;
-    return { s, plan, its, avg, state, miss, red, coach: st.data.coach.get(s.id) };
+    // 이번 주 상담 전인데 계획에 직접 할 항목(학원 숙제 말고)이 없으면 → 확인 필요 (학원만 다니는 학생도 빨간색)
+    const consulted = !!week.get(s.id)?.held_on;
+    const preConsult = !consulted && !its.some((i) => !i.academy);
+    const red = state !== 'ok' || miss > 0 || preConsult;
+    return { s, plan, its, avg, state, miss, red, preConsult, coach: st.data.coach.get(s.id) };
   });
   const order = { none: 0, over: 1, ok: 2 };
   rows.sort((a, b) => (b.red - a.red) || gradeRank(a.s.grade) - gradeRank(b.s.grade) || a.s.name.localeCompare(b.s.name, 'ko') || order[a.state] - order[b.state]);
@@ -74,7 +89,7 @@ export async function renderPlans(body) {
       <span class="pl-sub">${esc(i.subject)}${i.subject_detail ? `<small>${esc(i.subject_detail)}</small>` : ''}</span>
       <div class="pl-tt"><p>${esc(i.title)}${i.academy && i.title.trim() !== '학원 숙제' ? '<em class="pl-ac">학원 숙제</em>' : ''}</p>
         ${i.academy ? `<div class="pl-acd">${i.a.dates.map((d) => { const v = i.a.checks.get(d); return `<span class="${v ? AC_CLS[v] : d > t ? 'fut' : ''}">${DOW[new Date(d + 'T00:00:00Z').getUTCDay() || 7]}</span>`; }).join('') || '<span class="none">학원 일정 없음</span>'}</div>` : segBar(i.h, { legend: false })}</div>
-      <b class="pl-pct ${tone(i.pct)}">${i.academy ? (i.a.total ? `${i.a.done}/${i.a.total}` : '-') : `${i.pct}%`}</b></li>`;
+      <b class="pl-pct ${tone(i.pct)}">${i.auto ? '<small class="pl-auto">자동</small>' : i.academy ? (i.a.total ? `${i.a.done}/${i.a.total}` : '-') : `${i.pct}%`}</b></li>`;
 
   function card(r) {
     const { s, plan } = r;
@@ -86,10 +101,11 @@ export async function renderPlans(body) {
           ${r.coach ? `<span class="pl-coach">코칭 ${DOW[r.coach.weekday]} ${hm(r.coach.start_time)}</span>` : ''}
           ${r.state === 'none' ? '<span class="pill pill-red">계획 없음</span>' : r.state === 'over' ? '<span class="pill pill-red">기간 지남</span>' : ''}
           ${r.miss ? `<span class="pill pill-red">진행률 ${r.miss}일 미입력</span>` : ''}
+          ${r.preConsult && r.state === 'ok' ? '<span class="pill pill-red">상담 전</span>' : ''}
         </div>
         ${r.avg != null && r.state !== 'none' ? `<b class="pl-avg cu ${tone(r.avg)}">${r.avg}<i>%</i></b>` : ''}
       </div>`;
-    if (!plan) return `<section class="card pl-card none red">${head}</section>`;
+    if (!plan) return `<section class="card pl-card none red">${head}${r.its.length ? `<ul class="pl-its">${r.its.map(itemHtml).join('')}</ul>` : ''}</section>`;
     return `<section class="card pl-card ${r.state}${r.red ? ' red' : ''}">${head}
       ${r.its.length ? `<ul class="pl-its">${r.its.map(itemHtml).join('')}</ul>` : '<p class="pl-empty">항목이 없습니다.</p>'}</section>`;
   }

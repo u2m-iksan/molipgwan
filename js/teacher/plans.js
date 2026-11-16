@@ -3,7 +3,7 @@
 //  빨간 테두리(맨 앞): 계획 없음 / 기간 지남 / 진행률 최근 2일 미입력 (전체 현황과 같은 기준)
 //  같은 등급 안에서는 학년 순(중1 → 고3) → 이름 가나다순
 import { $, $$, esc } from '../ui.js';
-import { today, short, DOW, hm, mondayOf, addDays } from '../date.js';
+import { today, short, DOW, hm, mondayOf, addDays, slotOver } from '../date.js';
 import { loadAllPlans, loadWeekCoachings } from '../data/coaching.js';
 import { academyStat, AC_CLS, matches, liveAcademy } from '../data/academy.js';
 import { withTerm } from '../data/schedules.js';
@@ -69,8 +69,11 @@ export async function renderPlans(body) {
     // 이번 주 상담 전인데 계획에 직접 할 항목(학원 숙제 말고)이 없으면 → 확인 필요 (학원만 다니는 학생도 빨간색)
     const consulted = !!week.get(s.id)?.held_on;
     const preConsult = !consulted && !its.some((i) => !i.academy);
-    const red = state !== 'ok' || miss > 0 || preConsult;
-    return { s, plan, its, avg, state, miss, red, preConsult, coach: st.data.coach.get(s.id) };
+    // 코칭 끝나고 10분 지났는데 이번 주 상담 기록 없음 → 보강 필요
+    const coach = st.data.coach.get(s.id);
+    const missed = !consulted && !!coach && slotOver(addDays(mondayOf(t), coach.weekday - 1), coach.end_time);
+    const red = state !== 'ok' || miss > 0 || preConsult || missed;
+    return { s, plan, its, avg, state, miss, red, preConsult, missed, coach };
   });
   const order = { none: 0, over: 1, ok: 2 };
   rows.sort((a, b) => (b.red - a.red) || gradeRank(a.s.grade) - gradeRank(b.s.grade) || a.s.name.localeCompare(b.s.name, 'ko') || order[a.state] - order[b.state]);
@@ -102,7 +105,7 @@ export async function renderPlans(body) {
           ${r.coach ? `<span class="pl-coach">코칭 ${DOW[r.coach.weekday]} ${hm(r.coach.start_time)}</span>` : ''}
           ${r.state === 'none' ? '<span class="pill pill-red">계획 없음</span>' : r.state === 'over' ? '<span class="pill pill-red">기간 지남</span>' : ''}
           ${r.miss ? `<span class="pill pill-red">진행률 ${r.miss}일 미입력</span>` : ''}
-          ${r.preConsult && r.state === 'ok' ? '<span class="pill pill-red">상담 전</span>' : ''}
+          ${r.missed ? '<span class="pill pill-red">보강 필요</span>' : r.preConsult && r.state === 'ok' ? '<span class="pill pill-red">상담 전</span>' : ''}
         </div>
         ${r.avg != null && r.state !== 'none' ? `<b class="pl-avg cu ${tone(r.avg)}">${r.avg}<i>%</i></b>` : ''}
       </div>`;

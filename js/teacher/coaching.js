@@ -1,7 +1,7 @@
 // 선생님 · 코칭: 맨 위 이전/현재/다음 타임 → 아래 코칭 요일별 시간표(보기용)
 // 이름을 누르면 상담이 열림 · [시간 변경]을 켜면 학생을 끌어다(또는 눌러서) 다른 칸으로 옮겨 코칭 시간을 바꿈 (오늘부터 적용)
 import { $, $$, esc, toast, sheet, X } from '../ui.js';
-import { DOW, today, isoDow, toMin, toTime, hm, mondayOf, addDays, short } from '../date.js';
+import { DOW, today, isoDow, toMin, toTime, hm, mondayOf, addDays, short, slotOver } from '../date.js';
 import { loadStudents } from '../data/students.js';
 import { loadWeekCoachings, loadOpenPlans, scheduledOn } from '../data/coaching.js';
 import { getCoachConfig, saveCoachConfig, slotTimes, loadCoachingSlots, loadAllFixedSchedules, setCoachingSlot } from '../data/schedules.js';
@@ -84,7 +84,7 @@ export async function renderCoaching(body) {
     const c = slot && conflict(s.id, slot);
     const dn = st.done.get(s.id);
     // 결석 · 2단계까지 완료(초록 ●) · 1단계만(주황 ▲)
-    const state = dn ? (dn.kind === '결석' ? ' absent' : dn.reported ? ' done' : ' half') : '';
+    const state = dn ? (dn.kind === '결석' ? ' absent' : dn.reported ? ' done' : ' half') : (slot && isNow() && slotOver(onDay(slot.weekday), slot.end_time) ? ' miss' : '');
     // 체크는 처음 생길 때만 톡 튀게 (1분마다 다시 그려도 그대로)
     const ck = dn ? `${s.id}:${st.mon}:${state}` : '';
     const old = ck && SEEN.has(ck); if (ck) SEEN.add(ck);
@@ -163,17 +163,16 @@ export async function renderCoaching(body) {
     const inGrid = (sl) => sl && days.includes(sl.weekday) && times.includes(hm(sl.start_time));
     const none = st.students.filter((s) => !st.slots.get(s.id));
     const out = st.students.filter((s) => st.slots.get(s.id) && !inGrid(st.slots.get(s.id)));
-    const td0 = today();
-    const makeup = st.students.filter((s) => {
+        const makeup = st.students.filter((s) => {
       const sl = st.slots.get(s.id);
-      return sl && onDay(sl.weekday) < td0 && !st.done.has(s.id);
+      return sl && slotOver(onDay(sl.weekday), sl.end_time) && !st.done.has(s.id);
     });
     const doneN = st.students.filter((s) => st.done.has(s.id) && (st.done.get(s.id).reported || st.done.get(s.id).kind === '결석')).length;
     const halfN = st.students.filter((s) => st.done.has(s.id) && !st.done.get(s.id).reported && st.done.get(s.id).kind !== '결석').length;
     $('#side').innerHTML = `
       <div class="side-sec"><h4>${isNow() ? '이번 주' : weekName(st.mon)} 상담</h4><p class="big">${doneN}<span> / ${st.students.length - none.length}명</span></p>
         <p class="co-legend"><span class="lg done">✓</span>완료 ${doneN}<span class="lg half">!</span>보고 작성 전 ${halfN}</p></div>
-      ${makeup.length ? `<div class="side-sec"><h4 class="red">${isNow() ? '보강 대상' : '상담 안 함'} ${makeup.length}</h4>
+      ${makeup.length ? `<div class="side-sec"><h4 class="red">${isNow() ? '보강 필요' : '상담 안 함'} ${makeup.length}</h4>
         <p class="sub-s">${isNow() ? '토요일까지 상담하지 않으면 결석 처리합니다.' : '이름을 누르면 그 주 상담을 열 수 있습니다.'}</p>
         <div class="stu-list">${makeup.map((s) => { const sl = st.slots.get(s.id); const p = st.open.get(s.id);
           const self = p && p.author_role === '학생' && p.start_date >= onDay(sl.weekday);

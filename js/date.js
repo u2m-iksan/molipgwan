@@ -19,3 +19,13 @@ export function short(d) { const dt = parse(d); return `${dt.getUTCMonth() + 1}/
 export const toMin = (t) => { const [h, m] = String(t).slice(0, 5).split(':').map(Number); return h * 60 + m; };
 export const toTime = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 export const hm = (t) => String(t || '').slice(0, 5);
+
+// 지금 한국 시각 'HH:MM'
+export const nowHM = () => new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit' });
+// 그날 그 시간 일정이 끝나고 grace분이 지났는지 (상담 → 보강 필요 판단)
+export function slotOver(on, end, grace = 10) {
+  const t = today();
+  if (!on) return false;
+  if (on !== t) return on < t;
+  return toMin(nowHM()) >= toMin(end) + grace;
+}

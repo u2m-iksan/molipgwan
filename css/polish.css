@@ -1369,3 +1369,6 @@ body.is-preview .push-gate{display:none!important}
   .lv-rank li{gap:10px;padding:1vh 10px}
   .lv-rank li small{display:none}
 }
+/* 코칭: 끝나고 10분 지났는데 상담 기록 없음 → 보강 필요 */
+.stu.miss{border-color:#F4C2C7;background:var(--red-soft)}
+.stu.miss .nm{color:var(--red)}

@@ -3,7 +3,7 @@
 //  ② 이번 주 보고서: 고른 학생의 상태 · 미리보기 · 상담 열기
 //  ③ 학부모 대화: 고른 학생 방 (대화 1개월 보관)
 import { $, $$, esc, sheet, X } from '../ui.js';
-import { today, mondayOf, addDays, short, DOW, hm } from '../date.js';
+import { today, mondayOf, addDays, short, DOW, hm, slotOver } from '../date.js';
 import { loadWeekReports } from '../data/coaching.js';
 import { loadStudents } from '../data/students.js';
 import { loadInbox, purgeOld, KEEP_DAYS } from '../data/chat.js';
@@ -25,7 +25,7 @@ const CHEV_R = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 
 const EXPAND = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg>';
 const STATE = {
   // draft = 보고서를 아직 학부모 앱에 안 보냄 · pub = 보고서는 보냈는데 안내 문자(카톡)는 아직
-  wait: ['상담 전', 'pill-gray'], miss: ['미상담', 'pill-red'], draft: ['보고서 미전송', 'pill-orange'],
+  wait: ['상담 전', 'pill-gray'], miss: ['보강 필요', 'pill-red'], draft: ['보고서 미전송', 'pill-orange'],
   pub: ['안내 미전송', 'pill-red'], sent: ['전송 완료', 'pill-green'], none: ['', ''],
 };
 const ORDER = { miss: 0, draft: 1, pub: 2, wait: 3, sent: 4, none: 5 };
@@ -84,7 +84,7 @@ export async function renderParents(body, { me, onUnread } = {}) {
     st.rows = st.students.map((s) => {
       const c = d.coachings.get(s.id) || null, r = c ? d.reports.get(c.id) || null : null, slot = d.slots.get(s.id) || null;
       const on = c?.scheduled_on || (slot ? addDays(mon, slot.weekday - 1) : null);
-      const state = !c ? (slot ? (on < today() ? 'miss' : 'wait') : 'none') : !r ? 'draft' : r.sent_at ? 'sent' : r.published_at ? 'pub' : 'draft';
+      const state = !c ? (slot ? (slotOver(on, slot.end_time) ? 'miss' : 'wait') : 'none') : !r ? 'draft' : r.sent_at ? 'sent' : r.published_at ? 'pub' : 'draft';
       return { s, c, r, slot, on, state };
     });
   }

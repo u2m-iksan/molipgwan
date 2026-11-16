@@ -181,7 +181,7 @@ export async function saveConsult(s, me) {
     subject: i.subject, detail: i.subject_detail || '', title: i.title, rate: i.final_rate ?? null,
     ...(i.academy ? { academy: { done: i.acStat?.done ?? null, total: i.acStat?.total ?? null, progress: i.academy_progress?.trim() || '', note: i.final_note?.trim() || '' } } : {}),
   }));
-  const next_plan = s.newItems.map((i) => ({ subject: i.subject, detail: i.subject_detail || '', title: i.title.trim() }));
+  const next_plan = s.newItems.map((i) => ({ subject: i.subject, detail: i.subject_detail || '', title: i.title.trim(), ...(i.academy ? { academy: true } : {}) }));
   check(await sb.from('reports').upsert({
     coaching_id: coaching.id, student_id: sid,
     period_start: s.prevPlan?.start_date || null, period_end: s.absent ? s.scheduled : s.heldOn,
@@ -199,7 +199,7 @@ export function reportRows(prevItems, newItems) {
     subject: i.subject, detail: i.subject_detail || '', title: (i.title || '').trim(), rate: i.final_rate ?? null,
     ...(i.academy ? { academy: { done: i.acStat?.done ?? null, total: i.acStat?.total ?? null, progress: i.academy_progress?.trim() || '', note: i.final_note?.trim() || '' } } : {}),
   }));
-  const next_plan = newItems.map((i) => ({ subject: i.subject, detail: i.subject_detail || '', title: i.title.trim() }));
+  const next_plan = newItems.map((i) => ({ subject: i.subject, detail: i.subject_detail || '', title: i.title.trim(), ...(i.academy ? { academy: true } : {}) }));
   return { rates, next_plan };
 }
 export async function saveConsultTx(s, me) {
@@ -284,13 +284,13 @@ export function buildPrompt({ student, scheduled, report, prevItems, summary, ch
       if (i.academy) {
         const ra = (report.rates || []).find((x) => x.subject === i.subject && x.title === i.title)?.academy;
         const st = ra?.total ? `학원 숙제 ${ra.done}/${ra.total}회 해감` : '학원 숙제';
-        lines.push(`- ${sub} | ${i.title} | ${st}${i.academy_progress ? ` | 학원 진도: ${i.academy_progress}` : ''}${i.final_note ? ` | 선생님 메모: ${i.final_note}` : ''}`);
+        lines.push(`- ${sub} | ${i.title.trim() === '학원 숙제' ? '' : `범위: ${i.title} | `}${st}${i.academy_progress ? ` | 학원 진도: ${i.academy_progress}` : ''}${i.final_note ? ` | 선생님 메모: ${i.final_note}` : ''}`);
       } else lines.push(`- ${sub} | ${i.title} | ${i.final_rate ?? '-'}%${i.final_note ? ` | ${i.final_note}` : ''}`);
     }
   } else lines.push('지난 계획 이행도: 없음 (신규생)');
   if (report.next_plan?.length) {
     lines.push('다음 계획:');
-    for (const i of report.next_plan) lines.push(`- ${i.subject}${i.detail ? `(${i.detail})` : ''} | ${i.title}`);
+    for (const i of report.next_plan) lines.push(`- ${i.subject}${i.detail ? `(${i.detail})` : ''} | ${i.academy ? (i.title === '학원 숙제' ? '학원 숙제' : `학원 숙제 · ${i.title}`) : i.title}`);
   }
   lines.push(`선생님 총평 원문: ${summary || '(없음)'}`);
   if (checkItems.length) lines.push(`다음 점검사항: ${checkItems.join(' / ')}`);
@@ -323,7 +323,7 @@ function buildNewPrompt({ student, scheduled, report, summary }) {
   if (P.habits?.length) L.push(`몰입관에서 만들 공부 습관: ${P.habits.join(' / ')}`);
   if (report.next_plan?.length) {
     L.push('다음 주 계획:');
-    for (const i of report.next_plan) L.push(`- ${i.subject}${i.detail ? `(${i.detail})` : ''} | ${i.title}`);
+    for (const i of report.next_plan) L.push(`- ${i.subject}${i.detail ? `(${i.detail})` : ''} | ${i.academy ? (i.title === '학원 숙제' ? '학원 숙제' : `학원 숙제 · ${i.title}`) : i.title}`);
   }
   L.push(`선생님 메모 (과목별 앞으로의 공부 방향): ${summary || '(없음)'}`);
   return L.join('\n');

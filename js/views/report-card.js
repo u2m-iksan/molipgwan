@@ -83,7 +83,7 @@ export function reportCard(r, student) {
         <h4>계획 이행도<small>${done ? `달성 ${done}` : ''}${done && low ? ' · ' : ''}${low ? `보완 ${low}` : ''}</small></h4>
         <ul class="wr-bars">${rates.map((x) => `<li class="${tone(x.rate)}">
           <span class="wr-s">${esc(x.subject)}${x.detail ? `<small>${esc(x.detail)}</small>` : ''}</span>
-          <div><p>${esc(x.title)}</p>${acLine(x)}<span class="wr-bar"><i style="width:${Math.max(2, x.rate)}%"></i></span></div>
+          <div>${x.academy && (x.title || '').trim() === '학원 숙제' ? '' : `<p>${esc(x.title)}</p>`}${acLine(x)}<span class="wr-bar"><i style="width:${Math.max(2, x.rate)}%"></i></span></div>
           <b>${x.rate}%</b></li>`).join('')}</ul>
       </section>` : ''}
 
@@ -122,7 +122,7 @@ function newReportCard(r, student) {
       ${habits.length ? `<section class="wr-sec"><h4>몰입관에서 만들 공부 습관</h4>
         <ol class="wr-habits">${habits.map((h, i) => `<li><b>${i + 1}</b><span>${esc(h)}</span></li>`).join('')}</ol></section>` : ''}
       ${plan.length ? `<section class="wr-sec"><h4>다음 주 계획</h4>
-        <ul class="wr-fb">${plan.map((x) => `<li><b>${esc(x.subject)}${x.detail ? `<small>${esc(x.detail)}</small>` : ''}</b><span>${esc(x.title)}</span></li>`).join('')}</ul></section>` : ''}
+        <ul class="wr-fb">${plan.map((x) => `<li><b>${esc(x.subject)}${x.detail ? `<small>${esc(x.detail)}</small>` : ''}</b><span>${esc(x.academy && x.title !== '학원 숙제' ? `학원 숙제 · ${x.title}` : x.title)}</span></li>`).join('')}</ul></section>` : ''}
       ${r.summary ? `<section class="wr-sec"><h4>총평</h4><p class="wr-sum">${esc(r.summary)}</p></section>` : ''}
     </main>
   </article>`;

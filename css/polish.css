@@ -1343,3 +1343,18 @@ body.is-preview .push-gate{display:none!important}
 .sg-d{font-weight:700;font-size:14px;white-space:nowrap}
 .sg-t{font-size:14px;color:var(--sub);white-space:nowrap;font-feature-settings:"tnum"}
 @media (max-width:640px){.sg{grid-template-columns:44px minmax(0,1fr)}.sg-lines{grid-column:1 / -1;margin-top:6px}}
+
+/* 학생 창: 양옆 이전 / 다음 학생 */
+.overlay.instant,.overlay.instant *{transition:none!important;animation:none!important}
+.sheet-nav{position:fixed;top:50%;z-index:2;width:52px;height:52px;margin-top:-26px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.92);color:var(--text);box-shadow:0 6px 20px rgba(0,27,55,.18);opacity:0;transition:opacity .25s,transform .15s,background .15s}
+.overlay.open .sheet-nav{opacity:1}
+.sheet-nav svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.sheet-nav:hover{background:#fff;transform:scale(1.06)}
+.sheet-nav:active{transform:scale(.96)}
+.sheet-nav:disabled{opacity:0!important;pointer-events:none}
+.sheet-nav.prev{left:max(12px,calc(50% - min(1120px,100vw - 48px) / 2 - 68px))}
+.sheet-nav.next{right:max(12px,calc(50% - min(1120px,100vw - 48px) / 2 - 68px))}
+/* 화면이 좁아 창 옆에 자리가 없으면 창 위에 작게 */
+@media (max-width:1260px){.sheet-nav{width:40px;height:40px;margin-top:-20px;background:rgba(255,255,255,.96)}}
+@media (max-width:720px){.sheet-nav{display:none}}

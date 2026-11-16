@@ -123,13 +123,14 @@ export function revealBars(root, base = 0) {
 /* ---------- 패널(오른쪽) · 모달(가운데) 공통 ---------- */
 export const X = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
-export function sheet(inner, where = 'right') {
+export function sheet(inner, where = 'right', opt = {}) {
   const wrap = document.createElement('div');
-  wrap.className = `overlay overlay-${where}`;
+  wrap.className = `overlay overlay-${where}${opt.instant ? ' open instant' : ''}`;
   wrap.innerHTML = `<div class="scrim" data-close></div>${inner}`;
   document.body.appendChild(wrap);
   document.body.style.overflow = 'hidden';
-  requestAnimationFrame(() => wrap.classList.add('open'));
+  if (opt.instant) setTimeout(() => wrap.classList.remove('instant'), 50);
+  else requestAnimationFrame(() => wrap.classList.add('open'));
   revealBars(wrap, 280);
   dragToClose(wrap);
   const onKey = (e) => { if (e.key === 'Escape') wrap.close(); };

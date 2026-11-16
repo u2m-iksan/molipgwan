@@ -95,7 +95,8 @@ export async function renderStudents(body) {
   }
 
   /* ---------- 등록 · 수정 패널 ---------- */
-  function openEditor(stu) {
+  let lastTab = 'sched';
+  function openEditor(stu, swap = null) {
     const f = stu ? { ...stu, traits: [...(stu.traits || [])] }
       : { name: '', seat_no: '', grade: '', school: '', parent_phone: '', student_phone: '', status: '재원', traits: [], avoid_subject: '', trait_note: '' };
     f.strong_subjects = [...(f.strong_subjects || [])]; f.weak_subjects = [...(f.weak_subjects || [])];
@@ -144,18 +145,51 @@ export async function renderStudents(body) {
         </div>
         </form>
         <div class="pane" id="sched"${stu ? '' : ' hidden'}></div>
-      </div>`, 'center');
-
+      </div>`, 'center', swap ? { instant: true } : undefined);
+    if (swap) swap.remove();   // 옆 학생으로 넘길 때: 새 창을 바로 띄우고 이전 창은 지움 (깜빡임 없이)
     if (stu) {
+      // 양옆 < > · 키보드 ← → · 좌우 스와이프로 목록 순서대로 이전 / 다음 학생
+      const ids = $$('#tbl tbody tr').map((tr) => tr.dataset.id);
+      const at = ids.indexOf(stu.id);
+      const onArrow = (e) => {
+        if (!document.body.contains(panel)) return document.removeEventListener('keydown', onArrow);
+        if (e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('.gp')) return;
+        if (e.key === 'ArrowLeft') go(-1); else if (e.key === 'ArrowRight') go(1);
+      };
+      const go = (d) => {
+        const id = ids[at + d]; const n = id && state.list.find((x) => x.id === id);
+        if (!n) return;
+        document.removeEventListener('keydown', onArrow);
+        openEditor(n, panel);
+      };
+      if (ids.length > 1 && at >= 0) {
+        panel.insertAdjacentHTML('beforeend', `<button type="button" class="sheet-nav prev" aria-label="이전 학생"${at > 0 ? '' : ' disabled'}><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <button type="button" class="sheet-nav next" aria-label="다음 학생"${at < ids.length - 1 ? '' : ' disabled'}><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>`);
+        $('.sheet-nav.prev', panel).addEventListener('click', () => go(-1));
+        $('.sheet-nav.next', panel).addEventListener('click', () => go(1));
+      }
+      document.addEventListener('keydown', onArrow);
+      const box = $('.modal', panel);
+      let sx = null, sy = 0;
+      box.addEventListener('touchstart', (e) => {
+        sx = e.target.closest('.wk-scroll, input, textarea, .seg, .sp-box') ? null : e.touches[0].clientX; sy = e.touches[0].clientY;
+      }, { passive: true });
+      box.addEventListener('touchend', (e) => {
+        if (sx == null) return;
+        const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; sx = null;
+        if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.8) go(dx < 0 ? 1 : -1);
+      });
       const tabs = $('#d-tabs', panel);
       tabs.addEventListener('click', (e) => {
         const b = e.target.closest('button'); if (!b) return;
+        lastTab = b.dataset.v;
         $$('button', tabs).forEach((x) => x.classList.toggle('on', x === b));
         $('#ed', panel).hidden = b.dataset.v !== 'info';
         $('#sched', panel).hidden = b.dataset.v !== 'sched';
         if (b.dataset.v === 'sched') renderScheduleEditor($('#sched', panel), stu, { canCoach: true });
       });
-      renderScheduleEditor($('#sched', panel), stu, { canCoach: true });
+      if (lastTab === 'info') $('#d-tabs [data-v="info"]', panel).click();
+      else renderScheduleEditor($('#sched', panel), stu, { canCoach: true });
     }
 
     const pick = (id, key) => {

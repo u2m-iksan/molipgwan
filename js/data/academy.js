@@ -22,7 +22,15 @@ export function matches(item, r) {
   if (r.subject_detail) return detailMatch(r.subject_detail, item.subject_detail);   // 세부 과목 없이 등록한 학원 = 그 과목 전체
   return true;
 }
-export const hasAcademy = (item, rows) => (rows || []).some((r) => matches(item, r));
+// 그 학원이 from 부터 days 일 안에 실제로 있는지 (학기 · 방학 · 기간 반영) — 방학에만 있는 학원이 학기 중 숙제 칸에 뜨지 않게
+export const liveAcademy = (rows, from = today(), days = 14) => (r) => {
+  for (let k = 0; k < days; k++) {
+    const d = addDays(from, k);
+    if (r.weekday === isoDow(d) && !r.makeup && r.valid_from <= d && (!r.valid_to || r.valid_to >= d) && (!r.term || !rows?.termAt || r.term === rows.termAt(d))) return true;
+  }
+  return false;
+};
+export const hasAcademy = (item, rows, from) => { const live = liveAcademy(rows, from); return (rows || []).some((r) => matches(item, r) && live(r)); };
 
 // 계획 기간 [start, end) 안에서 그 과목 학원 가는 날 — 정규 일정 기준 (휴강이어도 숙제는 하니까 칸 유지 · 보강은 칸 안 늘림)
 export function academyDates(item, start, end, rows) {

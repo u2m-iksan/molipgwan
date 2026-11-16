@@ -6,7 +6,7 @@ import { segBar } from '../views/progress-bar.js';
 import { SUBJECTS } from '../data/students.js';
 import { sb } from '../sb.js';
 import { loadStudentSchedules, loadVacations, withTerm } from '../data/schedules.js';
-import { hasAcademy, matches, academyStat, dayLabel, AC_MARK, AC_CLS } from '../data/academy.js';
+import { hasAcademy, matches, academyStat, dayLabel, AC_MARK, AC_CLS, liveAcademy } from '../data/academy.js';
 import {
   loadConsult, loadCarryCandidates, saveConsult, saveConsultTx, saveReport, computeReportStats,
   buildPrompt, parseGpt, reportSubjects, noticeText,
@@ -194,7 +194,8 @@ export function renderConsult(root, stu, scheduled, { onSaved } = {}) {
   // 다음 계획 기본: 다니는 학원 과목마다 칸 하나 (과목 · 세부 과목 · 학원 숙제 켜짐)
   function seedAcademy() {
     const t = today(), seen = new Set();
-    const acs = (st.sched || []).filter((r) => r.category === '학원' && r.subject && r.valid_from <= addDays(t, 7) && (!r.valid_to || r.valid_to >= t));
+    const live = liveAcademy(st.sched, t);   // 앞으로 2주 안에 실제로 가는 학원만 (방학 전용 학원은 학기 중엔 빼기)
+    const acs = (st.sched || []).filter((r) => r.category === '학원' && r.subject && live(r));
     const add = [];
     for (const r of acs) {
       const k = `${r.subject}|${r.subject_detail || ''}`; if (seen.has(k)) continue; seen.add(k);

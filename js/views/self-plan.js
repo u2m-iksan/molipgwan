@@ -3,7 +3,7 @@
 import { $, $$, esc, toast, sheet, X, fadeOut, popIn } from '../ui.js';
 import { short } from '../date.js';
 import { SUBJECTS } from '../data/students.js';
-import { hasAcademy, matches } from '../data/academy.js';
+import { hasAcademy, matches, liveAcademy } from '../data/academy.js';
 import { loadMySubjects, saveSelfPlan } from '../data/student.js';
 
 const md = (d) => short(d);
@@ -15,7 +15,8 @@ export async function openSelfPlan(student, { plan, items = [], sched = [], need
   // 기본: 다니는 학원 과목마다 학원 숙제 칸
   const rows = [];
   const seen = new Set();
-  for (const r of sched.filter((x) => x.category === '학원' && x.subject)) {
+  const live = liveAcademy(sched);   // 지금(학기 / 방학) 실제로 가는 학원만
+  for (const r of sched.filter((x) => x.category === '학원' && x.subject && live(x))) {
     const k = `${r.subject}|${r.subject_detail || ''}`; if (seen.has(k)) continue; seen.add(k);
     rows.push({ subject: r.subject, subject_detail: r.subject_detail || '', title: '', detail: '', academy: true });
   }

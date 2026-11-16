@@ -5,7 +5,7 @@
 import { $, $$, esc } from '../ui.js';
 import { today, short, DOW, hm, mondayOf, addDays } from '../date.js';
 import { loadAllPlans, loadWeekCoachings } from '../data/coaching.js';
-import { academyStat, AC_CLS, matches } from '../data/academy.js';
+import { academyStat, AC_CLS, matches, liveAcademy } from '../data/academy.js';
 import { withTerm } from '../data/schedules.js';
 import { segBar } from '../views/progress-bar.js';
 import { lastDays } from '../data/overview.js';
@@ -47,8 +47,9 @@ export async function renderPlans(body) {
     // 다니는 학원은 계획에 안 넣었어도 학원 숙제 칸을 자동으로 (보기용 · 체크는 상담에서 계획에 넣은 뒤)
     const per = plan || { start_date: mondayOf(t), due_date: addDays(mondayOf(t), 7) };
     const seen = new Set();
+    const live = liveAcademy(mySched, per.start_date, 14);   // 이 기간(학기 / 방학)에 실제로 가는 학원만
     for (const r of mySched) {
-      if (r.category !== '학원' || !r.subject || r.makeup) continue;
+      if (r.category !== '학원' || !r.subject || r.makeup || !live(r)) continue;
       const k = `${r.subject}|${r.subject_detail || ''}`; if (seen.has(k)) continue; seen.add(k);
       const v = { id: 'auto:' + k, subject: r.subject, subject_detail: r.subject_detail || null, title: '학원 숙제', academy: true, auto: true };
       if (its.some((i) => i.academy && matches(i, r))) continue;
